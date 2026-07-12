@@ -13,7 +13,13 @@ from app.core.manager import core_manager
 from app.db import GetDB
 from app.db.crud.host import get_host_by_id, get_hosts, upsert_inbounds
 from app.db.models import ProxyHostSecurity
-from app.models.host import BaseHost, FinalMask, TransportSettings, WireGuardHostOverrides
+from app.models.host import (
+    BaseHost,
+    FinalMask,
+    OpenVPNHostOverrides,
+    TransportSettings,
+    WireGuardHostOverrides,
+)
 from app.models.subscription import (
     GRPCTransportConfig,
     KCPTransportConfig,
@@ -106,6 +112,42 @@ async def _prepare_subscription_inbound_data(
             wireguard_dns=dns,
             fragment_settings=host.fragment_settings.model_dump() if host.fragment_settings else None,
             noise_settings=host.noise_settings.model_dump() if host.noise_settings else None,
+            priority=host.priority,
+            status=list(host.status) if host.status else None,
+            subscription_templates=host.subscription_templates.model_dump(exclude_none=True)
+            if host.subscription_templates
+            else None,
+        )
+
+    if protocol == "openvpn":
+        ov_over: OpenVPNHostOverrides | None = host.openvpn_overrides
+        if ov_over is None:
+            ov_over = OpenVPNHostOverrides()
+
+        return SubscriptionInboundData(
+            remark=host.remark,
+            inbound_tag=host.inbound_tag,
+            protocol=protocol,
+            address=list(host.address) if host.address else ["{SERVER_IP}"],
+            port=[host.port] if host.port else [inbound_config.get("listen_port")],
+            network=network,
+            tls_config=TLSConfig(),
+            transport_config=TCPTransportConfig(path="", host=[]),
+            mux_settings=None,
+            openvpn_ca_cert=inbound_config.get("ca_cert", ""),
+            openvpn_tls_crypt_key=inbound_config.get("tls_crypt_key", ""),
+            openvpn_cipher=inbound_config.get("cipher", "AES-256-GCM"),
+            openvpn_data_ciphers=inbound_config.get("data_ciphers", []) or [],
+            openvpn_auth=inbound_config.get("auth", "SHA256"),
+            openvpn_proto=ov_over.proto or inbound_config.get("network", "udp"),
+            openvpn_dns=list(ov_over.dns) if ov_over.dns else (inbound_config.get("dns") or None),
+            openvpn_redirect_gateway=(
+                ov_over.redirect_gateway if ov_over.redirect_gateway is not None else True
+            ),
+            openvpn_mtu=ov_over.mtu,
+            openvpn_extra_directives=(
+                list(ov_over.extra_client_directives) if ov_over.extra_client_directives else None
+            ),
             priority=host.priority,
             status=list(host.status) if host.status else None,
             subscription_templates=host.subscription_templates.model_dump(exclude_none=True)
@@ -455,7 +497,7 @@ class HostManager:
             # Deserialize state using JSON
             try:
                 cached_state = json.loads(value.decode("utf-8"))
-            except json.JSONDecodeError, UnicodeDecodeError:
+            except (json.JSONDecodeError, UnicodeDecodeError):
                 self._logger.warning("Failed to decode HostManager state as JSON, ignoring...")
                 return False
 
@@ -468,7 +510,7 @@ class HostManager:
                         converted_state[host_id] = SubscriptionInboundData.model_validate(host_data)
                     else:
                         converted_state[host_id] = host_data
-                except ValueError, TypeError:
+                except (ValueError, TypeError):
                     self._logger.warning(f"Failed to convert host data for host ID {host_id_str}: {host_data}")
                     continue
 

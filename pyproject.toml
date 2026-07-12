@@ -38,10 +38,15 @@ dependencies = [
     "uvloop>=0.22.1; sys_platform != 'win32'",
     "aiorwlock>=1.5.0",
     "typer>=0.26.8",
-    "pasarguard-node-bridge>=0.8.1",
+    "pasarguard-node-bridge>=0.9.0",
     "pip-system-certs>=5.3",
     "nats-py>=2.15.0",
 ]
+
+# Vendored node bridge carrying the OpenVPN/IKEv2 proto changes (>=0.9.0)
+# until it is published to PyPI. Lives in-repo so a fresh clone is self-contained.
+[tool.uv.sources]
+pasarguard-node-bridge = { path = "_vendor/node_bridge_py", editable = true }
 
 [tool.ruff]
 line-length = 120

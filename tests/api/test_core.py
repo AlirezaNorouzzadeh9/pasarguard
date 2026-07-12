@@ -46,6 +46,56 @@ def test_wireguard_core_create(access_token):
     delete_core(access_token, core["id"])
 
 
+def test_openvpn_core_create_generates_material(access_token):
+    """An OpenVPN core auto-generates CA/server cert material on create."""
+    inbound_tag = unique_name("ovpn")
+    core = create_core(
+        access_token,
+        name=unique_name("openvpn_core"),
+        config={
+            "inbound_tag": inbound_tag,
+            "port": 1194,
+            "proto": "udp",
+            "server_subnet": "10.29.0.0/16",
+            "dns": ["1.1.1.1"],
+        },
+        type="openvpn",
+        fallbacks=[],
+    )
+    try:
+        assert core["type"] == "openvpn"
+        cfg = core["config"]
+        # Material injected by ensure_openvpn_core_material
+        assert "BEGIN CERTIFICATE" in cfg["ca_cert"]
+        assert "BEGIN CERTIFICATE" in cfg["server_cert"]
+        assert "BEGIN PRIVATE KEY" in cfg["server_key"]
+        assert "OpenVPN Static key V1" in cfg["tls_crypt_key"]
+
+        details = get_inbound_details(access_token)
+        ov_detail = next(item for item in details if item["tag"] == inbound_tag)
+        assert ov_detail["protocol"] == "openvpn"
+        assert ov_detail["network"] == "udp"
+        # Server private key must never be exposed in inbound metadata.
+        assert "server_key" not in ov_detail
+    finally:
+        delete_core(access_token, core["id"])
+
+
+def test_openvpn_core_rejects_bad_subnet(access_token):
+    response = client.post(
+        url="/api/core",
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={
+            "name": unique_name("openvpn_bad"),
+            "type": "openvpn",
+            "config": {"inbound_tag": "ovpn", "port": 1194, "proto": "udp", "server_subnet": "not-a-subnet"},
+            "exclude_inbound_tags": [],
+            "fallbacks_inbound_tags": [],
+        },
+    )
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
 def test_core_update(access_token):
     """Test that the core update route is accessible."""
 

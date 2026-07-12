@@ -573,6 +573,7 @@ class ProxyHost(Base, IdMixin):
         StringArray(1000), default_factory=set, unique=False, nullable=True
     )
     wireguard_overrides: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON(none_as_null=True), default=None)
+    openvpn_overrides: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON(none_as_null=True), default=None)
     subscription_templates: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON(none_as_null=True), default=None)
     final_mask_settings: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON(none_as_null=True), default=None)
 
@@ -826,6 +827,7 @@ class CoreType(str, Enum):
     wg = "wg"
     mtproto = "mtproto"
     singbox = "singbox"
+    openvpn = "openvpn"
 
 
 class CoreConfig(Base, CreatedAtUTCMixin):
@@ -872,6 +874,7 @@ class Settings(Base, IdMixin):
     subscription: Mapped[dict] = mapped_column(JSON())
     hwid: Mapped[dict] = mapped_column(JSON())
     general: Mapped[dict] = mapped_column(JSON())
+    openvpn: Mapped[dict] = mapped_column(JSON(), default_factory=dict, server_default="{}")
 
 
 class AdminRole(Base, CreatedAtUTCMixin):

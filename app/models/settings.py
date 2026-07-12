@@ -195,6 +195,7 @@ class ConfigFormat(str, Enum):
     links_base64 = "links_base64"
     xray = "xray"
     wireguard = "wireguard"
+    openvpn = "openvpn"
     sing_box = "sing_box"
     clash = "clash"
     clash_meta = "clash_meta"
@@ -213,6 +214,7 @@ class SubFormatEnable(BaseModel):
     links_base64: bool = Field(default=True)
     xray: bool = Field(default=True)
     wireguard: bool = Field(default=True)
+    openvpn: bool = Field(default=True)
     sing_box: bool = Field(default=True)
     clash: bool = Field(default=True)
     clash_meta: bool = Field(default=True)
@@ -368,6 +370,27 @@ class General(BaseModel):
         return validate_custom_variables(value)
 
 
+class OpenVPNSettings(BaseModel):
+    """Panel-wide OpenVPN PKI material.
+
+    Auto-populated on first use by ``ensure_openvpn_core_material``. ``ca_key``
+    is write-only and must never be serialized in API responses — see
+    ``model_dump`` override.
+    """
+
+    ca_cert: str | None = Field(default=None)
+    ca_key: str | None = Field(default=None)
+    tls_crypt_key: str | None = Field(default=None)
+    client_cert_validity_days: int = Field(default=3650, ge=1)
+
+    def model_dump(self, *args, **kwargs):
+        data = super().model_dump(*args, **kwargs)
+        # Never expose the CA private key through the settings API.
+        if "ca_key" in data:
+            data["ca_key"] = None
+        return data
+
+
 class SettingsSchema(BaseModel):
     telegram: Telegram | None = Field(default=None)
     webhook: Webhook | None = Field(default=None)
@@ -376,5 +399,6 @@ class SettingsSchema(BaseModel):
     subscription: Subscription | None = Field(default=None)
     hwid: HWIDSettings | None = Field(default=None)
     general: General | None = Field(default=None)
+    openvpn: OpenVPNSettings | None = Field(default=None)
 
     model_config = ConfigDict(from_attributes=True)

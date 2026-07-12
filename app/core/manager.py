@@ -9,6 +9,7 @@ from nats.js.kv import KeyValue
 
 from app import on_shutdown, on_startup
 from app.core.abstract_core import AbstractCore
+from app.core.openvpn import OpenVPNConfig
 from app.core.wireguard import WireGuardConfig
 from app.core.xray import XRayConfig
 from app.db import GetDB
@@ -29,6 +30,7 @@ class CoreManager:
     CORE_CLASSES = {
         CoreType.xray: XRayConfig,
         CoreType.wg: WireGuardConfig,
+        CoreType.openvpn: OpenVPNConfig,
     }
 
     def __init__(self):
@@ -80,7 +82,7 @@ class CoreManager:
             # Deserialize state using JSON
             try:
                 cached_state = json.loads(entry.value.decode("utf-8"))
-            except json.JSONDecodeError, UnicodeDecodeError:
+            except (json.JSONDecodeError, UnicodeDecodeError):
                 self._logger.warning("Failed to decode CoreManager state as JSON, ignoring...")
                 return False
 

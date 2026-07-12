@@ -70,6 +70,11 @@ MAX_MESSAGE_LENGTH = 128
 
 logger = get_logger("node-operation")
 
+_BACKEND_TYPE_BY_CORE = {
+    CoreType.wg: service.BackendType.WIREGUARD,
+    CoreType.openvpn: service.BackendType.OPENVPN,
+}
+
 
 class NodeOperation(BaseOperation):
     def __init__(self, operator_type: OperatorType):
@@ -243,7 +248,7 @@ class NodeOperation(BaseOperation):
 
         old_status = db_node.status
         logger.info(f'Connecting to "{db_node.name}" node')
-        type = service.BackendType.WIREGUARD if core.type == CoreType.wg else service.BackendType.XRAY
+        type = _BACKEND_TYPE_BY_CORE.get(core.type, service.BackendType.XRAY)
 
         try:
             start_kwargs = {

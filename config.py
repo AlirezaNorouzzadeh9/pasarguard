@@ -205,6 +205,10 @@ class WireGuardSettings(EnvSettings):
     reserved: str = Field(default="10.0.0.0/31", validation_alias="WIREGUARD_RESERVED")
 
 
+class OpenVPNEnvSettings(EnvSettings):
+    enabled: bool = Field(default=True, validation_alias="OPENVPN_ENABLED")
+
+
 database_settings = DatabaseSettings()
 server_settings = ServerSettings()
 dashboard_settings = DashboardSettings()
@@ -221,6 +225,7 @@ usage_settings = UsageSettings()
 job_settings = JobSettings()
 feature_settings = FeatureSettings()
 wireguard_settings = WireGuardSettings()
+openvpn_env_settings = OpenVPNEnvSettings()
 
 if not database_settings.is_postgresql:
     usage_settings.enable_recording_nodes_stats = False

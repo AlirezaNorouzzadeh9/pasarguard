@@ -270,6 +270,18 @@ class SubscriptionInboundData(BaseModel):
     wireguard_reserved: str | None = Field(default=None)
     wireguard_dns: list[str] | None = Field(default=None)
 
+    # OpenVPN specific
+    openvpn_ca_cert: str = Field("")
+    openvpn_tls_crypt_key: str = Field("")
+    openvpn_cipher: str = Field("AES-256-GCM")
+    openvpn_data_ciphers: list[str] = Field(default_factory=list)
+    openvpn_auth: str = Field("SHA256")
+    openvpn_proto: str = Field("udp")
+    openvpn_dns: list[str] | None = Field(default=None)
+    openvpn_redirect_gateway: bool = Field(True)
+    openvpn_mtu: int | None = Field(default=None)
+    openvpn_extra_directives: list[str] | None = Field(default=None)
+
     # Flow (from inbound, user can override)
     inbound_flow: str = Field("")
 

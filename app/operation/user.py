@@ -113,6 +113,7 @@ from app.utils.hwid import resolve_effective_hwid_settings
 from app.utils.jwt import create_subscription_token
 from app.utils.logger import get_logger
 from app.utils.system import readable_duration, readable_size
+from app.utils.openvpn import prepare_openvpn_proxy_settings
 from app.utils.wireguard import (
     build_wireguard_peer_ip_allocator,
     bulk_reallocate_wireguard_peer_ips as run_bulk_reallocate_wireguard_peer_ips,
@@ -471,17 +472,40 @@ class UserOperation(BaseOperation):
         except ValueError as exc:
             await self.raise_error(message=str(exc), code=400, db=db)
 
+    async def _issue_openvpn_cert_if_needed(
+        self, db: AsyncSession, db_user: User, groups: list, *, force_reissue: bool = False
+    ) -> None:
+        """Issue/renew the user's OpenVPN cert after the row exists (CN = user id).
+
+        Persists ``proxy_settings`` in place when a cert is (re)issued so the
+        subsequent node sync carries the new serial.
+        """
+        proxy_settings = ProxyTable.model_validate(db_user.proxy_settings)
+        updated = await prepare_openvpn_proxy_settings(
+            db, proxy_settings, groups, db_user.id, force_reissue=force_reissue
+        )
+        new_settings = updated.dict()
+        if new_settings != db_user.proxy_settings:
+            db_user.proxy_settings = new_settings
+            await db.commit()
+            await db.refresh(db_user)
+
     async def _prepare_revoked_proxy_settings(self, db: AsyncSession, db_user: User) -> ProxyTable:
         groups = db_user.__dict__.get("groups")
         if groups is None:
             groups = await db_user.awaitable_attrs.groups
 
-        return await self._prepare_user_proxy_settings(
+        proxy_settings = await self._prepare_user_proxy_settings(
             db,
             groups,
             ProxyTable.model_validate(build_revoked_proxy_settings(db_user)),
             exclude_user_id=db_user.id,
             skip_peer_ip_validation=True,
+        )
+        # Reissue the OpenVPN client cert so its serial changes — the node then
+        # denies the previously distributed .ovpn profile.
+        return await prepare_openvpn_proxy_settings(
+            db, proxy_settings, groups, db_user.id, force_reissue=True
         )
 
     async def _get_validated_template_with_access(
@@ -709,6 +733,8 @@ class UserOperation(BaseOperation):
         except IntegrityError:
             await self.raise_error(message="User already exists", code=409, db=db)
 
+        await self._issue_openvpn_cert_if_needed(db, db_user, all_groups)
+
         user = await self.update_user(db_user)
 
         logger.info(f'New user "{db_user.username}" with id "{db_user.id}" added by admin "{admin.username}"')
@@ -838,6 +864,11 @@ class UserOperation(BaseOperation):
             proxy_settings_to_prepare,
             exclude_user_id=db_user.id,
             skip_peer_ip_validation=not peer_ips_changed,
+        )
+        # Issue an OpenVPN cert if the (possibly new) groups grant an openvpn
+        # inbound and the user has none yet. CN = user id (row already exists).
+        prepared_proxy_settings = await prepare_openvpn_proxy_settings(
+            db, prepared_proxy_settings, effective_groups, db_user.id
         )
         if modified_user.proxy_settings is not None or prepared_proxy_settings.dict() != current_proxy_settings_data:
             modified_user.proxy_settings = prepared_proxy_settings

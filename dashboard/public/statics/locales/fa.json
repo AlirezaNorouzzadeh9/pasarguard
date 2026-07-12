@@ -198,6 +198,7 @@
         "links_base64": "لینک‌ها (Base64)",
         "xray": "Xray",
         "wireguard": "WireGuard",
+        "openvpn": "OpenVPN",
         "sing_box": "Sing-box",
         "clash": "Clash",
         "clash_meta": "Clash Meta",

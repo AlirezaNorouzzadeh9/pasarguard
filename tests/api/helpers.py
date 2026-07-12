@@ -69,7 +69,9 @@ def create_core(
         "name": name or unique_name("core"),
         "type": type,
         "exclude_inbound_tags": list(exclude or []),
-        "fallbacks_inbound_tags": list(fallbacks or ([] if type == "wg" else ["fallback-A", "fallback-B"])),
+        "fallbacks_inbound_tags": list(
+            fallbacks or ([] if type in ("wg", "openvpn") else ["fallback-A", "fallback-B"])
+        ),
     }
     response = client.post("/api/core", headers=auth_headers(access_token), json=payload)
     assert response.status_code == status.HTTP_201_CREATED

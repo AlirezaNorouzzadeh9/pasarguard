@@ -14,6 +14,7 @@ from app.db.crud.hwid import (
 from app.db.crud.user import get_user_usages, user_sub_update
 from app.db.models import User
 from app.models.admin import AdminDetails
+from app.models.proxy import ProxyTable
 from app.models.settings import Application, ConfigFormat, HWIDSettings, SubRule, Subscription as SubSettings
 from app.models.stats import UserUsageStatsList
 from app.models.subscription import SubscriptionUsageQuery
@@ -76,6 +77,12 @@ client_config = {
         "as_base64": False,
         "extension": ".zip",
     },
+    ConfigFormat.openvpn: {
+        "config_format": "openvpn",
+        "media_type": "application/zip",
+        "as_base64": False,
+        "extension": ".zip",
+    },
     ConfigFormat.xray: {
         "config_format": "xray",
         "media_type": "application/json",
@@ -127,7 +134,7 @@ class SubscriptionOperation(BaseOperation):
 
         try:
             return profile_title.format_map(format_variables)
-        except ValueError, KeyError:
+        except (ValueError, KeyError):
             # Invalid format string, return original title
             return profile_title
 
@@ -139,7 +146,7 @@ class SubscriptionOperation(BaseOperation):
 
         try:
             return sub_settings.announce.format_map(format_variables)
-        except ValueError, KeyError:
+        except (ValueError, KeyError):
             return sub_settings.announce
 
     @staticmethod
@@ -246,7 +253,7 @@ class SubscriptionOperation(BaseOperation):
                 return ""
             try:
                 return header_value.format_map(format_variables)
-            except ValueError, KeyError:
+            except (ValueError, KeyError):
                 return header_value
 
         if isinstance(value, (dict, list, tuple, bool, int, float)):
@@ -272,6 +279,27 @@ class SubscriptionOperation(BaseOperation):
 
         # Only include headers that have values
         return {k: v for k, v in headers.items() if v}
+
+    @staticmethod
+    async def _ensure_openvpn_cert_for_sub(db: AsyncSession, db_user: User) -> None:
+        """Lazily issue an OpenVPN client cert on first openvpn subscription fetch.
+
+        Covers users who gained an OpenVPN inbound without going through the
+        create/modify issuance paths (e.g. bulk-created users).
+        """
+        from app.utils.openvpn import prepare_openvpn_proxy_settings
+
+        groups = db_user.__dict__.get("groups")
+        if groups is None:
+            groups = await db_user.awaitable_attrs.groups
+
+        proxy_settings = ProxyTable.model_validate(db_user.proxy_settings)
+        updated = await prepare_openvpn_proxy_settings(db, proxy_settings, groups, db_user.id)
+        new_settings = updated.dict()
+        if new_settings != db_user.proxy_settings:
+            db_user.proxy_settings = new_settings
+            await db.commit()
+            await db.refresh(db_user)
 
     async def fetch_config(self, user: UsersResponseWithInbounds, client_type: ConfigFormat) -> tuple[str | bytes, str]:
         # Get client configuration
@@ -525,6 +553,8 @@ class SubscriptionOperation(BaseOperation):
         if client_type == ConfigFormat.block or not getattr(sub_settings.manual_sub_request, client_type):
             await self.raise_error(message="Client not supported", code=406)
         db_user = await self.get_validated_sub(db, token=token, load_admin_role=True)
+        if client_type == ConfigFormat.openvpn:
+            await self._ensure_openvpn_cert_for_sub(db, db_user)
         user = await self.validated_user(db_user)
 
         await self.validate_and_register_hwid(

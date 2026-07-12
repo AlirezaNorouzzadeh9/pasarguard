@@ -476,6 +476,47 @@ class WireGuardHostOverrides(BaseModel):
         return normalized or None
 
 
+class OpenVPNHostOverrides(BaseModel):
+    """Optional per-host values merged into OpenVPN (.ovpn) subscription output."""
+
+    proto: str | None = Field(default=None)
+    redirect_gateway: bool | None = Field(default=None)
+    dns: list[str] | None = Field(default=None)
+    mtu: int | None = Field(default=None, ge=576, le=9000)
+    extra_client_directives: list[str] | None = Field(default=None)
+
+    @field_validator("proto", mode="before")
+    @classmethod
+    def validate_proto(cls, v):
+        if v in (None, ""):
+            return None
+        v = str(v).strip().lower()
+        if v not in ("udp", "tcp"):
+            raise ValueError("proto must be 'udp' or 'tcp'")
+        return v
+
+    @field_validator("extra_client_directives", mode="before")
+    @classmethod
+    def validate_directives(cls, value):
+        if value in (None, "", []):
+            return None
+        if not isinstance(value, list):
+            raise ValueError("extra_client_directives must be a list of strings")
+        cleaned: list[str] = []
+        for line in value:
+            if not isinstance(line, str):
+                continue
+            line = line.strip()
+            if not line:
+                continue
+            # Guard against inline file blocks and script hooks in a client profile.
+            lowered = line.lower()
+            if line.startswith("<") or lowered.startswith(("script-security", "up ", "down ", "route-up")):
+                raise ValueError(f"directive '{line}' is not allowed")
+            cleaned.append(line)
+        return cleaned or None
+
+
 class SubscriptionTemplates(BaseModel):
     xray: int | None = Field(default=None, ge=1)
 
@@ -516,6 +557,7 @@ class BaseHost(BaseModel):
     pinned_peer_cert_sha256: str | None = Field(default=None)
     verify_peer_cert_by_name: set[str] | None = Field(default_factory=set)
     wireguard_overrides: WireGuardHostOverrides | None = None
+    openvpn_overrides: OpenVPNHostOverrides | None = None
     subscription_templates: SubscriptionTemplates | None = None
     final_mask_settings: FinalMask | None = None
 

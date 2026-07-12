@@ -14,11 +14,12 @@ from app.models.user import UsersResponseWithInbounds
 from app.settings import subscription_settings
 from app.subscription.client_templates import subscription_client_templates, subscription_xray_templates
 from app.utils.system import readable_size
-from config import wireguard_settings
+from config import openvpn_env_settings, wireguard_settings
 
 from . import (
     ClashConfiguration,
     ClashMetaConfiguration,
+    OpenVPNConfiguration,
     OutlineConfiguration,
     SingBoxConfiguration,
     StandardLinks,
@@ -69,6 +70,8 @@ def _build_subscription_config(
         return OutlineConfiguration()
     if config_format == "wireguard":
         return WireGuardConfiguration()
+    if config_format == "openvpn":
+        return OpenVPNConfiguration()
     if config_format == "xray":
         return XrayConfiguration(
             xray_template_content=client_templates["XRAY_SUBSCRIPTION_TEMPLATE"],
@@ -165,7 +168,7 @@ def apply_custom_format_variables(format_variables: dict, custom_variables: list
             continue
         try:
             format_variables[key] = raw_value.format_map(base_variables)
-        except ValueError, KeyError:
+        except (ValueError, KeyError):
             format_variables[key] = raw_value
 
     return format_variables
@@ -175,7 +178,7 @@ def _format_dynamic_value(value, format_variables: dict):
     if isinstance(value, str):
         try:
             return value.format_map(format_variables)
-        except ValueError, KeyError:
+        except (ValueError, KeyError):
             return value
     if isinstance(value, list):
         return [_format_dynamic_value(item, format_variables) for item in value]
@@ -437,6 +440,8 @@ async def process_inbounds_and_tags(
 
     for host_data in hosts:
         if host_data.protocol == "wireguard" and not wireguard_settings.enabled:
+            continue
+        if host_data.protocol == "openvpn" and not openvpn_env_settings.enabled:
             continue
 
         result = await process_host(host_data, format_variables, user.inbounds, proxy_settings, custom_variables)

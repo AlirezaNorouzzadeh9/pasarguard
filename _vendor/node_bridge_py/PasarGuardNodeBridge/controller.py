@@ -1,0 +1,676 @@
+import asyncio
+import logging
+import math
+import ssl
+from enum import IntEnum
+from json import JSONDecodeError
+from typing import Optional
+from uuid import UUID
+
+import aiohttp
+from packaging.version import InvalidVersion, Version
+
+from PasarGuardNodeBridge.aiohttp_compat import (
+    BufferedResponse,
+    BufferedStatusError,
+    LazyClientSession,
+    buffer_response,
+    make_timeout,
+)
+from PasarGuardNodeBridge.common.service_pb2 import User
+from PasarGuardNodeBridge.proxy import parse_proxy_url
+from PasarGuardNodeBridge.storage import (
+    ClaimedUser,
+    LifecycleLease,
+    LifecycleOperation,
+    LifecycleStatus,
+    NodeLifecycleCoordinatorProtocol,
+    NodeLifecycleState,
+    UserSyncStoreProtocol,
+    get_default_lifecycle_coordinator,
+    get_default_user_sync_store,
+)
+
+# Default timeout configuration (module-level constants)
+DEFAULT_API_TIMEOUT = 10  # Default timeout for public API methods
+DEFAULT_INTERNAL_TIMEOUT = 15  # Default timeout for internal gRPC/HTTP operations
+
+
+class NodeAPIError(Exception):
+    def __init__(self, code, detail):
+        self.code = code
+        self.detail = detail
+
+    def __str__(self):
+        return f"NodeAPIError(code={self.code}, detail={self.detail})"
+
+
+class Health(IntEnum):
+    NOT_CONNECTED = 0
+    BROKEN = 1
+    HEALTHY = 2
+    INVALID = 3
+
+
+class Controller:
+    def __init__(
+        self,
+        server_ca: str,
+        api_key: str,
+        service_url: str,
+        name: str = "default",
+        extra: dict | None = None,
+        logger: logging.Logger | None = None,
+        default_timeout: int = DEFAULT_API_TIMEOUT,
+        internal_timeout: int = DEFAULT_INTERNAL_TIMEOUT,
+        proxy: str | None = None,
+        node_id: str | None = None,
+        user_sync_store: UserSyncStoreProtocol | None = None,
+        worker_id: str | None = None,
+        sync_poll_interval: float = 1.0,
+        sync_lease_seconds: float = 30.0,
+        lifecycle_coordinator: NodeLifecycleCoordinatorProtocol | None = None,
+        lifecycle_lease_seconds: float = 60.0,
+    ):
+        self.name = name
+        self.node_id = node_id or service_url
+        self.worker_id = worker_id or f"{self.node_id}:{id(self)}"
+        if extra is None:
+            extra = {}
+        if logger is None:
+            logger = logging.getLogger(self.name)
+            logger.setLevel(logging.INFO)
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+            logger.addHandler(handler)
+        self.logger = logger
+
+        # Timeout configuration
+        self._default_timeout = default_timeout
+        self._internal_timeout = internal_timeout
+        try:
+            self.api_key = UUID(api_key)
+
+            self.h2_ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+            self.h2_ctx.load_verify_locations(cadata=server_ca)
+            self.h2_ctx.check_hostname = True
+            self.h2_ctx.set_alpn_protocols(["h2"])
+
+            self.http1_ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+            self.http1_ctx.load_verify_locations(cadata=server_ca)
+            self.http1_ctx.check_hostname = True
+            self.http1_ctx.set_alpn_protocols(["http/1.1"])
+
+            # Backward-compatible alias for existing transport code that still expects `self.ctx`.
+            self.ctx = self.h2_ctx
+
+        except ssl.SSLError as e:
+            raise NodeAPIError(-1, f"SSL initialization failed: {str(e)}")
+
+        except (ValueError, TypeError) as e:
+            raise NodeAPIError(-2, f"Invalid API key format: {str(e)}")
+
+        try:
+            self._proxy = parse_proxy_url(proxy)
+        except ValueError as e:
+            raise NodeAPIError(-6, f"Invalid proxy format: {str(e)}") from e
+
+        self._health = Health.NOT_CONNECTED
+        self._tasks: list[asyncio.Task] = []
+        self._node_version = ""
+        self._core_version = ""
+        self._extra = extra
+
+        # Lazy worker sync mechanism
+        self._user_sync_store = user_sync_store if user_sync_store is not None else get_default_user_sync_store()
+        self._sync_worker_task: asyncio.Task | None = None
+        self._work_available = asyncio.Event()
+        self._worker_idle_timeout = 5.0  # seconds before worker exits
+        self._sync_poll_interval = sync_poll_interval
+        self._sync_lease_seconds = sync_lease_seconds
+        self._lifecycle_coordinator = (
+            lifecycle_coordinator if lifecycle_coordinator is not None else get_default_lifecycle_coordinator()
+        )
+        self._lifecycle_lease_seconds = lifecycle_lease_seconds
+        self._lifecycle_heartbeat_tasks: dict[str, asyncio.Task] = {}
+
+        # Hard reset mechanism for critical failures
+        self._hard_reset_event = asyncio.Event()
+        self._user_sync_failure_count = 0
+        self._hard_reset_threshold = 5
+        self._failure_count_lock = asyncio.Lock()  # Only for incrementing counters
+
+        # Separate locks for different resources to reduce contention
+        self._health_lock = asyncio.Lock()
+        self._sync_worker_lock = asyncio.Lock()
+        self._version_lock = asyncio.Lock()
+        self._task_lock = asyncio.Lock()
+
+        self._shutdown_event = asyncio.Event()
+
+        self._json_client = LazyClientSession(
+            ssl_context=self.http1_ctx,
+            headers={"Content-Type": "application/json", "x-api-key": api_key},
+            base_url=service_url,
+            timeout=make_timeout(default_timeout),
+            connector_factory=None if self._proxy is None else self._proxy.aiohttp_connector_factory,
+            proxy=None if self._proxy is None else self._proxy.aiohttp_proxy_url,
+            proxy_auth=None if self._proxy is None else self._proxy.aiohttp_proxy_auth,
+        )
+
+    async def set_health(self, health: Health):
+        async with self._health_lock:
+            # INVALID is permanent - once set, it cannot be changed (instance is being deleted)
+            if self._health is Health.INVALID:
+                return
+            self._health = health
+
+    async def get_health(self) -> Health:
+        async with self._health_lock:
+            return self._health
+
+    def requires_hard_reset(self) -> bool:
+        """Check if hard reset is required due to critical failures.
+
+        This is a synchronous, non-blocking check using Event.is_set().
+        """
+        return self._hard_reset_event.is_set()
+
+    async def _increment_user_sync_failure(self):
+        """Increment user sync failure counter and check if hard reset is needed."""
+        async with self._failure_count_lock:
+            self._user_sync_failure_count += 1
+            if self._user_sync_failure_count >= self._hard_reset_threshold:
+                if not self._hard_reset_event.is_set():
+                    self._hard_reset_event.set()
+                    self.logger.critical(
+                        f"[{self.name}] HARD RESET REQUIRED: User sync failed {self._user_sync_failure_count} times in a row"
+                    )
+
+    async def _reset_user_sync_failure_count(self):
+        """Reset user sync failure counter on successful sync and clear hard reset event."""
+        async with self._failure_count_lock:
+            old_count = self._user_sync_failure_count
+            self._user_sync_failure_count = 0
+            # Clear hard reset event if it was set
+            if self._hard_reset_event.is_set():
+                self._hard_reset_event.clear()
+                if old_count > 0:
+                    self.logger.info(
+                        f"[{self.name}] User sync recovered after {old_count} failures, cleared hard reset event"
+                    )
+
+    async def update_user(self, user: User):
+        """Queue a user for sync. Automatically deduplicates by email."""
+        await self._user_sync_store.enqueue_users(self.node_id, [user])
+        self._work_available.set()
+
+        # Ensure worker is running to process the update
+        await self._ensure_sync_worker_running()
+
+    async def update_users(self, users: list[User]):
+        """Queue multiple users for sync. Automatically deduplicates by email."""
+        if not users:
+            return
+
+        await self._user_sync_store.enqueue_users(self.node_id, users)
+        self._work_available.set()
+
+        # Ensure worker is running to process the updates
+        await self._ensure_sync_worker_running()
+
+    async def _try_recover_health_after_sync(
+        self, was_broken: bool, was_invalid: bool
+    ) -> tuple[float | None, float | None]:
+        """
+        Attempt to recover node health from BROKEN or INVALID to HEALTHY after successful sync.
+
+        Args:
+            was_broken: Whether the node was BROKEN before sync
+            was_invalid: Whether the node was INVALID before sync
+
+        Returns:
+            Tuple of (retry_delay, sync_retry_delay) - (10.0, 1.0) if recovery succeeded,
+            (None, None) if no recovery needed or recovery failed
+        """
+        if not (was_broken or was_invalid):
+            return None, None  # No recovery needed
+
+        current_health = await self.get_health()
+        if current_health not in (Health.BROKEN, Health.INVALID):
+            return None, None  # Already recovered
+
+        try:
+            # Verify node is actually healthy before updating
+            await self.get_backend_stats()
+            await self.set_health(Health.HEALTHY)
+            health_status = "BROKEN" if was_broken else "INVALID"
+            self.logger.info(f"[{self.name}] Sync succeeded while {health_status}, node health updated to HEALTHY")
+            # Return reset delays
+            return 10.0, 1.0
+        except Exception as e:
+            # Node still not responding, keep current health status
+            error_type = type(e).__name__
+            self.logger.debug(
+                f"[{self.name}] Sync succeeded but health check failed, keeping {current_health.name} | "
+                f"Error: {error_type} - {str(e)}"
+            )
+            return None, None  # Keep current delays
+
+    async def flush_pending_users(self):
+        """Clear all pending users without syncing them."""
+        await self._user_sync_store.clear(self.node_id)
+        self._work_available.clear()
+
+    async def node_version(self) -> str:
+        async with self._version_lock:
+            return self._node_version
+
+    async def core_version(self) -> str:
+        async with self._version_lock:
+            return self._core_version
+
+    async def get_versions(self) -> tuple[str, str]:
+        """Get both node and core versions atomically.
+
+        Returns:
+            tuple[str, str]: (node_version, core_version)
+        """
+        async with self._version_lock:
+            return self._node_version, self._core_version
+
+    async def get_extra(self) -> dict:
+        async with self._version_lock:
+            return self._extra
+
+    @staticmethod
+    def _parse_version(version: str) -> Version | None:
+        """Parse semver-like strings into a packaging Version for comparison."""
+        if not version:
+            return None
+
+        # Drop build metadata and pre-release suffixes
+        cleaned = version.split("+", 1)[0]
+        cleaned = version.split("-", 1)[0]
+
+        try:
+            return Version(cleaned)
+        except InvalidVersion:
+            return None
+
+    @classmethod
+    def _is_version_at_least(cls, version: str, minimum: str) -> bool:
+        current = cls._parse_version(version)
+        target = cls._parse_version(minimum)
+
+        if current is None or target is None:
+            return False
+
+        return current >= target
+
+    async def _supports_chunked_sync(self) -> tuple[bool, str]:
+        """Check if the connected node supports chunked sync (>= v0.2.0)."""
+        node_version = await self.node_version()
+        return self._is_version_at_least(node_version, "0.2.0"), node_version
+
+    async def _heartbeat_lifecycle_lease(self, lease: LifecycleLease) -> None:
+        interval = max(self._lifecycle_lease_seconds / 3, 0.01)
+        try:
+            while True:
+                await asyncio.sleep(interval)
+                await self._lifecycle_coordinator.heartbeat(lease)
+        except asyncio.CancelledError:
+            pass
+
+    async def _acquire_lifecycle_lease(self, operation: LifecycleOperation) -> LifecycleLease:
+        lease = await self._lifecycle_coordinator.try_acquire(
+            self.node_id, self.worker_id, operation, self._lifecycle_lease_seconds
+        )
+        if lease is None:
+            raise NodeAPIError(409, f"Node lifecycle operation already in progress for {self.node_id}")
+        self._lifecycle_heartbeat_tasks[lease.token] = asyncio.create_task(self._heartbeat_lifecycle_lease(lease))
+        return lease
+
+    async def _release_lifecycle_lease(
+        self,
+        lease: LifecycleLease,
+        observed: LifecycleStatus | None = None,
+        desired: LifecycleStatus | None = None,
+        node_version: str = "",
+        core_version: str = "",
+    ) -> None:
+        heartbeat = self._lifecycle_heartbeat_tasks.pop(lease.token, None)
+        if heartbeat is not None:
+            heartbeat.cancel()
+            await heartbeat
+
+        if observed is None:
+            await self._lifecycle_coordinator.release(lease)
+            return
+
+        state = NodeLifecycleState(
+            desired=desired or observed,
+            observed=observed,
+            epoch=lease.epoch,
+            operation=lease.operation,
+            owner=lease.worker_id,
+            node_version=node_version,
+            core_version=core_version,
+        )
+        await self._lifecycle_coordinator.release(lease, state)
+
+    async def get_lifecycle_state(self) -> NodeLifecycleState | None:
+        return await self._lifecycle_coordinator.get_state(self.node_id)
+
+    async def update_observed_lifecycle(self, observed: LifecycleStatus, expected_epoch: int | None = None) -> None:
+        await self._lifecycle_coordinator.update_observed(self.node_id, observed, expected_epoch)
+
+    async def connect(self, node_version: str, core_version: str, tasks: list | None = None):
+        # Validate versions are not empty
+        if not node_version or not core_version:
+            raise NodeAPIError(-3, "Invalid version information from node")
+
+        if tasks is None:
+            tasks = []
+
+        # Clear shutdown event first (no lock needed)
+        self._shutdown_event.clear()
+
+        # Reset hard reset event and failure counters
+        self._hard_reset_event.clear()
+        async with self._failure_count_lock:
+            self._user_sync_failure_count = 0
+
+        # Cleanup tasks with task lock
+        async with self._task_lock:
+            await self._cleanup_tasks()
+
+        # Set health and versions atomically to prevent race condition
+        async with self._health_lock:
+            async with self._version_lock:
+                self._node_version = node_version
+                self._core_version = core_version
+                if self._health is Health.INVALID:
+                    raise NodeAPIError(code=-4, detail="Invalid node")
+                self._health = Health.HEALTHY
+
+        # Create new tasks
+        async with self._task_lock:
+            for t in tasks:
+                task = asyncio.create_task(t())
+                self._tasks.append(task)
+
+    async def disconnect(self):
+        # Set shutdown event (no lock needed)
+        self._shutdown_event.set()
+
+        # Cleanup tasks
+        async with self._task_lock:
+            await self._cleanup_tasks()
+
+        # Cleanup sync worker and pending users
+        await self._cleanup_sync_worker()
+
+        # Clear versions and set health atomically to prevent race condition
+        async with self._health_lock:
+            async with self._version_lock:
+                self._node_version = ""
+                self._core_version = ""
+            # Set health after versions are cleared
+            if self._health is not Health.INVALID:
+                self._health = Health.NOT_CONNECTED
+
+    async def _cleanup_tasks(self):
+        """Clean up all background tasks properly - must be called with task_lock held"""
+        if self._tasks:
+            for task in self._tasks:
+                if not task.done():
+                    task.cancel()
+
+            try:
+                results = await asyncio.wait_for(asyncio.gather(*self._tasks, return_exceptions=True), timeout=5.0)
+                # Log any exceptions from tasks
+                for i, result in enumerate(results):
+                    if isinstance(result, Exception) and not isinstance(result, asyncio.CancelledError):
+                        error_type = type(result).__name__
+                        self.logger.error(
+                            f"[{self.name}] Task {i} raised exception during cleanup | "
+                            f"Error: {error_type} - {str(result)}"
+                        )
+            except asyncio.TimeoutError:
+                self.logger.warning(f"[{self.name}] Timeout waiting for {len(self._tasks)} tasks to cleanup")
+
+            self._tasks.clear()
+
+    async def _cleanup_sync_worker(self):
+        """Clean up sync worker and pending users."""
+        # Cancel sync worker if running
+        async with self._sync_worker_lock:
+            if self._sync_worker_task and not self._sync_worker_task.done():
+                self._sync_worker_task.cancel()
+                try:
+                    await asyncio.wait_for(self._sync_worker_task, timeout=2.0)
+                except (asyncio.CancelledError, asyncio.TimeoutError):
+                    pass
+                self._sync_worker_task = None
+
+        # Clear pending users
+        await self._user_sync_store.clear(self.node_id)
+        self._work_available.clear()
+
+    def is_shutting_down(self) -> bool:
+        """Check if the node is shutting down"""
+        return self._shutdown_event.is_set()
+
+    async def _ensure_sync_worker_running(self):
+        """Spawn sync worker if not already running."""
+        async with self._sync_worker_lock:
+            if self._sync_worker_task is None or self._sync_worker_task.done():
+                self._sync_worker_task = asyncio.create_task(self._sync_worker())
+
+    async def _claim_pending_users(self, limit: int = 2000) -> list[ClaimedUser]:
+        """Claim pending users from the configured sync store."""
+        claimed = await self._user_sync_store.claim_users(
+            self.node_id, self.worker_id, limit=limit, lease_seconds=self._sync_lease_seconds
+        )
+        if not claimed:
+            self._work_available.clear()
+        return claimed
+
+    async def _ack_claimed_users(self, claimed_users: list[ClaimedUser]):
+        await self._user_sync_store.ack_users(self.node_id, [item.token for item in claimed_users])
+
+    async def _requeue_claimed_users(self, claimed_users: list[ClaimedUser]):
+        await self._user_sync_store.requeue_users(self.node_id, claimed_users)
+        if claimed_users:
+            self._work_available.set()
+
+    async def _sync_worker(self):
+        """Lazy worker that processes pending users and exits when idle."""
+        self.logger.debug(f"[{self.name}] Sync worker started")
+        retry_delay = 1.0
+        max_retry_delay = 30.0
+        supports_chunked, node_version = await self._supports_chunked_sync()
+        if not supports_chunked:
+            self.logger.debug(
+                f"[{self.name}] Chunked sync disabled for node version '{node_version or 'unknown'}' (< v0.2.0)"
+            )
+
+        try:
+            while not self.is_shutting_down():
+                # Wait for work or timeout
+                try:
+                    await asyncio.wait_for(self._work_available.wait(), timeout=self._worker_idle_timeout)
+                except asyncio.TimeoutError:
+                    # No work for idle_timeout seconds, exit worker
+                    self.logger.debug(f"[{self.name}] Sync worker idle, exiting")
+                    break
+
+                # Check health - don't sync if not connected or invalid
+                health = await self.get_health()
+                if health == Health.NOT_CONNECTED:
+                    self.logger.debug(f"[{self.name}] Sync worker exiting - not connected")
+                    break
+                if health == Health.INVALID:
+                    self.logger.debug(f"[{self.name}] Sync worker exiting - node invalid")
+                    break
+
+                # If BROKEN, wait and loop back without draining users
+                if health == Health.BROKEN:
+                    self.logger.warning(f"[{self.name}] Node is broken, waiting {retry_delay}s before retry")
+                    await asyncio.sleep(retry_delay)
+                    retry_delay = min(retry_delay * 2, max_retry_delay)
+                    continue
+
+                # Claim pending users atomically (only when healthy)
+                claimed_users = await self._claim_pending_users()
+                if not claimed_users:
+                    await asyncio.sleep(self._sync_poll_interval)
+                    continue
+                users = [item.user for item in claimed_users]
+
+                # Prefer chunked sync for large batches to reduce per-request overhead
+                use_chunked = supports_chunked and len(users) >= 1000
+                if use_chunked:
+                    # Aim for ~10 chunks, cap size to 2000 to stay under server limits
+                    chunk_size = min(2000, max(1, math.ceil(len(users) / 10)))
+                    failed_users = await self.sync_users_chunked(
+                        users=users, chunk_size=chunk_size, flush_pending=False, timeout=self._internal_timeout
+                    )
+                    if failed_users:
+                        self.logger.warning(
+                            f"[{self.name}] {len(failed_users)}/{len(users)} users failed to chunk-sync "
+                            f"(chunk_size={chunk_size})"
+                        )
+                        failed_emails = {user.email for user in failed_users}
+                        await self._ack_claimed_users(
+                            [item for item in claimed_users if item.user.email not in failed_emails]
+                        )
+                        await self._requeue_claimed_users(
+                            [item for item in claimed_users if item.user.email in failed_emails]
+                        )
+                        await self._increment_user_sync_failure()
+                        await asyncio.sleep(retry_delay)
+                        retry_delay = min(retry_delay * 2, max_retry_delay)
+                    else:
+                        self.logger.debug(
+                            f"[{self.name}] Chunk-synced {len(users)} user(s) with chunk_size={chunk_size}"
+                        )
+                        await self._ack_claimed_users(claimed_users)
+                        await self._reset_user_sync_failure_count()
+                        retry_delay = 1.0
+                else:
+                    # Batch sync users individually
+                    try:
+                        failed_users = await self._sync_batch_users(users)
+                        if failed_users:
+                            self.logger.warning(f"[{self.name}] {len(failed_users)}/{len(users)} users failed to sync")
+                            failed_emails = {user.email for user in failed_users}
+                            await self._ack_claimed_users(
+                                [item for item in claimed_users if item.user.email not in failed_emails]
+                            )
+                            await self._requeue_claimed_users(
+                                [item for item in claimed_users if item.user.email in failed_emails]
+                            )
+                            await self._increment_user_sync_failure()
+                            # Exponential backoff on partial failure
+                            await asyncio.sleep(retry_delay)
+                            retry_delay = min(retry_delay * 2, max_retry_delay)
+                        else:
+                            self.logger.debug(f"[{self.name}] Synced {len(users)} user(s)")
+                            await self._ack_claimed_users(claimed_users)
+                            await self._reset_user_sync_failure_count()
+                            retry_delay = 1.0  # Reset retry delay on success
+
+                    except Exception as e:
+                        error_type = type(e).__name__
+                        self.logger.warning(
+                            f"[{self.name}] Batch sync failed for {len(users)} user(s), requeuing | "
+                            f"Error: {error_type} - {str(e)}"
+                        )
+                        await self._increment_user_sync_failure()
+                        await self._requeue_claimed_users(claimed_users)
+                        # Exponential backoff on failure
+                        await asyncio.sleep(retry_delay)
+                        retry_delay = min(retry_delay * 2, max_retry_delay)
+
+        except asyncio.CancelledError:
+            self.logger.debug(f"[{self.name}] Sync worker cancelled")
+        except Exception as e:
+            error_type = type(e).__name__
+            self.logger.error(
+                f"[{self.name}] Unexpected error in sync worker | Error: {error_type} - {str(e)}", exc_info=True
+            )
+        finally:
+            self.logger.debug(f"[{self.name}] Sync worker finished")
+
+    async def _make_json_request(
+        self,
+        method: str,
+        endpoint: str,
+        timeout: Optional[int] = None,
+        json: Optional[dict] = None,
+    ) -> BufferedResponse:
+        """Make an HTTP request to the node's REST API."""
+        if timeout is None:
+            timeout = self._default_timeout
+
+        try:
+            async with self._json_client.request(
+                method=method, url=endpoint, json=json, timeout=make_timeout(timeout)
+            ) as raw_response:
+                response = await buffer_response(raw_response)
+            response.raise_for_status()
+            return response
+
+        except BufferedStatusError as e:
+            detail = ""
+            try:
+                data = e.response.json()
+                if isinstance(data, dict):
+                    detail = data.get("detail", "")
+                else:
+                    detail = str(data)
+            except (JSONDecodeError, ValueError):
+                detail = e.response.text
+
+            raise NodeAPIError(code=e.response.status_code, detail=detail) from e
+
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            raise NodeAPIError(code=-5, detail=f"Request error: {str(e)}") from e
+
+    async def check_connectivity(self) -> bool:
+        """Check if the node service is reachable via its REST API."""
+        try:
+            response = await self._make_json_request(method="GET", endpoint="/", timeout=5)
+            return response.status_code == 200
+        except NodeAPIError as e:
+            self.logger.error(f"[{self.name}] Connectivity check failed: {str(e)}")
+            return False
+
+    async def _run_coordinated_update(
+        self,
+        operation: LifecycleOperation,
+        endpoint: str,
+        json: dict | None = None,
+    ) -> BufferedResponse:
+        if not (await self.check_connectivity()):
+            raise NodeAPIError(code=503, detail="Node service is not reachable")
+
+        lease = await self._acquire_lifecycle_lease(operation)
+        try:
+            return await self._make_json_request(method="POST", endpoint=endpoint, json=json)
+        finally:
+            await self._release_lifecycle_lease(lease)
+
+    async def update_node(self) -> BufferedResponse:
+        """Trigger a node update via the REST API."""
+        return await self._run_coordinated_update(LifecycleOperation.UPDATE_NODE, "/node/update")
+
+    async def update_core(self, json: dict) -> BufferedResponse:
+        """Trigger a node core update via the REST API."""
+        return await self._run_coordinated_update(LifecycleOperation.UPDATE_CORE, "/node/core_update", json)
+
+    async def update_geofiles(self, json: dict) -> BufferedResponse:
+        """Trigger a node geofiles update via the REST API."""
+        return await self._run_coordinated_update(LifecycleOperation.UPDATE_GEOFILES, "/node/geofiles", json)

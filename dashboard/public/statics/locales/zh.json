@@ -295,6 +295,7 @@
         "links_base64": "Base64 链接",
         "xray": "Xray",
         "wireguard": "WireGuard",
+        "openvpn": "OpenVPN",
         "sing_box": "Sing-box",
         "clash": "Clash",
         "clash_meta": "Clash Meta",

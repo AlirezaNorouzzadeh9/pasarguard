@@ -13,6 +13,7 @@ from app.db.crud.core import (
     remove_cores,
 )
 from app.db.crud.host import get_hosts
+from app.db.models import CoreType
 from app.models.admin import AdminDetails
 from app.models.core import (
     BulkCoreSelection,
@@ -27,6 +28,7 @@ from app.models.core import (
 )
 from app.operation import BaseOperation
 from app.utils.logger import get_logger
+from app.utils.openvpn import ensure_openvpn_core_material
 
 logger = get_logger("core-operation")
 
@@ -38,6 +40,8 @@ class CoreOperation(BaseOperation):
 
     async def create_core(self, db: AsyncSession, new_core: CoreCreate, admin: AdminDetails) -> CoreResponse:
         try:
+            if new_core.type == CoreType.openvpn:
+                new_core.config = await ensure_openvpn_core_material(db, new_core.config)
             validated_core = core_manager.validate_core(
                 new_core.config,
                 new_core.exclude_inbound_tags,
@@ -75,6 +79,8 @@ class CoreOperation(BaseOperation):
     ) -> CoreResponse:
         db_core = await self.get_validated_core_config(db, core_id)
         try:
+            if modified_core.type == CoreType.openvpn:
+                modified_core.config = await ensure_openvpn_core_material(db, modified_core.config)
             validated_core = core_manager.validate_core(
                 modified_core.config,
                 modified_core.exclude_inbound_tags,
