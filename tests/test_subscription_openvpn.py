@@ -111,6 +111,27 @@ def test_multi_remote_failover():
     assert body.count("remote ") == 3
 
 
+def test_custom_remotes_mixed_proto():
+    # Explicit specs let each remote pick its own proto/port (baharvpn style).
+    inbound, ca_cert, ca_key = _inbound(
+        openvpn_proto="udp",
+        openvpn_remote_specs=[
+            "172.234.115.82 1194 udp",
+            "172.234.115.84 443 tcp",
+            "de.example.com",  # no port/proto -> inherit host defaults
+        ],
+    )
+    cc = pki.issue_client_cert(ca_cert, ca_key, "7")
+    conf = OpenVPNConfiguration()
+    conf.add("DE", "172.234.115.82", inbound, {"cert_pem": cc.cert_pem, "private_key_pem": cc.key_pem})
+    _, body = _names_and_body(conf)
+    assert "remote 172.234.115.82 1194 udp" in body
+    assert "remote 172.234.115.84 443 tcp" in body
+    assert "remote de.example.com 1194 udp" in body  # inherited port 1194 + proto udp
+    assert "\nproto udp\n" not in body  # per-remote form, no global proto
+    assert body.count("remote ") == 3
+
+
 @pytest.mark.asyncio
 async def test_process_host_populates_all_remotes():
     # A host carrying multiple addresses should surface every one as a remote

@@ -790,7 +790,11 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
 
     const ovpn = form.getValues('openvpn_overrides')
     if (ovpn == null) {
-      form.setValue('openvpn_overrides', { proto: '', redirect_gateway: undefined, dns: [], mtu: undefined, extra_client_directives: [] }, { shouldDirty: false })
+      form.setValue(
+        'openvpn_overrides',
+        { proto: '', redirect_gateway: undefined, dns: [], mtu: undefined, extra_client_directives: [], remotes: [] },
+        { shouldDirty: false },
+      )
     }
   }, [form, isOpenVPNInbound, selectedInboundTag, editingHost])
 
@@ -859,6 +863,8 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
           if (ovpn.mtu != null && !Number.isNaN(Number(ovpn.mtu))) next.mtu = Number(ovpn.mtu)
           const directives = ovpn.extra_client_directives?.map(d => d.trim()).filter(Boolean)
           if (directives?.length) next.extra_client_directives = directives
+          const remotes = ovpn.remotes?.map(r => r.trim()).filter(Boolean)
+          if (remotes?.length) next.remotes = remotes
           payload.openvpn_overrides = Object.keys(next).length > 0 ? next : undefined
         }
       } else {
@@ -1382,6 +1388,25 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
                               placeholder="1.1.1.1"
                               label={t('hostsDialog.openvpn.dns', { defaultValue: 'DNS' })}
                               infoContent={<p className="text-muted-foreground text-[11px]">{t('hostsDialog.openvpn.dnsHint', { defaultValue: 'Pushed to the client as dhcp-option DNS.' })}</p>}
+                            />
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="openvpn_overrides.remotes"
+                          render={({ field }) => (
+                            <ArrayInput
+                              field={{ ...field, value: field.value ?? [] }}
+                              placeholder="172.234.115.84 1194 tcp"
+                              label={t('hostsDialog.openvpn.remotes', { defaultValue: 'Custom remotes (per-remote proto)' })}
+                              infoContent={
+                                <p className="text-muted-foreground text-[11px]">
+                                  {t('hostsDialog.openvpn.remotesHint', {
+                                    defaultValue:
+                                      'Each entry: host [port] [proto]. Lets each remote pick its own udp/tcp and port. When set, this overrides the Address list for OpenVPN remotes.',
+                                  })}
+                                </p>
+                              }
                             />
                           )}
                         />

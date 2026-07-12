@@ -23,19 +23,31 @@ class OpenVPNConfiguration(BaseSubscription):
         self.proxy_remarks.append(validated_remark)
 
         proto = (inbound.openvpn_proto or "udp").lower()
+        default_port = inbound.port
 
-        # Failover: one `remote` line per resolved address. With a single remote
-        # we keep the classic `proto` + `remote host port` form; with several we
-        # switch to per-remote `remote host port proto` (no global proto line) so
-        # the client tries each endpoint in turn — matching multi-server configs.
-        remotes = inbound.openvpn_remotes or ([address] if address else [])
         lines = ["client", "dev tun"]
-        if len(remotes) <= 1:
-            lines.append(f"proto {proto}")
-            lines.append(f"remote {remotes[0] if remotes else address} {inbound.port}")
+        if inbound.openvpn_remote_specs:
+            # Explicit per-remote endpoints. Each "host [port] [proto]" may pick
+            # its own protocol/port; missing fields fall back to host defaults.
+            # Always per-remote form so mixed udp/tcp works.
+            for spec in inbound.openvpn_remote_specs:
+                parts = spec.split()
+                r_host = parts[0]
+                r_port = parts[1] if len(parts) > 1 else default_port
+                r_proto = parts[2].lower() if len(parts) > 2 else proto
+                lines.append(f"remote {r_host} {r_port} {r_proto}")
         else:
-            for remote in remotes:
-                lines.append(f"remote {remote} {inbound.port} {proto}")
+            # Failover from the Address list: one `remote` per address. A single
+            # remote keeps the classic `proto` + `remote host port` form; several
+            # switch to per-remote `remote host port proto` (no global proto line)
+            # so the client tries each endpoint in turn.
+            remotes = inbound.openvpn_remotes or ([address] if address else [])
+            if len(remotes) <= 1:
+                lines.append(f"proto {proto}")
+                lines.append(f"remote {remotes[0] if remotes else address} {default_port}")
+            else:
+                for remote in remotes:
+                    lines.append(f"remote {remote} {default_port} {proto}")
         lines += [
             "resolv-retry infinite",
             "nobind",

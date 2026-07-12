@@ -285,6 +285,10 @@ class SubscriptionInboundData(BaseModel):
     # `remote` line in the .ovpn. Populated in process_host from host.address so
     # a single host with multiple addresses yields multi-server failover.
     openvpn_remotes: list[str] | None = Field(default=None)
+    # Explicit per-remote specs ("host [port] [proto]") from the host override.
+    # When present, these define the `remote` lines and let each pick its own
+    # udp/tcp and port, overriding the Address-based remotes above.
+    openvpn_remote_specs: list[str] | None = Field(default=None)
 
     # Flow (from inbound, user can override)
     inbound_flow: str = Field("")
