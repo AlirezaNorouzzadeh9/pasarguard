@@ -95,6 +95,13 @@ export interface HostFormValues {
     keepalive_seconds?: number
     dns?: string[]
   }
+  openvpn_overrides?: {
+    proto?: 'udp' | 'tcp' | ''
+    redirect_gateway?: boolean
+    dns?: string[]
+    mtu?: number
+    extra_client_directives?: string[]
+  }
   subscription_templates?: {
     xray?: number
   }
@@ -444,6 +451,15 @@ export const HostFormSchema = z.object({
       reserved: z.string().max(64).optional(),
       keepalive_seconds: z.number().min(0).max(86400).optional(),
       dns: z.array(z.string()).optional(),
+    })
+    .optional(),
+  openvpn_overrides: z
+    .object({
+      proto: z.enum(['', 'udp', 'tcp']).optional(),
+      redirect_gateway: z.boolean().optional(),
+      dns: z.array(z.string()).optional(),
+      mtu: z.number().min(576).max(9000).optional(),
+      extra_client_directives: z.array(z.string()).optional(),
     })
     .optional(),
   subscription_templates: z

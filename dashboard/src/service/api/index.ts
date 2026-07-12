@@ -692,6 +692,27 @@ export interface WireGuardHostOverrides {
   dns?: WireGuardHostOverridesDns
 }
 
+export type OpenVPNHostOverridesProto = string | null
+
+export type OpenVPNHostOverridesRedirectGateway = boolean | null
+
+export type OpenVPNHostOverridesDns = string[] | null
+
+export type OpenVPNHostOverridesMtu = number | null
+
+export type OpenVPNHostOverridesExtraClientDirectives = string[] | null
+
+/**
+ * Optional per-host values merged into OpenVPN (.ovpn) subscription output.
+ */
+export interface OpenVPNHostOverrides {
+  proto?: OpenVPNHostOverridesProto
+  redirect_gateway?: OpenVPNHostOverridesRedirectGateway
+  dns?: OpenVPNHostOverridesDns
+  mtu?: OpenVPNHostOverridesMtu
+  extra_client_directives?: OpenVPNHostOverridesExtraClientDirectives
+}
+
 export interface WebhookInfo {
   url: string
   secret: string
@@ -2870,6 +2891,8 @@ export type CreateHostSubscriptionTemplates = SubscriptionTemplates | null
 
 export type CreateHostWireguardOverrides = WireGuardHostOverrides | null
 
+export type CreateHostOpenvpnOverrides = OpenVPNHostOverrides | null
+
 export type CreateHostVerifyPeerCertByName = string[] | null
 
 export type CreateHostPinnedPeerCertSha256 = string | null
@@ -2919,6 +2942,7 @@ export interface CreateHost {
   pinned_peer_cert_sha256?: CreateHostPinnedPeerCertSha256
   verify_peer_cert_by_name?: CreateHostVerifyPeerCertByName
   wireguard_overrides?: CreateHostWireguardOverrides
+  openvpn_overrides?: CreateHostOpenvpnOverrides
   subscription_templates?: CreateHostSubscriptionTemplates
   final_mask_settings?: CreateHostFinalMaskSettings
 }
@@ -3379,6 +3403,8 @@ export type BaseHostSubscriptionTemplates = SubscriptionTemplates | null
 
 export type BaseHostWireguardOverrides = WireGuardHostOverrides | null
 
+export type BaseHostOpenvpnOverrides = OpenVPNHostOverrides | null
+
 export type BaseHostVerifyPeerCertByName = string[] | null
 
 export type BaseHostPinnedPeerCertSha256 = string | null
@@ -3448,6 +3474,7 @@ export interface BaseHost {
   pinned_peer_cert_sha256?: BaseHostPinnedPeerCertSha256
   verify_peer_cert_by_name?: BaseHostVerifyPeerCertByName
   wireguard_overrides?: BaseHostWireguardOverrides
+  openvpn_overrides?: BaseHostOpenvpnOverrides
   subscription_templates?: BaseHostSubscriptionTemplates
   final_mask_settings?: BaseHostFinalMaskSettings
 }

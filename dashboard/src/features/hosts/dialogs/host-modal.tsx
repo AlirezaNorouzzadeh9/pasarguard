@@ -245,8 +245,9 @@ ArrayInput.displayName = 'ArrayInput'
 const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSubmit, editingHost, form, inboundDetails, isLoadingInbounds = false }) => {
   const [openSection, setOpenSection] = useState<string | undefined>(undefined)
   const [wireguardOpenSection, setWireguardOpenSection] = useState<string | undefined>(undefined)
+  const [openvpnOpenSection, setOpenvpnOpenSection] = useState<string | undefined>(undefined)
   const [isTransportOpen, setIsTransportOpen] = useState(false)
-  const [resolvedHostMode, setResolvedHostMode] = useState<'xray' | 'wireguard'>('xray')
+  const [resolvedHostMode, setResolvedHostMode] = useState<'xray' | 'wireguard' | 'openvpn'>('xray')
   const { t } = useTranslation()
   const dir = useDirDetection()
   const isMobile = useIsMobile()
@@ -612,11 +613,17 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
     setWireguardOpenSection(value || undefined)
   }
 
+  const handleOpenvpnAccordionChange = (value: string) => {
+    setOpenvpnOpenSection(value || undefined)
+  }
+
   const inbounds = useMemo(() => inboundDetails?.map(inbound => inbound.tag) || [], [inboundDetails])
   const selectedInbound = useMemo(() => inboundDetails?.find(inbound => inbound.tag === selectedInboundTag), [inboundDetails, selectedInboundTag])
   const isWireGuardInbound = selectedInbound?.protocol === 'wireguard'
+  const isOpenVPNInbound = selectedInbound?.protocol === 'openvpn'
   const isInboundModeResolved = !isDialogOpen || !selectedInboundTag || !!selectedInbound || !isLoadingInbounds
   const shouldRenderWireGuardLayout = resolvedHostMode === 'wireguard'
+  const shouldRenderOpenVPNLayout = resolvedHostMode === 'openvpn'
 
   // Update the hosts query to refetch only when needed (not on dialog open)
   const { data: hosts = [], isLoading: isLoadingHosts } = useQuery({
@@ -659,7 +666,13 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
     }
 
     if (selectedInbound) {
-      setResolvedHostMode(selectedInbound.protocol === 'wireguard' ? 'wireguard' : 'xray')
+      if (selectedInbound.protocol === 'wireguard') {
+        setResolvedHostMode('wireguard')
+      } else if (selectedInbound.protocol === 'openvpn') {
+        setResolvedHostMode('openvpn')
+      } else {
+        setResolvedHostMode('xray')
+      }
       return
     }
 
@@ -675,8 +688,13 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
 
     if (resolvedHostMode === 'wireguard') {
       setOpenSection(undefined)
+      setOpenvpnOpenSection(undefined)
+    } else if (resolvedHostMode === 'openvpn') {
+      setOpenSection(undefined)
+      setWireguardOpenSection(undefined)
     } else {
       setWireguardOpenSection(undefined)
+      setOpenvpnOpenSection(undefined)
     }
   }, [resolvedHostMode, isDialogOpen])
 
@@ -728,6 +746,54 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
     }
   }, [form, isWireGuardInbound, selectedInboundTag, editingHost])
 
+  useEffect(() => {
+    if (!isOpenVPNInbound) {
+      return
+    }
+
+    // Don't clear fields when editing an existing host
+    if (editingHost) {
+      return
+    }
+
+    form.setValue('host', [], { shouldDirty: true })
+    form.setValue('sni', [], { shouldDirty: true })
+    form.setValue('path', '', { shouldDirty: true })
+    form.setValue('http_headers', {}, { shouldDirty: true })
+    form.setValue('security', 'inbound_default', { shouldDirty: true })
+    form.setValue('alpn', [], { shouldDirty: true })
+    form.setValue('fingerprint', '', { shouldDirty: true })
+    form.setValue('allowinsecure', false, { shouldDirty: true })
+    form.setValue('random_user_agent', false, { shouldDirty: true })
+    form.setValue('use_sni_as_host', false, { shouldDirty: true })
+    form.setValue('vless_route', '', { shouldDirty: true })
+    form.setValue('ech_config_list', undefined, { shouldDirty: true })
+    form.setValue('ech_query_strategy', undefined, { shouldDirty: true })
+    form.setValue('pinned_peer_cert_sha256', undefined, { shouldDirty: true })
+    form.setValue('verify_peer_cert_by_name', [], { shouldDirty: true })
+    form.setValue('fragment_settings', undefined, { shouldDirty: true })
+    form.setValue('noise_settings', undefined, { shouldDirty: true })
+    form.setValue('mux_settings', undefined, { shouldDirty: true })
+    form.setValue('transport_settings', undefined, { shouldDirty: true })
+  }, [form, isOpenVPNInbound, selectedInboundTag, editingHost])
+
+  useEffect(() => {
+    if (!isOpenVPNInbound) {
+      form.setValue('openvpn_overrides', undefined, { shouldDirty: false })
+      return
+    }
+
+    // Don't modify openvpn_overrides when editing an existing host
+    if (editingHost) {
+      return
+    }
+
+    const ovpn = form.getValues('openvpn_overrides')
+    if (ovpn == null) {
+      form.setValue('openvpn_overrides', { proto: '', redirect_gateway: undefined, dns: [], mtu: undefined, extra_client_directives: [] }, { shouldDirty: false })
+    }
+  }, [form, isOpenVPNInbound, selectedInboundTag, editingHost])
+
   const handleSubmit = async (data: HostFormValues) => {
     setIsSubmitting(true)
     try {
@@ -752,6 +818,7 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
         payload.verify_peer_cert_by_name = []
         payload.mux_settings = undefined
         payload.transport_settings = undefined
+        payload.openvpn_overrides = undefined
         if (payload.wireguard_overrides) {
           const wg = payload.wireguard_overrides
           const next: NonNullable<HostFormValues['wireguard_overrides']> = {}
@@ -764,8 +831,39 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
           if (wg.dns?.length) next.dns = wg.dns
           payload.wireguard_overrides = Object.keys(next).length > 0 ? next : undefined
         }
+      } else if (isOpenVPNInbound) {
+        payload.host = []
+        payload.sni = []
+        payload.path = ''
+        payload.http_headers = {}
+        payload.security = 'inbound_default'
+        payload.alpn = []
+        payload.fingerprint = ''
+        payload.allowinsecure = false
+        payload.random_user_agent = false
+        payload.use_sni_as_host = false
+        payload.vless_route = ''
+        payload.ech_config_list = undefined
+        payload.ech_query_strategy = undefined
+        payload.pinned_peer_cert_sha256 = undefined
+        payload.verify_peer_cert_by_name = []
+        payload.mux_settings = undefined
+        payload.transport_settings = undefined
+        payload.wireguard_overrides = undefined
+        if (payload.openvpn_overrides) {
+          const ovpn = payload.openvpn_overrides
+          const next: NonNullable<HostFormValues['openvpn_overrides']> = {}
+          if (ovpn.proto === 'udp' || ovpn.proto === 'tcp') next.proto = ovpn.proto
+          if (typeof ovpn.redirect_gateway === 'boolean') next.redirect_gateway = ovpn.redirect_gateway
+          if (ovpn.dns?.length) next.dns = ovpn.dns
+          if (ovpn.mtu != null && !Number.isNaN(Number(ovpn.mtu))) next.mtu = Number(ovpn.mtu)
+          const directives = ovpn.extra_client_directives?.map(d => d.trim()).filter(Boolean)
+          if (directives?.length) next.extra_client_directives = directives
+          payload.openvpn_overrides = Object.keys(next).length > 0 ? next : undefined
+        }
       } else {
         payload.wireguard_overrides = undefined
+        payload.openvpn_overrides = undefined
       }
 
       // If SingBox fragment is disabled, clear related fields
@@ -1194,6 +1292,111 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
                     </AccordionContent>
                   </AccordionItem>
                   {renderCamouflageSection()}
+                </Accordion>
+              ) : shouldRenderOpenVPNLayout ? (
+                <Accordion type="single" collapsible value={openvpnOpenSection} onValueChange={handleOpenvpnAccordionChange} className="!mt-0 mb-6 flex w-full flex-col gap-y-6">
+                  <AccordionItem className="rounded-sm border px-4 [&_[data-state=closed]]:no-underline [&_[data-state=open]]:no-underline" value="openvpn_overrides">
+                    <AccordionTrigger>
+                      <div className="flex items-center gap-2">
+                        <Route className="h-4 w-4" />
+                        <span>{t('hostsDialog.openvpn.sectionNetworkOverrides', { defaultValue: 'OpenVPN Overrides' })}</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-2 pb-4">
+                      <p className="text-muted-foreground mb-3 text-[11px]">
+                        {t('hostsDialog.openvpn.overridesHint', { defaultValue: 'Optional per-host values merged into this host’s generated .ovpn file. Leave empty to inherit the core defaults.' })}
+                      </p>
+                      <div className="space-y-3">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <FormField
+                            control={form.control}
+                            name="openvpn_overrides.proto"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t('hostsDialog.openvpn.proto', { defaultValue: 'Protocol' })}</FormLabel>
+                                <Select onValueChange={value => field.onChange(value === 'default' ? '' : value)} value={field.value ? field.value : 'default'}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="default">{t('hostsDialog.openvpn.protoDefault', { defaultValue: 'Default (core)' })}</SelectItem>
+                                    <SelectItem value="udp">UDP</SelectItem>
+                                    <SelectItem value="tcp">TCP</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="openvpn_overrides.mtu"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t('hostsDialog.openvpn.mtu', { defaultValue: 'MTU' })}</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    placeholder="1500"
+                                    min={576}
+                                    max={9000}
+                                    {...field}
+                                    value={field.value ?? ''}
+                                    onChange={e => {
+                                      const v = e.target.value
+                                      field.onChange(v === '' ? undefined : Number.parseInt(v, 10))
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <FormField
+                          control={form.control}
+                          name="openvpn_overrides.redirect_gateway"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-sm border px-3 py-2">
+                              <div className="space-y-0.5 pr-2">
+                                <FormLabel className="!mt-0">{t('hostsDialog.openvpn.redirectGateway', { defaultValue: 'Redirect gateway' })}</FormLabel>
+                                <p className="text-muted-foreground text-[11px]">{t('hostsDialog.openvpn.redirectGatewayHint', { defaultValue: 'Route all client traffic through the VPN (redirect-gateway def1).' })}</p>
+                              </div>
+                              <FormControl>
+                                <Switch checked={field.value === true} onCheckedChange={checked => field.onChange(checked)} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="openvpn_overrides.dns"
+                          render={({ field }) => (
+                            <ArrayInput
+                              field={{ ...field, value: field.value ?? [] }}
+                              placeholder="1.1.1.1"
+                              label={t('hostsDialog.openvpn.dns', { defaultValue: 'DNS' })}
+                              infoContent={<p className="text-muted-foreground text-[11px]">{t('hostsDialog.openvpn.dnsHint', { defaultValue: 'Pushed to the client as dhcp-option DNS.' })}</p>}
+                            />
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="openvpn_overrides.extra_client_directives"
+                          render={({ field }) => (
+                            <ArrayInput
+                              field={{ ...field, value: field.value ?? [] }}
+                              placeholder="mssfix 1400"
+                              label={t('hostsDialog.openvpn.extraDirectives', { defaultValue: 'Extra client directives' })}
+                              infoContent={<p className="text-muted-foreground text-[11px]">{t('hostsDialog.openvpn.extraDirectivesHint', { defaultValue: 'Raw OpenVPN client directives appended verbatim, one per line.' })}</p>}
+                            />
+                          )}
+                        />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
                 </Accordion>
               ) : (
                 <Accordion type="single" collapsible value={openSection} onValueChange={handleAccordionChange} className="!mt-0 mb-6 flex w-full flex-col gap-y-6">
