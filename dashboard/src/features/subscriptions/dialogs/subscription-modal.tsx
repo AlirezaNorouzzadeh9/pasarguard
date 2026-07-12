@@ -2,7 +2,7 @@ import { FC, memo, useState, useEffect, useCallback, useRef } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { QRCodeCanvas } from 'qrcode.react'
 import { useTranslation } from 'react-i18next'
-import { ScanQrCode, Copy, QrCode, ChevronLeft, ChevronRight, Check, RefreshCw, Download } from 'lucide-react'
+import { ScanQrCode, Copy, QrCode, ChevronLeft, ChevronRight, Check, RefreshCw, Download, ShieldCheck } from 'lucide-react'
 import useDirDetection from '@/hooks/use-dir-detection'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
   downloadTextFile,
+  downloadUserSubscriptionOpenVPN,
   encodeSubscriptionContentToBase64,
   extractAddressFromConfigUrl,
   extractNameFromConfigUrl,
@@ -166,6 +167,24 @@ const SubscriptionModal: FC<SubscriptionModalProps> = memo(({ open, subscribeUrl
     [t],
   )
 
+  const [isDownloadingOpenVPN, setIsDownloadingOpenVPN] = useState(false)
+  const handleDownloadOpenVPN = useCallback(async () => {
+    if (!subscribeUrl) return
+    setIsDownloadingOpenVPN(true)
+    try {
+      const result = await downloadUserSubscriptionOpenVPN(subscribeUrl, username, LINKS_FETCH_TIMEOUT_MS)
+      if (result === 'empty') {
+        toast.error(t('subscriptionModal.noOpenvpn', { defaultValue: 'This user has no OpenVPN config' }))
+        return
+      }
+      toast.success(t('usersTable.downloadStarted', { defaultValue: 'Download started' }))
+    } catch {
+      toast.error(t('downloadFailed', { defaultValue: 'Failed to download config' }))
+    } finally {
+      setIsDownloadingOpenVPN(false)
+    }
+  }, [subscribeUrl, username, t])
+
   const handleShowConfigQR = (config: ConfigItem) => {
     if (clearSelectedConfigQrTimeoutRef.current) {
       clearTimeout(clearSelectedConfigQrTimeoutRef.current)
@@ -212,10 +231,16 @@ const SubscriptionModal: FC<SubscriptionModalProps> = memo(({ open, subscribeUrl
             <div className="flex h-full flex-col gap-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">{t('subscriptionModal.configs', { defaultValue: 'Configurations' })}</span>
-                <Button variant="ghost" size="sm" onClick={handleCopyAllConfigs} disabled={isLoading || configs.length === 0} className="h-7 px-2 text-xs">
-                  {allConfigsCopied ? <Check className={cn('h-3 w-3', isRTL ? 'ml-1' : 'mr-1')} /> : <Copy className={cn('h-3 w-3', isRTL ? 'ml-1' : 'mr-1')} />}
-                  <span className="hidden sm:inline">{t('subscriptionModal.copyAll', { defaultValue: 'Copy All' })}</span>
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" onClick={handleDownloadOpenVPN} disabled={isDownloadingOpenVPN} className="h-7 px-2 text-xs" title="OpenVPN">
+                    <ShieldCheck className={cn('h-3 w-3', isRTL ? 'ml-1' : 'mr-1')} />
+                    <span className="hidden sm:inline">OpenVPN</span>
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleCopyAllConfigs} disabled={isLoading || configs.length === 0} className="h-7 px-2 text-xs">
+                    {allConfigsCopied ? <Check className={cn('h-3 w-3', isRTL ? 'ml-1' : 'mr-1')} /> : <Copy className={cn('h-3 w-3', isRTL ? 'ml-1' : 'mr-1')} />}
+                    <span className="hidden sm:inline">{t('subscriptionModal.copyAll', { defaultValue: 'Copy All' })}</span>
+                  </Button>
+                </div>
               </div>
 
               {isLoading ? (

@@ -169,6 +169,17 @@ const fetchSubscriptionResource = async <T>(url: string, parser: (response: Resp
 
 export const fetchSubscriptionContentFromUrl = (url: string, timeoutMs = 8000) => fetchSubscriptionResource(url, response => response.text(), timeoutMs)
 
+export const downloadUserSubscriptionOpenVPN = async (subscribeUrl: string | null | undefined, username: string, timeoutMs = 8000): Promise<'ok' | 'empty'> => {
+  const url = buildSubscriptionFormatUrl(subscribeUrl, 'openvpn')
+  const blob = await fetchSubscriptionBlobFromUrl(url, timeoutMs)
+  // An empty zip (user has no OpenVPN config/host) is ~22 bytes; a real one is far larger.
+  if (!blob || blob.size < 100) {
+    return 'empty'
+  }
+  downloadBlobFile(blob, `${sanitizeFileNameSegment(username) || 'openvpn'}-openvpn.zip`)
+  return 'ok'
+}
+
 export const fetchSubscriptionBlobFromUrl = (url: string, timeoutMs = 8000) => fetchSubscriptionResource(url, response => response.blob(), timeoutMs)
 
 export const fetchSubscriptionContent = (subscribeUrl: string, format: SubscriptionContentFormat, timeoutMs = 8000) =>
@@ -356,8 +367,7 @@ export const prepareSubscriptionContentForCopy = (content: string) => {
   }
 }
 
-export const downloadTextFile = (content: string, fileName: string, mimeType = TEXT_FILE_MIME_TYPE) => {
-  const blob = new Blob([content], { type: mimeType })
+export const downloadBlobFile = (blob: Blob, fileName: string) => {
   const downloadUrl = window.URL.createObjectURL(blob)
   const anchor = document.createElement('a')
 
@@ -367,4 +377,8 @@ export const downloadTextFile = (content: string, fileName: string, mimeType = T
   anchor.click()
   document.body.removeChild(anchor)
   window.URL.revokeObjectURL(downloadUrl)
+}
+
+export const downloadTextFile = (content: string, fileName: string, mimeType = TEXT_FILE_MIME_TYPE) => {
+  downloadBlobFile(new Blob([content], { type: mimeType }), fileName)
 }
