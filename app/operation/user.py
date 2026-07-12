@@ -487,8 +487,10 @@ class UserOperation(BaseOperation):
         new_settings = updated.dict()
         if new_settings != db_user.proxy_settings:
             db_user.proxy_settings = new_settings
+            # No db.refresh(): the session uses expire_on_commit=False, and a
+            # refresh would expire eagerly-loaded relationships (groups/admin),
+            # causing MissingGreenlet during later response serialization.
             await db.commit()
-            await db.refresh(db_user)
 
     async def _prepare_revoked_proxy_settings(self, db: AsyncSession, db_user: User) -> ProxyTable:
         groups = db_user.__dict__.get("groups")

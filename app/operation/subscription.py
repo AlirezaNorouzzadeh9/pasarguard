@@ -298,8 +298,8 @@ class SubscriptionOperation(BaseOperation):
         new_settings = updated.dict()
         if new_settings != db_user.proxy_settings:
             db_user.proxy_settings = new_settings
+            # expire_on_commit=False keeps attributes; avoid refresh (greenlet-safe).
             await db.commit()
-            await db.refresh(db_user)
 
     async def fetch_config(self, user: UsersResponseWithInbounds, client_type: ConfigFormat) -> tuple[str | bytes, str]:
         # Get client configuration
