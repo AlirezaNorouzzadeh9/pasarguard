@@ -12,6 +12,7 @@ import { ValidationSummary, type ValidationListItem } from '@/features/core-edit
 import type { SectionHeaderAddPulse } from '@/features/core-editor/hooks/use-section-header-add-pulse'
 import { useXrayPersistValidationItems } from '@/features/core-editor/hooks/use-xray-persist-validation-items'
 import { WireGuardCoreEditor } from '@/features/core-editor/components/wg/wireguard-core-editor'
+import OpenVPNCoreEditorPage from '@/features/core-editor/components/openvpn/openvpn-core-editor-page'
 import { XrayCoreEditor } from '@/features/core-editor/components/xray/xray-core-editor'
 import { profileToPersistedConfig } from '@/features/core-editor/kit/xray-adapter'
 import { getWireGuardPersistConfig } from '@/features/core-editor/kit/wireguard-adapter'
@@ -213,8 +214,12 @@ export default function CoreEditorPage() {
     }
   }, [reset])
 
+  // OpenVPN uses a self-contained editor (below), not the xray/wg zustand store.
+  const isOpenVPNCore = isNew ? searchParams.get('kind') === 'openvpn' : coreData?.type === 'openvpn'
+
   useEffect(() => {
     if (isNew) {
+      if (searchParams.get('kind') === 'openvpn') return
       const k = (searchParams.get('kind') as CoreKind | null) === 'wg' ? 'wg' : 'xray'
       const currentName = useCoreEditorStore.getState().coreName
       initNew(k, currentName)
@@ -225,6 +230,7 @@ export default function CoreEditorPage() {
 
   useEffect(() => {
     if (isNew || !validId || !coreData || serverConfigJson === null) return
+    if (coreData.type === 'openvpn') return
     const state = useCoreEditorStore.getState()
     if (state.coreId !== coreData.id) {
       initFromCore(coreData)
@@ -419,6 +425,20 @@ export default function CoreEditorPage() {
             <Select
               value={kind === 'wg' ? 'wg' : 'xray'}
               onValueChange={value => {
+                if (value === 'openvpn') {
+                  // OpenVPN only supports switching from the "new" flow.
+                  if (isNew) {
+                    setSearchParams(
+                      prev => {
+                        const p = new URLSearchParams(prev)
+                        p.set('kind', 'openvpn')
+                        return p
+                      },
+                      { replace: true },
+                    )
+                  }
+                  return
+                }
                 const nextKind = value === 'wg' ? 'wg' : 'xray'
                 if (isNew) {
                   setSearchParams(
@@ -441,6 +461,7 @@ export default function CoreEditorPage() {
               <SelectContent>
                 <SelectItem value="xray">Xray</SelectItem>
                 <SelectItem value="wg">WireGuard</SelectItem>
+                <SelectItem value="openvpn">OpenVPN</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -539,6 +560,14 @@ export default function CoreEditorPage() {
         <Button type="button" variant="outline" onClick={() => navigate('/nodes/cores')}>
           {t('coreEditor.backToList', { defaultValue: 'Back to cores' })}
         </Button>
+      </div>
+    )
+  }
+
+  if (isOpenVPNCore) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <OpenVPNCoreEditorPage />
       </div>
     )
   }
