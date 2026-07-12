@@ -318,8 +318,13 @@ async def process_host(
     req_host = req_host.format_map(format_variables) if req_host else ""
 
     address = ""
+    openvpn_remotes: list[str] | None = None
     if inbound.address:
         address = random.choice(inbound.address).replace("*", salt)
+        # For OpenVPN, keep every address as a separate `remote` line (failover)
+        # instead of collapsing to a single random pick.
+        if inbound.protocol == "openvpn":
+            openvpn_remotes = [addr.replace("*", salt) for addr in inbound.address]
 
     # Select random port from list
     port = random.choice(inbound.port) if inbound.port else 0
@@ -367,6 +372,8 @@ async def process_host(
     # Update address and port with selected values
     inbound_copy.address = address
     inbound_copy.port = port
+    if openvpn_remotes is not None:
+        inbound_copy.openvpn_remotes = openvpn_remotes
 
     return inbound_copy, settings
 

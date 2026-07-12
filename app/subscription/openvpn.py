@@ -23,11 +23,20 @@ class OpenVPNConfiguration(BaseSubscription):
         self.proxy_remarks.append(validated_remark)
 
         proto = (inbound.openvpn_proto or "udp").lower()
-        lines = [
-            "client",
-            "dev tun",
-            f"proto {proto}",
-            f"remote {address} {inbound.port}",
+
+        # Failover: one `remote` line per resolved address. With a single remote
+        # we keep the classic `proto` + `remote host port` form; with several we
+        # switch to per-remote `remote host port proto` (no global proto line) so
+        # the client tries each endpoint in turn — matching multi-server configs.
+        remotes = inbound.openvpn_remotes or ([address] if address else [])
+        lines = ["client", "dev tun"]
+        if len(remotes) <= 1:
+            lines.append(f"proto {proto}")
+            lines.append(f"remote {remotes[0] if remotes else address} {inbound.port}")
+        else:
+            for remote in remotes:
+                lines.append(f"remote {remote} {inbound.port} {proto}")
+        lines += [
             "resolv-retry infinite",
             "nobind",
             "persist-key",

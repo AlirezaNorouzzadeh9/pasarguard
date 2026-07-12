@@ -1306,6 +1306,9 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
                       <p className="text-muted-foreground mb-3 text-[11px]">
                         {t('hostsDialog.openvpn.overridesHint', { defaultValue: 'Optional per-host values merged into this host’s generated .ovpn file. Leave empty to inherit the core defaults.' })}
                       </p>
+                      <p className="text-muted-foreground mb-3 text-[11px]">
+                        {t('hostsDialog.openvpn.failoverHint', { defaultValue: 'Tip: add several Addresses above (IPs or domains) to emit multiple remote lines — the client fails over between them.' })}
+                      </p>
                       <div className="space-y-3">
                         <div className="grid gap-3 sm:grid-cols-2">
                           <FormField

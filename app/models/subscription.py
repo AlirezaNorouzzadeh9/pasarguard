@@ -281,6 +281,10 @@ class SubscriptionInboundData(BaseModel):
     openvpn_redirect_gateway: bool = Field(True)
     openvpn_mtu: int | None = Field(default=None)
     openvpn_extra_directives: list[str] | None = Field(default=None)
+    # All resolved remote endpoints for this host (failover). Each becomes a
+    # `remote` line in the .ovpn. Populated in process_host from host.address so
+    # a single host with multiple addresses yields multi-server failover.
+    openvpn_remotes: list[str] | None = Field(default=None)
 
     # Flow (from inbound, user can override)
     inbound_flow: str = Field("")
