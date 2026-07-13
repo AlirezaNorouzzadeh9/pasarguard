@@ -299,8 +299,16 @@ export default function UserAllIPsModal({ isOpen, onOpenChange, userId, username
       )
     }
 
+    const totalDevices = transformedData.reduce((sum, n) => sum + Object.keys(n.ips).length, 0)
+
     return (
       <div className="space-y-3">
+        <div className="bg-muted/40 flex items-center justify-between rounded-md border px-3 py-2">
+          <span className="text-sm font-medium">
+            {t('userAllIPs.totalDevices', { defaultValue: 'Active devices (all protocols)' })}
+          </span>
+          <span className="text-lg font-semibold tabular-nums">{totalDevices}</span>
+        </div>
         {transformedData.map(({ nodeId, nodeName, ips }) => (
           <NodeIPCard key={nodeId} nodeId={nodeId} nodeName={nodeName} ips={ips} />
         ))}
