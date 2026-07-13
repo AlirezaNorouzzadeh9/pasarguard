@@ -590,15 +590,19 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
                           <FormLabel>{t('nodeModal.listenPorts', { defaultValue: 'Listen ports (per node)' })}</FormLabel>
                           <div className="flex flex-col gap-2 rounded-md border p-3">
                             {portable.map((core: CoreSimple) => (
-                              <div key={core.id} className={cn('flex items-center justify-between gap-2', dir === 'rtl' && 'flex-row-reverse')}>
-                                <span className="text-sm">{core.name} <span className="text-xs text-muted-foreground">({core.type})</span></span>
-                                <Input
-                                  type="number"
-                                  className="h-8 w-32"
-                                  placeholder={core.listen_port != null ? String(core.listen_port) : t('nodeModal.default', { defaultValue: 'default' })}
-                                  value={overrides[String(core.id)] ?? ''}
-                                  onChange={e => setPort(core.id, e.target.value)}
-                                />
+                              <div key={core.id} className={cn('flex w-full items-center justify-between gap-2', dir === 'rtl' && 'flex-row-reverse')}>
+                                <span className="truncate text-sm">
+                                  {core.name} <span className="text-xs text-muted-foreground">({core.type})</span>
+                                </span>
+                                <div className="w-28 shrink-0">
+                                  <Input
+                                    type="number"
+                                    className="h-8 w-full"
+                                    placeholder={core.listen_port != null ? String(core.listen_port) : t('nodeModal.default', { defaultValue: 'default' })}
+                                    value={overrides[String(core.id)] ?? ''}
+                                    onChange={e => setPort(core.id, e.target.value)}
+                                  />
+                                </div>
                               </div>
                             ))}
                           </div>
