@@ -1,7 +1,7 @@
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import case, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import CoreConfig, Node
+from app.db.models import CoreConfig, CoreType, Node
 from app.models.core import (
     CoreCreate,
     CoreListQuery,
@@ -139,7 +139,14 @@ async def get_cores_simple(
     Returns:
         Tuple of (list of (id, name, type) tuples, total_count).
     """
-    stmt = select(CoreConfig.id, CoreConfig.name, CoreConfig.type)
+    # Expose the default listen port for openvpn/wireguard cores (it lives inside
+    # the config JSON) so the UI can show it without loading the whole config.
+    listen_port = case(
+        (CoreConfig.type == CoreType.openvpn, CoreConfig.config["port"].as_integer()),
+        (CoreConfig.type == CoreType.wg, CoreConfig.config["listen_port"].as_integer()),
+        else_=None,
+    ).label("listen_port")
+    stmt = select(CoreConfig.id, CoreConfig.name, CoreConfig.type, listen_port)
 
     if query.ids:
         stmt = stmt.where(CoreConfig.id.in_(query.ids))

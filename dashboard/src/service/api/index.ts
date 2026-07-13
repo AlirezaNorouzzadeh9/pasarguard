@@ -3017,6 +3017,7 @@ export interface CoreSimple {
   id: number
   name: string
   type?: CoreSimpleType
+  listen_port?: number | null
 }
 
 export interface CoreResponseList {

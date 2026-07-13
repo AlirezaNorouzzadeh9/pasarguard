@@ -73,6 +73,8 @@ class CoreSimple(BaseModel):
     id: int
     name: str
     type: CoreType | None = None
+    # Default listen port for openvpn/wireguard cores (from the config JSON).
+    listen_port: int | None = None
     model_config = ConfigDict(from_attributes=True)
 
 

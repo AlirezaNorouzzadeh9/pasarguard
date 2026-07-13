@@ -595,7 +595,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
                                 <Input
                                   type="number"
                                   className="h-8 w-32"
-                                  placeholder={t('nodeModal.default', { defaultValue: 'default' })}
+                                  placeholder={core.listen_port != null ? String(core.listen_port) : t('nodeModal.default', { defaultValue: 'default' })}
                                   value={overrides[String(core.id)] ?? ''}
                                   onChange={e => setPort(core.id, e.target.value)}
                                 />

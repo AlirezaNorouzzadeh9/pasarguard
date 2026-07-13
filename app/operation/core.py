@@ -73,7 +73,7 @@ class CoreOperation(BaseOperation):
         """Get lightweight core list with only id and name"""
         rows, total = await get_cores_simple(db=db, query=query)
 
-        cores = [CoreSimple(id=row[0], name=row[1], type=row[2]) for row in rows]
+        cores = [CoreSimple(id=row[0], name=row[1], type=row[2], listen_port=row[3]) for row in rows]
 
         return CoresSimpleResponse(cores=cores, total=total)
 
