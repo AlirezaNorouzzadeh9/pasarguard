@@ -1,4 +1,5 @@
 import asyncio
+import json
 from typing import AsyncIterator, Callable
 
 from fastapi import HTTPException
@@ -201,13 +202,47 @@ class NodeOperation(BaseOperation):
             asyncio.create_task(notification.error_node(node_notif))
 
     @staticmethod
+    def _port_override_for(node: Node, core_id: int | None) -> int | None:
+        """The per-node listen-port override for a given core, if any."""
+        overrides = node.port_overrides or {}
+        if core_id is None:
+            return None
+        val = overrides.get(str(core_id))
+        return val if isinstance(val, int) and 0 < val <= 65535 else None
+
+    @staticmethod
+    def _config_with_port(core, port: int | None) -> str:
+        """Serialize a core config, overriding its listen port for this node.
+
+        openvpn/wireguard keep the listen port inside their config JSON, so a
+        per-node override is a simple parse -> set -> dump (no mutation of the
+        shared cached core object). Other backends are returned unchanged.
+        """
+        config = core.to_str()
+        if port is None:
+            return config
+        if core.type not in (CoreType.openvpn, CoreType.wg):
+            return config
+        try:
+            data = json.loads(config)
+        except (ValueError, TypeError):
+            return config
+        if core.type == CoreType.openvpn:
+            data["port"] = port
+        elif core.type == CoreType.wg:
+            data["listen_port"] = port
+        return json.dumps(data)
+
+    @staticmethod
     def _additional_for(node: Node, cores_by_id: dict, users_by_core: dict) -> list:
-        """Build the (core, users) list for a node's extra backends."""
+        """Build the (core, users, port_override) list for a node's extra backends."""
         extra = []
         for cid in node.additional_core_config_ids or []:
             if cid == (node.core_config_id or 1):
                 continue
-            extra.append((cores_by_id.get(cid), users_by_core.get(cid, [])))
+            extra.append(
+                (cores_by_id.get(cid), users_by_core.get(cid, []), NodeOperation._port_override_for(node, cid))
+            )
         return extra
 
     @staticmethod
@@ -238,7 +273,9 @@ class NodeOperation(BaseOperation):
         return cores_by_id, users_by_core
 
     @staticmethod
-    async def connect_node(db_node: Node, core, users: list, additional: list | None = None) -> dict | None:
+    async def connect_node(
+        db_node: Node, core, users: list, additional: list | None = None, primary_port: int | None = None
+    ) -> dict | None:
         """
         Connect to a node and return status result (does NOT update database).
 
@@ -246,8 +283,9 @@ class NodeOperation(BaseOperation):
             db_node (Node): Node object from database.
             core: Pre-fetched primary core config for this node.
             users (list): Pre-fetched primary core users list.
-            additional (list): Pre-fetched extra cores as (core, users) tuples;
-                started as additional backends on the same node (multi-backend).
+            additional (list): Pre-fetched extra cores as (core, users, port_override)
+                tuples; started as additional backends on the same node (multi-backend).
+            primary_port (int): Per-node listen-port override for the primary core.
 
         Returns:
             dict: {node_id, status, message, xray_version, node_version, old_status}
@@ -265,7 +303,7 @@ class NodeOperation(BaseOperation):
 
         try:
             start_kwargs = {
-                "config": core.to_str(),
+                "config": NodeOperation._config_with_port(core, primary_port),
                 "backend_type": type,
                 "users": users,
                 "keep_alive": db_node.keep_alive,
@@ -277,12 +315,12 @@ class NodeOperation(BaseOperation):
             logger.info(f'Connected to "{db_node.name}" node v{info.node_version}, core run on v{info.core_version}')
 
             # Bring up any extra cores on the same node (e.g. ikev2 alongside openvpn).
-            for extra_core, extra_users in additional or []:
+            for extra_core, extra_users, extra_port in additional or []:
                 if extra_core is None or extra_core.type == core.type:
                     continue
                 extra_type = _BACKEND_TYPE_BY_CORE.get(extra_core.type, service.BackendType.XRAY)
                 add_kwargs = {
-                    "config": extra_core.to_str(),
+                    "config": NodeOperation._config_with_port(extra_core, extra_port),
                     "backend_type": extra_type,
                     "users": extra_users,
                 }
@@ -648,6 +686,7 @@ class NodeOperation(BaseOperation):
                 cores_by_id.get(core_id),
                 users_by_core.get(core_id, []),
                 self._additional_for(node, cores_by_id, users_by_core),
+                self._port_override_for(node, core_id),
             )
 
         results = await asyncio.gather(*[connect_single(node) for node in nodes])
@@ -730,7 +769,9 @@ class NodeOperation(BaseOperation):
             return
 
         # Connect the node
-        result = await NodeOperation.connect_node(db_node, core, users, additional)
+        result = await NodeOperation.connect_node(
+            db_node, core, users, additional, self._port_override_for(db_node, core_id)
+        )
 
         if not result:
             return

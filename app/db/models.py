@@ -621,6 +621,9 @@ class Node(Base, CreatedAtUTCMixin):
     # Extra cores this node runs alongside its primary core_config (multi-backend,
     # e.g. openvpn + ikev2 on one node). List of core_configs.id.
     additional_core_config_ids: Mapped[Optional[list[int]]] = mapped_column(PostgresJSONB, default=None)
+    # Per-node listen-port overrides for openvpn/wireguard cores, so one core can
+    # run on different ports across nodes. Map of core_configs.id (str) -> port.
+    port_overrides: Mapped[Optional[dict]] = mapped_column(PostgresJSONB, default=None)
     user_usages: Mapped[List["NodeUserUsage"]] = relationship(
         back_populates="node", cascade="all, delete-orphan", init=False
     )

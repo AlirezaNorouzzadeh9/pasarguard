@@ -14,6 +14,7 @@ export const nodeFormSchema = z.object({
   api_key: z.string().min(1, 'API key is required'),
   core_config_id: z.number().min(1, 'Core configuration is required'),
   additional_core_config_ids: z.array(z.number()).optional().nullable(),
+  port_overrides: z.record(z.string(), z.number()).optional().nullable(),
   data_limit: z.number().min(0).optional().nullable(),
   data_limit_reset_strategy: z.nativeEnum(DataLimitResetStrategy).optional().nullable(),
   reset_time: z.union([z.null(), z.undefined(), z.number().min(-1)]),

@@ -121,6 +121,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
         api_key: (node.api_key as string) || '',
         core_config_id: node.core_config_id ?? cores?.[0]?.id,
         additional_core_config_ids: node.additional_core_config_ids ?? [],
+        port_overrides: node.port_overrides ?? null,
         data_limit: dataLimitGB,
         data_limit_reset_strategy: node.data_limit_reset_strategy ?? DataLimitResetStrategy.no_reset,
         reset_time: node.reset_time ?? null,
@@ -178,6 +179,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
           api_key: (nodeData.api_key as string) || '',
           core_config_id: nodeData.core_config_id ?? cores?.[0]?.id,
           additional_core_config_ids: nodeData.additional_core_config_ids ?? [],
+          port_overrides: nodeData.port_overrides ?? null,
           data_limit: dataLimitGB,
           data_limit_reset_strategy: nodeData.data_limit_reset_strategy ?? DataLimitResetStrategy.no_reset,
           reset_time: nodeData.reset_time ?? null,
@@ -209,6 +211,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
               api_key: (nodeData.api_key as string) || '',
               core_config_id: nodeData.core_config_id ?? cores?.[0]?.id,
               additional_core_config_ids: nodeData.additional_core_config_ids ?? [],
+              port_overrides: nodeData.port_overrides ?? null,
               data_limit: dataLimitGB,
               data_limit_reset_strategy: nodeData.data_limit_reset_strategy ?? DataLimitResetStrategy.no_reset,
               reset_time: nodeData.reset_time ?? null,
@@ -241,6 +244,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
         api_key: '',
         core_config_id: cores?.[0]?.id,
         additional_core_config_ids: [],
+        port_overrides: null,
         data_limit: 0,
         data_limit_reset_strategy: DataLimitResetStrategy.no_reset,
         reset_time: -1,
@@ -557,6 +561,50 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
                               ))
                             )}
                           </div>
+                          <FormMessage />
+                        </FormItem>
+                      )
+                    }}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="port_overrides"
+                    render={({ field }) => {
+                      const primaryId = form.watch('core_config_id')
+                      const additional: number[] = Array.isArray(form.watch('additional_core_config_ids')) ? (form.watch('additional_core_config_ids') as number[]) : []
+                      const runIds = [primaryId, ...additional].filter((v): v is number => typeof v === 'number')
+                      // Only openvpn/wireguard cores keep the listen port in their config.
+                      const portable = (cores ?? []).filter((c: CoreSimple) => runIds.includes(c.id) && (c.type === 'openvpn' || c.type === 'wg'))
+                      const overrides: Record<string, number> = (field.value && typeof field.value === 'object') ? (field.value as Record<string, number>) : {}
+                      const setPort = (coreId: number, raw: string) => {
+                        const next = { ...overrides }
+                        const n = parseInt(raw, 10)
+                        if (!raw || Number.isNaN(n) || n <= 0) delete next[String(coreId)]
+                        else next[String(coreId)] = n
+                        field.onChange(Object.keys(next).length ? next : null)
+                      }
+                      if (portable.length === 0) return <></>
+                      return (
+                        <FormItem>
+                          <FormLabel>{t('nodeModal.listenPorts', { defaultValue: 'Listen ports (per node)' })}</FormLabel>
+                          <div className="flex flex-col gap-2 rounded-md border p-3">
+                            {portable.map((core: CoreSimple) => (
+                              <div key={core.id} className={cn('flex items-center justify-between gap-2', dir === 'rtl' && 'flex-row-reverse')}>
+                                <span className="text-sm">{core.name} <span className="text-xs text-muted-foreground">({core.type})</span></span>
+                                <Input
+                                  type="number"
+                                  className="h-8 w-32"
+                                  placeholder={t('nodeModal.default', { defaultValue: 'default' })}
+                                  value={overrides[String(core.id)] ?? ''}
+                                  onChange={e => setPort(core.id, e.target.value)}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {t('nodeModal.listenPortsHint', { defaultValue: 'Overrides the listen port for this node only. Make the matching Host advertise the same port.' })}
+                          </p>
                           <FormMessage />
                         </FormItem>
                       )
