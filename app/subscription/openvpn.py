@@ -25,29 +25,31 @@ class OpenVPNConfiguration(BaseSubscription):
         proto = (inbound.openvpn_proto or "udp").lower()
         default_port = inbound.port
 
+        # Each address entry may be "host [port] [proto]" — a single field that
+        # drives failover and lets every remote pick its own port/proto. Missing
+        # parts inherit the host defaults (Port / Protocol override).
+        entries = inbound.openvpn_remotes or ([address] if address else [])
+        parsed = []
+        for entry in entries:
+            parts = entry.split()
+            if not parts:
+                continue
+            r_host = parts[0]
+            r_port = parts[1] if len(parts) > 1 and parts[1].isdigit() else default_port
+            r_proto = parts[2].lower() if len(parts) > 2 and parts[2].lower() in ("udp", "tcp") else None
+            parsed.append((r_host, r_port, r_proto))
+
         lines = ["client", "dev tun"]
-        if inbound.openvpn_remote_specs:
-            # Explicit per-remote endpoints. Each "host [port] [proto]" may pick
-            # its own protocol/port; missing fields fall back to host defaults.
-            # Always per-remote form so mixed udp/tcp works.
-            for spec in inbound.openvpn_remote_specs:
-                parts = spec.split()
-                r_host = parts[0]
-                r_port = parts[1] if len(parts) > 1 else default_port
-                r_proto = parts[2].lower() if len(parts) > 2 else proto
-                lines.append(f"remote {r_host} {r_port} {r_proto}")
+        if len(parsed) == 1 and parsed[0][2] is None:
+            # Single endpoint, no per-remote proto -> classic `proto` + `remote host port`.
+            r_host, r_port, _ = parsed[0]
+            lines.append(f"proto {proto}")
+            lines.append(f"remote {r_host} {r_port}")
         else:
-            # Failover from the Address list: one `remote` per address. A single
-            # remote keeps the classic `proto` + `remote host port` form; several
-            # switch to per-remote `remote host port proto` (no global proto line)
-            # so the client tries each endpoint in turn.
-            remotes = inbound.openvpn_remotes or ([address] if address else [])
-            if len(remotes) <= 1:
-                lines.append(f"proto {proto}")
-                lines.append(f"remote {remotes[0] if remotes else address} {default_port}")
-            else:
-                for remote in remotes:
-                    lines.append(f"remote {remote} {default_port} {proto}")
+            # Failover / mixed proto -> per-remote `remote host port proto`, no
+            # global proto line, so the client tries each endpoint in turn.
+            for r_host, r_port, r_proto in parsed:
+                lines.append(f"remote {r_host} {r_port} {r_proto or proto}")
         lines += [
             "resolv-retry infinite",
             "nobind",

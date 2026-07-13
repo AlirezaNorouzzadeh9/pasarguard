@@ -484,10 +484,6 @@ class OpenVPNHostOverrides(BaseModel):
     dns: list[str] | None = Field(default=None)
     mtu: int | None = Field(default=None, ge=576, le=9000)
     extra_client_directives: list[str] | None = Field(default=None)
-    # Explicit per-remote endpoints for failover, each "host [port] [proto]".
-    # When set, these fully define the .ovpn `remote` lines (each may pick its
-    # own udp/tcp and port), overriding the Address-based remotes.
-    remotes: list[str] | None = Field(default=None)
 
     @field_validator("proto", mode="before")
     @classmethod
@@ -498,36 +494,6 @@ class OpenVPNHostOverrides(BaseModel):
         if v not in ("udp", "tcp"):
             raise ValueError("proto must be 'udp' or 'tcp'")
         return v
-
-    @field_validator("remotes", mode="before")
-    @classmethod
-    def validate_remotes(cls, value):
-        if value in (None, "", []):
-            return None
-        if not isinstance(value, list):
-            raise ValueError("remotes must be a list of strings")
-        cleaned: list[str] = []
-        for line in value:
-            if not isinstance(line, str):
-                continue
-            parts = line.split()
-            if not parts:
-                continue
-            host = parts[0]
-            if host.startswith("<") or " " in host:
-                raise ValueError(f"invalid remote host '{host}'")
-            port = parts[1] if len(parts) > 1 else None
-            proto = parts[2].lower() if len(parts) > 2 else None
-            if len(parts) > 3:
-                raise ValueError(f"remote '{line}' has too many fields (expected: host [port] [proto])")
-            if port is not None:
-                if not port.isdigit() or not (1 <= int(port) <= 65535):
-                    raise ValueError(f"remote '{line}' has an invalid port")
-            if proto is not None and proto not in ("udp", "tcp"):
-                raise ValueError(f"remote '{line}' proto must be 'udp' or 'tcp'")
-            # Re-emit normalized form so downstream can rely on the shape.
-            cleaned.append(" ".join(p for p in (host, port, proto) if p is not None))
-        return cleaned or None
 
     @field_validator("extra_client_directives", mode="before")
     @classmethod

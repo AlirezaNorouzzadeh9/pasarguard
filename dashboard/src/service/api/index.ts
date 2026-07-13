@@ -702,8 +702,6 @@ export type OpenVPNHostOverridesMtu = number | null
 
 export type OpenVPNHostOverridesExtraClientDirectives = string[] | null
 
-export type OpenVPNHostOverridesRemotes = string[] | null
-
 /**
  * Optional per-host values merged into OpenVPN (.ovpn) subscription output.
  */
@@ -713,7 +711,6 @@ export interface OpenVPNHostOverrides {
   dns?: OpenVPNHostOverridesDns
   mtu?: OpenVPNHostOverridesMtu
   extra_client_directives?: OpenVPNHostOverridesExtraClientDirectives
-  remotes?: OpenVPNHostOverridesRemotes
 }
 
 export interface WebhookInfo {

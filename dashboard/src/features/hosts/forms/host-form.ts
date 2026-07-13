@@ -101,7 +101,6 @@ export interface HostFormValues {
     dns?: string[]
     mtu?: number
     extra_client_directives?: string[]
-    remotes?: string[]
   }
   subscription_templates?: {
     xray?: number
@@ -461,7 +460,6 @@ export const HostFormSchema = z.object({
       dns: z.array(z.string()).optional(),
       mtu: z.number().min(576).max(9000).optional(),
       extra_client_directives: z.array(z.string()).optional(),
-      remotes: z.array(z.string()).optional(),
     })
     .optional(),
   subscription_templates: z

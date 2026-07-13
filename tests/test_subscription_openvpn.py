@@ -111,14 +111,15 @@ def test_multi_remote_failover():
     assert body.count("remote ") == 3
 
 
-def test_custom_remotes_mixed_proto():
-    # Explicit specs let each remote pick its own proto/port (baharvpn style).
+def test_address_entries_carry_proto_and_port():
+    # A single Address field where each entry is "host [port] [proto]" drives
+    # failover and per-remote proto/port; missing parts inherit host defaults.
     inbound, ca_cert, ca_key = _inbound(
         openvpn_proto="udp",
-        openvpn_remote_specs=[
+        openvpn_remotes=[
             "172.234.115.82 1194 udp",
             "172.234.115.84 443 tcp",
-            "de.example.com",  # no port/proto -> inherit host defaults
+            "de.example.com",  # no port/proto -> inherit host defaults (1194/udp)
         ],
     )
     cc = pki.issue_client_cert(ca_cert, ca_key, "7")
@@ -130,6 +131,17 @@ def test_custom_remotes_mixed_proto():
     assert "remote de.example.com 1194 udp" in body  # inherited port 1194 + proto udp
     assert "\nproto udp\n" not in body  # per-remote form, no global proto
     assert body.count("remote ") == 3
+
+
+def test_single_address_with_explicit_proto_uses_per_remote_form():
+    # One entry but with an explicit proto -> per-remote form (no global proto).
+    inbound, ca_cert, ca_key = _inbound(openvpn_remotes=["1.2.3.4 8080 tcp"])
+    cc = pki.issue_client_cert(ca_cert, ca_key, "7")
+    conf = OpenVPNConfiguration()
+    conf.add("DE", "1.2.3.4", inbound, {"cert_pem": cc.cert_pem, "private_key_pem": cc.key_pem})
+    _, body = _names_and_body(conf)
+    assert "remote 1.2.3.4 8080 tcp" in body
+    assert "\nproto " not in body
 
 
 @pytest.mark.asyncio
