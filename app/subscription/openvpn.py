@@ -1,6 +1,7 @@
 import io
 import zipfile
 
+from app.models.host import OpenVPNRemote
 from app.models.subscription import SubscriptionInboundData
 
 from .base import BaseSubscription
@@ -25,19 +26,12 @@ class OpenVPNConfiguration(BaseSubscription):
         proto = (inbound.openvpn_proto or "udp").lower()
         default_port = inbound.port
 
-        # Each address entry may be "host [port] [proto]" — a single field that
-        # drives failover and lets every remote pick its own port/proto. Missing
-        # parts inherit the host defaults (Port / Protocol override).
-        entries = inbound.openvpn_remotes or ([address] if address else [])
-        parsed = []
-        for entry in entries:
-            parts = entry.split()
-            if not parts:
-                continue
-            r_host = parts[0]
-            r_port = parts[1] if len(parts) > 1 and parts[1].isdigit() else default_port
-            r_proto = parts[2].lower() if len(parts) > 2 and parts[2].lower() in ("udp", "tcp") else None
-            parsed.append((r_host, r_port, r_proto))
+        # Structured remotes drive failover; a remote's missing port/proto
+        # inherits the host defaults (Port / Protocol override).
+        remotes = inbound.openvpn_remotes or []
+        if not remotes and address:
+            remotes = [OpenVPNRemote(host=address)]
+        parsed = [(remote.host, remote.port or default_port, remote.proto) for remote in remotes]
 
         lines = ["client", "dev tun"]
         if len(parsed) == 1 and parsed[0][2] is None:

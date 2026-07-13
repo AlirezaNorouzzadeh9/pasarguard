@@ -8,6 +8,7 @@ from jdatetime import date as jd
 
 from app.core.hosts import host_manager
 from app.db.models import UserStatus
+from app.models.host import OpenVPNRemote
 from app.models.status_emojis import STATUS_EMOJIS
 from app.models.subscription import SubscriptionInboundData
 from app.models.user import UsersResponseWithInbounds
@@ -318,14 +319,20 @@ async def process_host(
     req_host = req_host.format_map(format_variables) if req_host else ""
 
     address = ""
-    openvpn_remotes: list[str] | None = None
+    openvpn_remotes: list[OpenVPNRemote] | None = None
     if inbound.address:
         address = random.choice(inbound.address).replace("*", salt)
-        # For OpenVPN, keep every address entry as a separate `remote` line
-        # (failover) instead of collapsing to a single random pick. Each entry
-        # may be "host [port] [proto]".
-        if inbound.protocol == "openvpn":
-            openvpn_remotes = [addr.replace("*", salt) for addr in inbound.address]
+    if inbound.protocol == "openvpn":
+        # Every remote is kept as its own `remote` line (failover) instead of
+        # collapsing to a single random pick. Structured remotes (per-remote
+        # proto/port) take precedence; otherwise each address entry becomes a
+        # remote with the host defaults.
+        source = inbound.openvpn_remotes or [OpenVPNRemote.parse(addr) for addr in (inbound.address or [])]
+        openvpn_remotes = [
+            remote.model_copy(update={"host": remote.host.replace("*", salt)})
+            for remote in source
+            if remote is not None
+        ] or None
 
     # Select random port from list
     port = random.choice(inbound.port) if inbound.port else 0
@@ -462,6 +469,11 @@ async def process_inbounds_and_tags(
         # Format remark and address with user variables
         remark = inbound_copy.remark.format_map(format_variables)
         formatted_address = inbound_copy.address.format_map(format_variables)
+        if inbound_copy.openvpn_remotes:
+            inbound_copy.openvpn_remotes = [
+                remote.model_copy(update={"host": remote.host.format_map(format_variables)})
+                for remote in inbound_copy.openvpn_remotes
+            ]
 
         download_settings = getattr(inbound_copy.transport_config, "download_settings", None)
         if download_settings:

@@ -359,6 +359,11 @@ export default function HostsList({
             dns: host.openvpn_overrides.dns ?? [],
             mtu: host.openvpn_overrides.mtu ?? undefined,
             extra_client_directives: host.openvpn_overrides.extra_client_directives ?? [],
+            remotes: (host.openvpn_overrides.remotes ?? []).map(remote => ({
+              host: remote.host,
+              port: remote.port ?? undefined,
+              proto: (remote.proto as 'udp' | 'tcp' | '' | null) ?? '',
+            })),
           }
         : undefined,
     }

@@ -19,7 +19,7 @@ import { queryClient } from '@/utils/query-client'
 import { useQuery } from '@tanstack/react-query'
 import { Cable, ChevronsLeftRightEllipsis, Copy, Pencil, GlobeLock, Info, Loader2, Lock, Network, Plus, Route, Trash2, X, ListTodo } from 'lucide-react'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
-import { UseFormReturn } from 'react-hook-form'
+import { UseFormReturn, useFieldArray } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { hostFormDefaultValues, type HostFormValues } from '@/features/hosts/forms/host-form'
 import { LoaderButton } from '@/components/ui/loader-button'
@@ -45,6 +45,119 @@ const statusOptions = [
 ] as const
 
 const XRAY_TEMPLATE_INBOUND_DEFAULT_VALUE = '__xray_template_inbound_default__'
+
+type OpenVPNRemoteRow = { host: string; port?: number; proto?: 'udp' | 'tcp' | '' }
+
+// Parse a legacy "host [port] [proto]" address entry into a structured remote row.
+const parseLegacyOpenVPNRemote = (entry: string): OpenVPNRemoteRow | null => {
+  const parts = entry.trim().split(/\s+/)
+  if (!parts[0]) return null
+  let port: number | undefined
+  let proto: 'udp' | 'tcp' | '' = ''
+  for (const token of parts.slice(1, 3)) {
+    const lowered = token.toLowerCase()
+    if (lowered === 'udp' || lowered === 'tcp') proto = lowered
+    else if (/^\d+$/.test(token)) port = Number(token)
+  }
+  return { host: parts[0], port, proto }
+}
+
+// Structured per-remote editor shown instead of the plain Address field for
+// OpenVPN hosts: every row is one `remote` (failover); empty port/protocol
+// inherit the host defaults.
+const OpenVPNRemotesField = ({ form }: { form: UseFormReturn<HostFormValues> }) => {
+  const { t } = useTranslation()
+  const { fields, append, remove } = useFieldArray({ control: form.control, name: 'openvpn_overrides.remotes' })
+
+  return (
+    <FormItem>
+      <div className="flex items-center gap-2">
+        <FormLabel>{t('hostsDialog.address')}</FormLabel>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="ghost" size="icon" className="h-4 w-4 p-0 hover:bg-transparent">
+              <Info className="text-muted-foreground h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[min(90vw,20rem)] p-3 sm:w-80" side="top" align="start" sideOffset={5}>
+            <p className="text-muted-foreground text-[11px]">
+              {t('hostsDialog.openvpn.remotesInfo', {
+                defaultValue: 'Each row becomes a remote line (failover). Pick a protocol per address; leave the port empty to use the default Port below.',
+              })}
+            </p>
+          </PopoverContent>
+        </Popover>
+      </div>
+      <div className="space-y-2">
+        {fields.map((row, index) => (
+          <div key={row.id} className="flex items-center gap-2" dir="ltr">
+            <FormField
+              control={form.control}
+              name={`openvpn_overrides.remotes.${index}.host`}
+              render={({ field }) => (
+                <FormItem className="min-w-0 flex-1">
+                  <FormControl>
+                    <Input dir="ltr" className="text-xs" placeholder="1.2.3.4 / vpn.example.com" {...field} value={field.value ?? ''} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name={`openvpn_overrides.remotes.${index}.port`}
+              render={({ field }) => (
+                <FormItem className="w-20 shrink-0">
+                  <FormControl>
+                    <Input
+                      dir="ltr"
+                      type="text"
+                      inputMode="numeric"
+                      className="text-xs"
+                      placeholder={t('hostsDialog.openvpn.portDefault', { defaultValue: 'Port' })}
+                      value={field.value ?? ''}
+                      onChange={e => {
+                        const digits = e.target.value.replace(/[^0-9]/g, '')
+                        field.onChange(digits ? Number(digits) : undefined)
+                      }}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name={`openvpn_overrides.remotes.${index}.proto`}
+              render={({ field }) => (
+                <FormItem className="w-28 shrink-0">
+                  <Select value={field.value || 'default'} onValueChange={value => field.onChange(value === 'default' ? '' : value)}>
+                    <FormControl>
+                      <SelectTrigger className="text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="default">{t('hostsDialog.openvpn.protoDefault', { defaultValue: 'Default (core)' })}</SelectItem>
+                      <SelectItem value="udp">UDP</SelectItem>
+                      <SelectItem value="tcp">TCP</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+            <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => remove(index)} aria-label={t('remove', { defaultValue: 'Remove' })}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+        <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => append({ host: '', port: undefined, proto: '' })}>
+          <Plus className="mr-1 h-3 w-3" />
+          {t('hostsDialog.openvpn.addRemote', { defaultValue: 'Add address' })}
+        </Button>
+      </div>
+      <FormMessage />
+    </FormItem>
+  )
+}
 
 const createHostFormDefaults = (): HostFormValues => ({
   ...hostFormDefaultValues,
@@ -792,9 +905,26 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
     if (ovpn == null) {
       form.setValue(
         'openvpn_overrides',
-        { proto: '', redirect_gateway: undefined, dns: [], mtu: undefined, extra_client_directives: [] },
+        { proto: '', redirect_gateway: undefined, dns: [], mtu: undefined, extra_client_directives: [], remotes: [] },
         { shouldDirty: false },
       )
+    }
+  }, [form, isOpenVPNInbound, selectedInboundTag, editingHost])
+
+  useEffect(() => {
+    // Migrate hosts saved before the structured remotes editor: derive rows
+    // from legacy "host [port] [proto]" address entries when none are stored.
+    if (!isOpenVPNInbound) {
+      return
+    }
+    const remotes = form.getValues('openvpn_overrides.remotes')
+    if (remotes?.length) {
+      return
+    }
+    const address = form.getValues('address') || []
+    const rows = address.map(parseLegacyOpenVPNRemote).filter((row): row is OpenVPNRemoteRow => row !== null)
+    if (rows.length) {
+      form.setValue('openvpn_overrides.remotes', rows, { shouldDirty: false })
     }
   }, [form, isOpenVPNInbound, selectedInboundTag, editingHost])
 
@@ -863,6 +993,18 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
           if (ovpn.mtu != null && !Number.isNaN(Number(ovpn.mtu))) next.mtu = Number(ovpn.mtu)
           const directives = ovpn.extra_client_directives?.map(d => d.trim()).filter(Boolean)
           if (directives?.length) next.extra_client_directives = directives
+          const remotes = (ovpn.remotes ?? [])
+            .map(row => ({
+              host: (row.host || '').trim(),
+              port: row.port != null && row.port >= 1 && row.port <= 65535 ? row.port : undefined,
+              proto: row.proto === 'udp' || row.proto === 'tcp' ? row.proto : undefined,
+            }))
+            .filter(row => row.host)
+          if (remotes.length) {
+            next.remotes = remotes
+            // Keep the generic address list in sync (fallback path + host list display).
+            payload.address = remotes.map(row => row.host)
+          }
           payload.openvpn_overrides = Object.keys(next).length > 0 ? next : undefined
         }
       } else {
@@ -1137,31 +1279,23 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
 
               <div className="!mb-4 grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(7rem,1fr)]">
                 <div className="min-w-0">
-                  <FormField
-                    control={form.control}
-                    name="address"
-                    render={({ field }) => {
-                      const infoContent = isOpenVPNInbound ? (
-                        <p className="text-muted-foreground text-[11px]">
-                          {t('hostsDialog.openvpn.addressHint', {
-                            defaultValue: 'Each entry becomes a remote (failover). Optionally add a port/proto: "host [port] [proto]", e.g. "1.2.3.4 443 tcp". Missing parts inherit the Port and Protocol below.',
-                          })}
-                        </p>
-                      ) : (
-                        <VariablesList includeProtocolTransport />
-                      )
-
-                      return (
+                  {isOpenVPNInbound ? (
+                    <OpenVPNRemotesField form={form} />
+                  ) : (
+                    <FormField
+                      control={form.control}
+                      name="address"
+                      render={({ field }) => (
                         <ArrayInput
                           field={field}
-                          placeholder={isOpenVPNInbound ? '1.2.3.4 443 tcp' : 'example.com'}
+                          placeholder="example.com"
                           label={t('hostsDialog.address')}
-                          infoContent={infoContent}
+                          infoContent={<VariablesList includeProtocolTransport />}
                           customVariablesTrigger={<CustomVariablesPopover />}
                         />
-                      )
-                    }}
-                  />
+                      )}
+                    />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <FormField
@@ -1329,7 +1463,7 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
                       <p className="text-muted-foreground mb-3 text-[11px]">
                         {t('hostsDialog.openvpn.failoverHint', {
                           defaultValue:
-                            'Tip: each Address above becomes a remote line (failover). An entry may be "host [port] [proto]", e.g. "1.2.3.4 443 tcp", to give that remote its own port/protocol; otherwise it inherits the host Port and Protocol below.',
+                            'Tip: each Address row above becomes a remote line (failover). A row with no port/protocol inherits the host Port and the Protocol below.',
                         })}
                       </p>
                       <div className="space-y-3">

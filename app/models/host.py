@@ -476,10 +476,61 @@ class WireGuardHostOverrides(BaseModel):
         return normalized or None
 
 
+class OpenVPNRemote(BaseModel):
+    """One `remote` endpoint of an OpenVPN host.
+
+    ``port``/``proto`` are optional: a missing value inherits the host defaults
+    at render time. Legacy string entries ("host [port] [proto]") are coerced
+    for backward compatibility with data stored before the structured form.
+    """
+
+    host: str = Field(min_length=1)
+    port: int | None = Field(default=None, ge=1, le=65535)
+    proto: str | None = Field(default=None)
+
+    @field_validator("host", mode="before")
+    @classmethod
+    def validate_host(cls, v):
+        v = str(v or "").strip()
+        if not v:
+            raise ValueError("remote host is required")
+        return v
+
+    @field_validator("proto", mode="before")
+    @classmethod
+    def validate_proto(cls, v):
+        if v in (None, ""):
+            return None
+        v = str(v).strip().lower()
+        if v not in ("udp", "tcp"):
+            raise ValueError("proto must be 'udp' or 'tcp'")
+        return v
+
+    @classmethod
+    def parse(cls, value: "OpenVPNRemote | dict | str") -> "OpenVPNRemote | None":
+        """Coerce a remote from structured or legacy string form ("host [port] [proto]")."""
+        if isinstance(value, OpenVPNRemote):
+            return value
+        if isinstance(value, dict):
+            return cls.model_validate(value)
+        parts = str(value or "").split()
+        if not parts:
+            return None
+        host, port, proto = parts[0], None, None
+        for token in parts[1:3]:
+            lowered = token.lower()
+            if lowered in ("udp", "tcp"):
+                proto = lowered
+            elif token.isdigit():
+                port = int(token)
+        return cls(host=host, port=port, proto=proto)
+
+
 class OpenVPNHostOverrides(BaseModel):
     """Optional per-host values merged into OpenVPN (.ovpn) subscription output."""
 
     proto: str | None = Field(default=None)
+    remotes: list[OpenVPNRemote] | None = Field(default=None)
     redirect_gateway: bool | None = Field(default=None)
     dns: list[str] | None = Field(default=None)
     mtu: int | None = Field(default=None, ge=576, le=9000)
@@ -494,6 +545,17 @@ class OpenVPNHostOverrides(BaseModel):
         if v not in ("udp", "tcp"):
             raise ValueError("proto must be 'udp' or 'tcp'")
         return v
+
+    @field_validator("remotes", mode="before")
+    @classmethod
+    def validate_remotes(cls, value):
+        if value in (None, "", []):
+            return None
+        if not isinstance(value, list):
+            raise ValueError("remotes must be a list")
+        parsed = [OpenVPNRemote.parse(entry) for entry in value]
+        cleaned = [remote for remote in parsed if remote is not None]
+        return cleaned or None
 
     @field_validator("extra_client_directives", mode="before")
     @classmethod

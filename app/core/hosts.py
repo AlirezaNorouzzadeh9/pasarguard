@@ -148,6 +148,7 @@ async def _prepare_subscription_inbound_data(
             openvpn_extra_directives=(
                 list(ov_over.extra_client_directives) if ov_over.extra_client_directives else None
             ),
+            openvpn_remotes=list(ov_over.remotes) if ov_over.remotes else None,
             priority=host.priority,
             status=list(host.status) if host.status else None,
             subscription_templates=host.subscription_templates.model_dump(exclude_none=True)

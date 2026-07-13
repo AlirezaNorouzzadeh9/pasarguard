@@ -703,6 +703,17 @@ export type OpenVPNHostOverridesMtu = number | null
 export type OpenVPNHostOverridesExtraClientDirectives = string[] | null
 
 /**
+ * One `remote` endpoint of an OpenVPN host. Missing port/proto inherit the host defaults.
+ */
+export interface OpenVPNRemote {
+  host: string
+  port?: number | null
+  proto?: string | null
+}
+
+export type OpenVPNHostOverridesRemotes = OpenVPNRemote[] | null
+
+/**
  * Optional per-host values merged into OpenVPN (.ovpn) subscription output.
  */
 export interface OpenVPNHostOverrides {
@@ -711,6 +722,7 @@ export interface OpenVPNHostOverrides {
   dns?: OpenVPNHostOverridesDns
   mtu?: OpenVPNHostOverridesMtu
   extra_client_directives?: OpenVPNHostOverridesExtraClientDirectives
+  remotes?: OpenVPNHostOverridesRemotes
 }
 
 export interface WebhookInfo {

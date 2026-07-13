@@ -3,6 +3,7 @@ import zipfile
 
 import pytest
 
+from app.models.host import OpenVPNHostOverrides, OpenVPNRemote
 from app.models.subscription import SubscriptionInboundData, TCPTransportConfig, TLSConfig
 from app.subscription.openvpn import OpenVPNConfiguration
 from app.subscription.share import process_host
@@ -144,6 +145,41 @@ def test_single_address_with_explicit_proto_uses_per_remote_form():
     assert "\nproto " not in body
 
 
+def test_structured_remotes_inherit_defaults():
+    # Structured remotes: per-remote proto/port with fallback to host defaults.
+    inbound, ca_cert, ca_key = _inbound(
+        openvpn_proto="udp",
+        openvpn_remotes=[
+            OpenVPNRemote(host="172.234.115.82", port=1194, proto="udp"),
+            OpenVPNRemote(host="172.234.115.84", port=443, proto="tcp"),
+            OpenVPNRemote(host="de.example.com"),  # inherit host defaults (1194/udp)
+        ],
+    )
+    cc = pki.issue_client_cert(ca_cert, ca_key, "7")
+    conf = OpenVPNConfiguration()
+    conf.add("DE", "172.234.115.82", inbound, {"cert_pem": cc.cert_pem, "private_key_pem": cc.key_pem})
+    _, body = _names_and_body(conf)
+    assert "remote 172.234.115.82 1194 udp" in body
+    assert "remote 172.234.115.84 443 tcp" in body
+    assert "remote de.example.com 1194 udp" in body
+    assert "\nproto udp\n" not in body  # per-remote form, no global proto
+    assert body.count("remote ") == 3
+
+
+def test_legacy_proto_without_port_is_parsed():
+    # "host proto" (no port) previously dropped the proto silently.
+    remote = OpenVPNRemote.parse("1.2.3.4 tcp")
+    assert remote.host == "1.2.3.4"
+    assert remote.port is None
+    assert remote.proto == "tcp"
+
+
+def test_overrides_remotes_coerce_legacy_strings():
+    over = OpenVPNHostOverrides(remotes=["1.2.3.4 443 tcp", {"host": "de.example.com", "port": 8080}])
+    assert over.remotes[0] == OpenVPNRemote(host="1.2.3.4", port=443, proto="tcp")
+    assert over.remotes[1] == OpenVPNRemote(host="de.example.com", port=8080)
+
+
 @pytest.mark.asyncio
 async def test_process_host_populates_all_remotes():
     # A host carrying multiple addresses should surface every one as a remote
@@ -157,6 +193,26 @@ async def test_process_host_populates_all_remotes():
     )
     assert result is not None
     inbound_copy, _ = result
-    assert set(inbound_copy.openvpn_remotes) == {"de1.example.com", "de2.example.com", "5.6.7.8"}
+    hosts = {remote.host for remote in inbound_copy.openvpn_remotes}
+    assert hosts == {"de1.example.com", "de2.example.com", "5.6.7.8"}
     # The single `address` is still one of them (used by the <=1 fallback path).
-    assert inbound_copy.address in inbound_copy.openvpn_remotes
+    assert inbound_copy.address in hosts
+
+
+@pytest.mark.asyncio
+async def test_process_host_prefers_structured_remotes():
+    # Structured remotes from host overrides win over the plain address list.
+    inbound, _, _ = _inbound(
+        address=["ignored.example.com"],
+        port=[1194],
+        openvpn_remotes=[OpenVPNRemote(host="win.example.com", port=443, proto="tcp")],
+    )
+    result = await process_host(
+        inbound,
+        format_variables={},
+        inbounds=["ovpn"],
+        proxies={"openvpn": {"cert_pem": "x"}, "_user_id": 7},
+    )
+    assert result is not None
+    inbound_copy, _ = result
+    assert inbound_copy.openvpn_remotes == [OpenVPNRemote(host="win.example.com", port=443, proto="tcp")]
