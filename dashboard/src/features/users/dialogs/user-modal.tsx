@@ -1,3 +1,4 @@
+import { $fetch } from '@/service/http'
 import { DatePicker, type DatePickerAlign, type DatePickerSide } from '@/components/common/date-picker'
 import { DecimalInput } from '@/components/common/decimal-input'
 import GroupsSelector from '@/components/common/groups-selector'
@@ -323,6 +324,44 @@ const StatusSelectItem = ({ value, children, onSelect }: StatusSelectItemProps) 
 function UserModal({ isDialogOpen, onOpenChange, form, editingUser, editingUserId, editingUserData, onSuccessCallback }: UserModalProps) {
   const { t, i18n } = useTranslation()
   const { admin } = useAdmin()
+
+  // OpenVPN certificate: auto-issued PKI material (read-only) with a reissue action.
+  const [ovpnCert, setOvpnCert] = useState<{ has_cert?: boolean; serial?: string; not_after?: string; expired?: boolean } | null>(null)
+  const [ovpnReissuing, setOvpnReissuing] = useState(false)
+  const ovpnUsername: string | undefined = editingUser ? editingUserData?.username || form.getValues('username') : undefined
+
+  useEffect(() => {
+    if (!isDialogOpen || !ovpnUsername) {
+      setOvpnCert(null)
+      return
+    }
+    let cancelled = false
+    $fetch<typeof ovpnCert>(`/api/openvpn/user/${encodeURIComponent(ovpnUsername)}/cert`)
+      .then(res => {
+        if (!cancelled) setOvpnCert(res)
+      })
+      .catch(() => {
+        if (!cancelled) setOvpnCert(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isDialogOpen, ovpnUsername])
+
+  const handleReissueOvpnCert = React.useCallback(async () => {
+    if (!ovpnUsername) return
+    setOvpnReissuing(true)
+    try {
+      const res = await $fetch<typeof ovpnCert>(`/api/openvpn/user/${encodeURIComponent(ovpnUsername)}/reissue`, { method: 'POST' })
+      setOvpnCert(res)
+      toast.success(t('userDialog.proxySettings.ovpnReissued', { defaultValue: 'OpenVPN certificate re-issued. The old .ovpn is now invalid.' }))
+    } catch {
+      toast.error(t('userDialog.proxySettings.ovpnReissueFailed', { defaultValue: 'Failed to re-issue certificate' }))
+    } finally {
+      setOvpnReissuing(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ovpnUsername])
   const canViewAllUserIps = hasScopeAll(admin, 'users', 'read')
   const canUseResetStrategy = admin?.role?.features?.can_use_reset_strategy !== false
   const canUseNextPlan = admin?.role?.features?.can_use_next_plan !== false
@@ -2197,6 +2236,45 @@ function UserModal({ isDialogOpen, onOpenChange, form, editingUser, editingUserI
                               </FormItem>
                             )}
                           />
+                          {/* OpenVPN certificate (auto-issued PKI; read-only + reissue) */}
+                          {ovpnCert?.has_cert && (
+                            <div className="mb-2">
+                              <FormLabel>{t('userDialog.proxySettings.openvpnCert', { defaultValue: 'OpenVPN Certificate' })}</FormLabel>
+                              <div className="border-border mt-1 flex items-center justify-between gap-2 rounded-(--radius) border p-2.5">
+                                <div className="min-w-0 text-xs" dir="ltr">
+                                  <div className="text-muted-foreground">
+                                    {t('userDialog.proxySettings.openvpnSerial', { defaultValue: 'Serial' })}:{' '}
+                                    <span className="font-mono">{ovpnCert.serial}</span>
+                                  </div>
+                                  {ovpnCert.not_after && (
+                                    <div className={ovpnCert.expired ? 'text-destructive' : 'text-muted-foreground'}>
+                                      {ovpnCert.expired
+                                        ? t('userDialog.proxySettings.openvpnExpired', { defaultValue: 'expired' })
+                                        : t('userDialog.proxySettings.openvpnExpires', { defaultValue: 'expires' }) +
+                                          ' ' +
+                                          new Date(ovpnCert.not_after).toLocaleDateString()}
+                                    </div>
+                                  )}
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 shrink-0"
+                                  disabled={ovpnReissuing}
+                                  onClick={handleReissueOvpnCert}
+                                >
+                                  <RefreshCcw className={`h-3 w-3 ${ovpnReissuing ? 'animate-spin' : ''} ${dir === 'rtl' ? 'ml-1' : 'mr-1'}`} />
+                                  {t('userDialog.proxySettings.openvpnReissue', { defaultValue: 'Reissue' })}
+                                </Button>
+                              </div>
+                              <p className="text-muted-foreground mt-1 text-xs">
+                                {t('userDialog.proxySettings.openvpnCertHint', {
+                                  defaultValue: 'Auto-issued from the panel CA. Reissue generates a new serial and invalidates the previous .ovpn.',
+                                })}
+                              </p>
+                            </div>
+                          )}
                         </AccordionContent>
                       </AccordionItem>
                     </Accordion>
