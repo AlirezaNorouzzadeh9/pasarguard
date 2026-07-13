@@ -116,6 +116,29 @@ async def generate_subscription(
     return config
 
 
+async def generate_ikev2_details(
+    user: UsersResponseWithInbounds,
+    randomize_order: bool = False,
+) -> list[dict[str, str]]:
+    """Return per-host IKEv2 connection details (server/username/password) for the sub page."""
+    if not ikev2_env_settings.enabled:
+        return []
+    conf = IKEv2Configuration()
+    sub_settings = await subscription_settings()
+    custom_variables = get_effective_custom_variables(user, sub_settings.custom_variables)
+    format_variables = setup_format_variables(user, sub_settings.custom_variables)
+    client_templates = await subscription_client_templates()
+    await process_inbounds_and_tags(
+        user,
+        format_variables,
+        conf,
+        client_templates,
+        randomize_order=randomize_order,
+        custom_variables=custom_variables,
+    )
+    return conf.details
+
+
 def format_time_left(seconds_left: int) -> str:
     if not seconds_left or seconds_left <= 0:
         return "∞"

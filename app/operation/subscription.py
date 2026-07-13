@@ -470,8 +470,11 @@ class SubscriptionOperation(BaseOperation):
             from app.utils.openvpn import get_openvpn_tags_from_groups
             from config import openvpn_env_settings
 
-            # IKEv2 configs are delivered as a .mobileconfig zip, same as OpenVPN.
+            # IKEv2 is delivered as a .mobileconfig zip AND as inline connection
+            # details (server / username / password) for manual setup.
             ikev2_url = None
+            ikev2_details: list[dict] = []
+            from app.subscription.share import generate_ikev2_details
             from app.utils.ikev2 import get_ikev2_tags_from_groups
             from config import ikev2_env_settings
 
@@ -492,6 +495,7 @@ class SubscriptionOperation(BaseOperation):
                 if await get_ikev2_tags_from_groups(groups):
                     base = (request_url or "").split("?")[0].rstrip("/")
                     ikev2_url = f"{base}/ikev2" if base else None
+                    ikev2_details = await generate_ikev2_details(user, sub_settings.randomize_order)
 
             return HTMLResponse(
                 render_template(
@@ -505,6 +509,7 @@ class SubscriptionOperation(BaseOperation):
                         is_hwid_enabled,
                         openvpn_url,
                         ikev2_url,
+                        ikev2_details,
                     ),
                 )
             )
@@ -640,6 +645,7 @@ class SubscriptionOperation(BaseOperation):
         is_hwid_enabled: bool,
         openvpn_url: str | None = None,
         ikev2_url: str | None = None,
+        ikev2_details: list[dict] | None = None,
     ) -> dict[str, Any]:
         return {
             "user": SubscriptionUserResponse.model_validate(user),
@@ -648,6 +654,7 @@ class SubscriptionOperation(BaseOperation):
             "announce_url": sub_settings.announce_url,
             "openvpn_url": openvpn_url,
             "ikev2_url": ikev2_url,
+            "ikev2_details": ikev2_details or [],
             "apps": self._make_apps_import_urls(
                 sub_settings.applications,
                 format_variables,

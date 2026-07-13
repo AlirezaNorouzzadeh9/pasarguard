@@ -646,15 +646,26 @@
             {% if ikev2_url %}
             <div class="links-section">
                 <h2>IKEv2 / IPsec</h2>
-                <div class="link-item">
-                    <input type="text" class="link-input" value="{{ ikev2_url }}" readonly />
-                    <button
-                        class="copy-button"
-                        onclick="copyLink('{{ ikev2_url }}', this)"
-                    >
-                        Copy
-                    </button>
+                {% for d in ikev2_details %}
+                <div class="link-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                    <div style="font-weight: 600;">{{ d.remark }}</div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span style="min-width: 90px; opacity: 0.7;">Server</span>
+                        <input type="text" class="link-input" value="{{ d.server }}" readonly />
+                        <button class="copy-button" onclick="copyLink('{{ d.server }}', this)">Copy</button>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span style="min-width: 90px; opacity: 0.7;">Username</span>
+                        <input type="text" class="link-input" value="{{ d.username }}" readonly />
+                        <button class="copy-button" onclick="copyLink('{{ d.username }}', this)">Copy</button>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span style="min-width: 90px; opacity: 0.7;">Password</span>
+                        <input type="text" class="link-input" value="{{ d.password }}" readonly />
+                        <button class="copy-button" onclick="copyLink('{{ d.password }}', this)">Copy</button>
+                    </div>
                 </div>
+                {% endfor %}
                 <a
                     href="{{ ikev2_url }}"
                     class="copy-all-button"

@@ -42,6 +42,8 @@ class IKEv2Configuration(BaseSubscription):
     def __init__(self):
         self.proxy_remarks = []
         self.configs: list[tuple[str, str, bytes]] = []  # (filename, kind, bytes)
+        # Plain connection details, surfaced inline on the subscription page.
+        self.details: list[dict[str, str]] = []
 
     def add(self, remark: str, address: str, inbound: SubscriptionInboundData, settings: dict):
         username = (settings or {}).get("username")
@@ -55,6 +57,15 @@ class IKEv2Configuration(BaseSubscription):
 
         server = inbound.ikev2_server_addr or address
         identity = inbound.ikev2_identity or server
+        self.details.append(
+            {
+                "remark": validated_remark,
+                "server": server,
+                "identity": identity,
+                "username": str(username),
+                "password": str(password),
+            }
+        )
         ca_der = _pem_to_der_b64(ca_cert)
         ca_cn = _ca_common_name(ca_der)
 
