@@ -620,6 +620,29 @@
             </div>
             {% endif %}
 
+            {% if openvpn_url %}
+            <div class="links-section">
+                <h2>OpenVPN</h2>
+                <div class="link-item">
+                    <input type="text" class="link-input" value="{{ openvpn_url }}" readonly />
+                    <button
+                        class="copy-button"
+                        onclick="copyLink('{{ openvpn_url }}', this)"
+                    >
+                        Copy
+                    </button>
+                </div>
+                <a
+                    href="{{ openvpn_url }}"
+                    class="copy-all-button"
+                    style="text-decoration: none; display: inline-block; text-align: center;"
+                    download
+                >
+                    Download .ovpn (zip)
+                </a>
+            </div>
+            {% endif %}
+
             {% if apps %}
             <h2 style="text-align: center; font-size: 1.8rem; font-weight: 600; margin-bottom: 25px;">Recommended Applications</h2>
             <div class="applications-container">

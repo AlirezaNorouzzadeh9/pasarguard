@@ -456,11 +456,25 @@ class SubscriptionOperation(BaseOperation):
             format_variables = await self.get_format_variables(user)
             formatted_announce = self._format_announce(sub_settings, format_variables)
 
+            # OpenVPN configs are delivered as a .ovpn zip (not inline links), so
+            # surface a download link on the page when the user has an OpenVPN host.
+            openvpn_url = None
+            from app.utils.openvpn import get_openvpn_tags_from_groups
+            from config import openvpn_env_settings
+
+            if openvpn_env_settings.enabled:
+                groups = db_user.__dict__.get("groups")
+                if groups is None:
+                    groups = await db_user.awaitable_attrs.groups
+                if await get_openvpn_tags_from_groups(groups):
+                    base = (request_url or "").split("?")[0].rstrip("/")
+                    openvpn_url = f"{base}/openvpn" if base else None
+
             return HTMLResponse(
                 render_template(
                     template,
                     self._build_subscription_body_payload(
-                        user, links, formatted_announce, sub_settings, format_variables, is_hwid_enabled
+                        user, links, formatted_announce, sub_settings, format_variables, is_hwid_enabled, openvpn_url
                     ),
                 )
             )
@@ -594,12 +608,14 @@ class SubscriptionOperation(BaseOperation):
         sub_settings: SubSettings,
         format_variables: dict,
         is_hwid_enabled: bool,
+        openvpn_url: str | None = None,
     ) -> dict[str, Any]:
         return {
             "user": SubscriptionUserResponse.model_validate(user),
             "links": links,
             "announce": formatted_announce,
             "announce_url": sub_settings.announce_url,
+            "openvpn_url": openvpn_url,
             "apps": self._make_apps_import_urls(
                 sub_settings.applications,
                 format_variables,
