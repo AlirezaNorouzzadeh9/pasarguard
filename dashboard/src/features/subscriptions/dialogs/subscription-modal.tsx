@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { ScanQrCode, Copy, QrCode, ChevronLeft, ChevronRight, Check, RefreshCw, Download, ShieldCheck } from 'lucide-react'
 import useDirDetection from '@/hooks/use-dir-detection'
 import { Button } from '@/components/ui/button'
+import { $fetch } from '@/service/http'
 import { Badge } from '@/components/ui/badge'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -185,6 +186,20 @@ const SubscriptionModal: FC<SubscriptionModalProps> = memo(({ open, subscribeUrl
     }
   }, [subscribeUrl, username, t])
 
+  const [isReissuing, setIsReissuing] = useState(false)
+  const handleReissueOpenVPN = useCallback(async () => {
+    if (!username) return
+    setIsReissuing(true)
+    try {
+      await $fetch(`/api/openvpn/user/${encodeURIComponent(username)}/reissue`, { method: 'POST' })
+      toast.success(t('subscriptionModal.reissued', { defaultValue: 'OpenVPN certificate re-issued. The old .ovpn is now invalid.' }))
+    } catch {
+      toast.error(t('subscriptionModal.reissueFailed', { defaultValue: 'Failed to re-issue certificate' }))
+    } finally {
+      setIsReissuing(false)
+    }
+  }, [username, t])
+
   const handleShowConfigQR = (config: ConfigItem) => {
     if (clearSelectedConfigQrTimeoutRef.current) {
       clearTimeout(clearSelectedConfigQrTimeoutRef.current)
@@ -235,6 +250,17 @@ const SubscriptionModal: FC<SubscriptionModalProps> = memo(({ open, subscribeUrl
                   <Button variant="ghost" size="sm" onClick={handleDownloadOpenVPN} disabled={isDownloadingOpenVPN} className="h-7 px-2 text-xs" title="OpenVPN">
                     <ShieldCheck className={cn('h-3 w-3', isRTL ? 'ml-1' : 'mr-1')} />
                     <span className="hidden sm:inline">OpenVPN</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleReissueOpenVPN}
+                    disabled={isReissuing}
+                    className="h-7 px-2 text-xs"
+                    title={t('subscriptionModal.reissueOpenvpn', { defaultValue: 'Re-issue OpenVPN certificate' })}
+                  >
+                    <RefreshCw className={cn('h-3 w-3', isReissuing && 'animate-spin', isRTL ? 'ml-1' : 'mr-1')} />
+                    <span className="hidden sm:inline">{t('subscriptionModal.reissue', { defaultValue: 'Reissue' })}</span>
                   </Button>
                   <Button variant="ghost" size="sm" onClick={handleCopyAllConfigs} disabled={isLoading || configs.length === 0} className="h-7 px-2 text-xs">
                     {allConfigsCopied ? <Check className={cn('h-3 w-3', isRTL ? 'ml-1' : 'mr-1')} /> : <Copy className={cn('h-3 w-3', isRTL ? 'ml-1' : 'mr-1')} />}

@@ -10,8 +10,9 @@ import { StickySaveBar } from '@/features/core-editor/components/shell/sticky-sa
 import useDirDetection from '@/hooks/use-dir-detection'
 import { cn } from '@/lib/utils'
 import { getGetCoreConfigQueryKey, useCreateCoreConfig, useGetCoreConfig, useModifyCoreConfig } from '@/service/api'
+import { $fetch } from '@/service/http'
 import { queryClient } from '@/utils/query-client'
-import { ArrowLeft, RefreshCcw } from 'lucide-react'
+import { ArrowLeft, Download, RefreshCcw, ShieldCheck } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -100,6 +101,30 @@ export default function OpenVPNCoreEditorPage() {
   const [advanced, setAdvanced] = useState(false)
   const [advancedJson, setAdvancedJson] = useState('')
   const [advancedError, setAdvancedError] = useState<string | null>(null)
+  const [caInfo, setCaInfo] = useState<{ ca_cert?: string; common_name?: string; not_after?: string; expired?: boolean; fingerprint?: string } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    $fetch<typeof caInfo>('/api/openvpn/ca')
+      .then(res => {
+        if (!cancelled) setCaInfo(res)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const exportCa = () => {
+    if (!caInfo?.ca_cert) return
+    const blob = new Blob([caInfo.ca_cert], { type: 'application/x-pem-file' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'pasarguard-openvpn-ca.crt'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   const form = useForm<OpenVPNFormValues>({ defaultValues: defaultValues() })
 
@@ -275,6 +300,33 @@ export default function OpenVPNCoreEditorPage() {
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <PageHeader title={t('coreEditor.openvpn.title', { defaultValue: 'OpenVPN server' })} description={t('coreEditor.openvpn.desc', { defaultValue: 'Server settings the node runs. Certificates are generated automatically.' })} className="py-2.5 sm:py-4 md:pt-6" />
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4">
+          {caInfo?.ca_cert && (
+            <div className="mb-4 rounded-md border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium">{t('coreEditor.openvpn.ca', { defaultValue: 'Certificate Authority' })}</div>
+                    <div className="text-muted-foreground truncate text-[11px]" dir="ltr">
+                      {caInfo.common_name}
+                      {caInfo.not_after && (
+                        <>
+                          {' · '}
+                          {caInfo.expired
+                            ? t('coreEditor.openvpn.caExpired', { defaultValue: 'expired' })
+                            : t('coreEditor.openvpn.caExpires', { defaultValue: 'expires' }) + ' ' + new Date(caInfo.not_after).toLocaleDateString()}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <Button type="button" variant="outline" size="sm" className="h-8 shrink-0" onClick={exportCa}>
+                  <Download className="mr-1 h-3.5 w-3.5" />
+                  {t('coreEditor.openvpn.exportCa', { defaultValue: 'Export CA' })}
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="mb-4 inline-flex rounded-md border p-0.5" dir="ltr">
             <Button type="button" size="sm" variant={advanced ? 'ghost' : 'secondary'} className="h-8" onClick={() => advanced && exitAdvanced()}>
               {t('coreEditor.openvpn.formTab', { defaultValue: 'Form' })}
