@@ -83,6 +83,12 @@ client_config = {
         "as_base64": False,
         "extension": ".zip",
     },
+    ConfigFormat.ikev2: {
+        "config_format": "ikev2",
+        "media_type": "application/zip",
+        "as_base64": False,
+        "extension": ".zip",
+    },
     ConfigFormat.xray: {
         "config_format": "xray",
         "media_type": "application/json",
@@ -569,7 +575,7 @@ class SubscriptionOperation(BaseOperation):
         if client_type == ConfigFormat.block or not getattr(sub_settings.manual_sub_request, client_type):
             await self.raise_error(message="Client not supported", code=406)
         db_user = await self.get_validated_sub(db, token=token, load_admin_role=True)
-        if client_type == ConfigFormat.openvpn:
+        if client_type in (ConfigFormat.openvpn, ConfigFormat.ikev2):
             await self._ensure_openvpn_cert_for_sub(db, db_user)
         user = await self.validated_user(db_user)
 
