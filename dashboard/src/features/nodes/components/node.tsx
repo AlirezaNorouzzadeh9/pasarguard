@@ -96,6 +96,13 @@ export default function Node({
     }
   }
 
+  const portOverrideEntries = Object.entries(node.port_overrides ?? {})
+    .map(([coreId, port]) => {
+      const core = coresData?.cores?.find(c => c.id === Number(coreId))
+      return { key: coreId, label: core?.type ?? core?.name ?? `#${coreId}`, port }
+    })
+    .filter(e => typeof e.port === 'number' && e.port > 0)
+
   const uplink = node.uplink || 0
   const downlink = node.downlink || 0
   const totalUsed = uplink + downlink
@@ -168,6 +175,18 @@ export default function Node({
                   {node.address}:{node.port}
                 </span>
               </div>
+
+              {/* Per-node listen-port overrides (openvpn/wireguard) */}
+              {portOverrideEntries.length > 0 && (
+                <div className={cn('text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] sm:text-xs', dir === 'rtl' ? 'flex-row-reverse justify-end' : 'flex-row')}>
+                  <span className="opacity-70">{t('nodeModal.listenPorts', { defaultValue: 'Listen ports' })}:</span>
+                  {portOverrideEntries.map(e => (
+                    <span key={e.key} dir="ltr" className="font-mono">
+                      {e.label} {e.port}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {/* Version Info */}
               {(coreVersion || node.node_version) && (

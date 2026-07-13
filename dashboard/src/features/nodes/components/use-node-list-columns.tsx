@@ -68,11 +68,22 @@ export const useNodeListColumns = ({
         id: 'address',
         header: t('address'),
         width: '2fr',
-        cell: node => (
-          <div dir="ltr" className="text-muted-foreground truncate font-mono text-xs">
-            {node.address}:{node.port}
-          </div>
-        ),
+        cell: node => {
+          const ports = Object.entries(node.port_overrides ?? {})
+            .map(([coreId, port]) => {
+              const core = coresData?.cores?.find(c => c.id === Number(coreId))
+              return { key: coreId, label: core?.type ?? `#${coreId}`, port }
+            })
+            .filter(e => typeof e.port === 'number' && e.port > 0)
+          return (
+            <div dir="ltr" className="text-muted-foreground truncate font-mono text-xs">
+              <div>
+                {node.address}:{node.port}
+              </div>
+              {ports.length > 0 && <div className="truncate text-[10px] opacity-80">{ports.map(p => `${p.label} ${p.port}`).join(' · ')}</div>}
+            </div>
+          )
+        },
         hideOnMobile: true,
       },
       {
