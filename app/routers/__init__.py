@@ -11,6 +11,7 @@ from . import (
     host,
     hwid,
     node,
+    openvpn,
     settings,
     setup,
     subscription,
@@ -38,6 +39,7 @@ routers = [
     subscription.router,
     user_template.router,
     hwid.router,
+    openvpn.router,
 ]
 
 for router in routers:

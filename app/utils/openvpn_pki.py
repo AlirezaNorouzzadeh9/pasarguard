@@ -199,3 +199,35 @@ def cert_needs_renewal(cert_pem: str | None, margin_days: int = 30) -> bool:
     except AttributeError:  # cryptography < 42
         not_after = cert.not_valid_after.replace(tzinfo=datetime.timezone.utc)
     return not_after - _utcnow() <= datetime.timedelta(days=margin_days)
+
+
+def cert_info(cert_pem: str | None) -> dict | None:
+    """Parse a PEM certificate into {common_name, serial, fingerprint,
+    not_before, not_after, expired}. Returns None if missing/unparseable."""
+    if not cert_pem:
+        return None
+    try:
+        cert = x509.load_pem_x509_certificate(cert_pem.encode("ascii"))
+    except Exception:
+        return None
+    try:
+        not_before = cert.not_valid_before_utc
+        not_after = cert.not_valid_after_utc
+    except AttributeError:  # cryptography < 42
+        not_before = cert.not_valid_before.replace(tzinfo=datetime.timezone.utc)
+        not_after = cert.not_valid_after.replace(tzinfo=datetime.timezone.utc)
+    cn = ""
+    try:
+        attrs = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+        if attrs:
+            cn = attrs[0].value
+    except Exception:
+        cn = ""
+    return {
+        "common_name": cn,
+        "serial": str(cert.serial_number),
+        "fingerprint": cert.fingerprint(hashes.SHA256()).hex(),
+        "not_before": not_before.isoformat(),
+        "not_after": not_after.isoformat(),
+        "expired": not_after <= _utcnow(),
+    }
