@@ -504,59 +504,42 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
                   <FormField
                     control={form.control}
                     name="core_config_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('nodeModal.coreConfig')}</FormLabel>
-                        <Select onValueChange={value => field.onChange(parseInt(value))} value={field.value ? field.value.toString() : t('nodeModal.selectCoreConfig')} disabled={isLoadingCores}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder={isLoadingCores ? t('loading', { defaultValue: 'Loading...' }) : t('nodeModal.selectCoreConfig')} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {isLoadingCores ? (
-                              <SelectItem value="__loading_cores__" disabled>
-                                <span className="flex items-center gap-2">
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                  {t('loading', { defaultValue: 'Loading...' })}
-                                </span>
-                              </SelectItem>
-                            ) : (
-                              cores?.map((core: CoreSimple) => (
-                                <SelectItem key={core.id} value={core.id.toString()}>
-                                  {core.name}
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="additional_core_config_ids"
-                    render={({ field }) => {
+                    render={() => {
                       const primaryId = form.watch('core_config_id')
-                      const selected: number[] = Array.isArray(field.value) ? field.value : []
-                      const selectable = (cores ?? []).filter((core: CoreSimple) => core.id !== primaryId)
+                      const additional: number[] = Array.isArray(form.watch('additional_core_config_ids')) ? (form.watch('additional_core_config_ids') as number[]) : []
+                      // Unified selection, primary first. The node runs all of these; the
+                      // first one establishes the connection (core_config_id).
+                      const selectedOrder: number[] = typeof primaryId === 'number' ? [primaryId, ...additional.filter(x => x !== primaryId)] : additional.slice()
                       const toggle = (id: number, on: boolean) => {
-                        const next = on ? Array.from(new Set([...selected, id])) : selected.filter(x => x !== id)
-                        field.onChange(next)
+                        let next: number[]
+                        if (on) {
+                          next = selectedOrder.includes(id) ? selectedOrder : [...selectedOrder, id]
+                        } else {
+                          if (selectedOrder.length <= 1) return // a node must run at least one core
+                          next = selectedOrder.filter(x => x !== id)
+                        }
+                        form.setValue('core_config_id', next[0], { shouldValidate: true, shouldDirty: true })
+                        form.setValue('additional_core_config_ids', next.slice(1), { shouldValidate: true, shouldDirty: true })
                       }
                       return (
                         <FormItem>
-                          <FormLabel>{t('nodeModal.additionalCores', { defaultValue: 'Additional cores (run on the same node)' })}</FormLabel>
+                          <FormLabel>{t('nodeModal.cores', { defaultValue: 'Cores this node runs' })}</FormLabel>
                           <div className="flex flex-col gap-2 rounded-md border p-3">
-                            {selectable.length === 0 ? (
-                              <span className="text-xs text-muted-foreground">{t('nodeModal.noAdditionalCores', { defaultValue: 'No other cores available' })}</span>
+                            {isLoadingCores ? (
+                              <span className="text-muted-foreground flex items-center gap-2 text-xs">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                {t('loading', { defaultValue: 'Loading...' })}
+                              </span>
+                            ) : (cores ?? []).length === 0 ? (
+                              <span className="text-muted-foreground text-xs">{t('nodeModal.noCores', { defaultValue: 'No cores available' })}</span>
                             ) : (
-                              selectable.map((core: CoreSimple) => (
+                              (cores ?? []).map((core: CoreSimple) => (
                                 <div key={core.id} className={cn('flex items-center justify-between gap-2', dir === 'rtl' && 'flex-row-reverse')}>
-                                  <span className="text-sm">{core.name}</span>
-                                  <Switch checked={selected.includes(core.id)} onCheckedChange={on => toggle(core.id, on)} />
+                                  <span className="text-sm">
+                                    {core.name}
+                                    {selectedOrder[0] === core.id && <span className="text-muted-foreground ml-1 text-xs">({t('nodeModal.primaryCore', { defaultValue: 'primary' })})</span>}
+                                  </span>
+                                  <Switch checked={selectedOrder.includes(core.id)} onCheckedChange={on => toggle(core.id, on)} />
                                 </div>
                               ))
                             )}
