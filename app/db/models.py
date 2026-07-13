@@ -618,6 +618,9 @@ class Node(Base, CreatedAtUTCMixin):
     api_key: Mapped[str | None] = mapped_column(String(36))
     node_version: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, init=False)
     core_config_id: Mapped[Optional[int]] = fk_id_column("core_configs.id", ondelete="SET NULL", nullable=True)
+    # Extra cores this node runs alongside its primary core_config (multi-backend,
+    # e.g. openvpn + ikev2 on one node). List of core_configs.id.
+    additional_core_config_ids: Mapped[Optional[list[int]]] = mapped_column(PostgresJSONB, default=None)
     user_usages: Mapped[List["NodeUserUsage"]] = relationship(
         back_populates="node", cascade="all, delete-orphan", init=False
     )

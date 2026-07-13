@@ -48,6 +48,7 @@ class Node(BaseModel):
     server_ca: str
     keep_alive: int
     core_config_id: int
+    additional_core_config_ids: list[int] | None = Field(default=None)
     api_key: str
     data_limit: int = Field(default=0)
     data_limit_reset_strategy: DataLimitResetStrategy = Field(default=DataLimitResetStrategy.no_reset)

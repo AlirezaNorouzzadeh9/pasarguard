@@ -120,6 +120,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
         keep_alive_unit: 'seconds',
         api_key: (node.api_key as string) || '',
         core_config_id: node.core_config_id ?? cores?.[0]?.id,
+        additional_core_config_ids: node.additional_core_config_ids ?? [],
         data_limit: dataLimitGB,
         data_limit_reset_strategy: node.data_limit_reset_strategy ?? DataLimitResetStrategy.no_reset,
         reset_time: node.reset_time ?? null,
@@ -176,6 +177,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
           keep_alive_unit: 'seconds',
           api_key: (nodeData.api_key as string) || '',
           core_config_id: nodeData.core_config_id ?? cores?.[0]?.id,
+          additional_core_config_ids: nodeData.additional_core_config_ids ?? [],
           data_limit: dataLimitGB,
           data_limit_reset_strategy: nodeData.data_limit_reset_strategy ?? DataLimitResetStrategy.no_reset,
           reset_time: nodeData.reset_time ?? null,
@@ -206,6 +208,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
               keep_alive_unit: 'seconds',
               api_key: (nodeData.api_key as string) || '',
               core_config_id: nodeData.core_config_id ?? cores?.[0]?.id,
+              additional_core_config_ids: nodeData.additional_core_config_ids ?? [],
               data_limit: dataLimitGB,
               data_limit_reset_strategy: nodeData.data_limit_reset_strategy ?? DataLimitResetStrategy.no_reset,
               reset_time: nodeData.reset_time ?? null,
@@ -237,6 +240,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
         keep_alive_unit: 'seconds',
         api_key: '',
         core_config_id: cores?.[0]?.id,
+        additional_core_config_ids: [],
         data_limit: 0,
         data_limit_reset_strategy: DataLimitResetStrategy.no_reset,
         reset_time: -1,
@@ -525,6 +529,38 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
                         <FormMessage />
                       </FormItem>
                     )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="additional_core_config_ids"
+                    render={({ field }) => {
+                      const primaryId = form.watch('core_config_id')
+                      const selected: number[] = Array.isArray(field.value) ? field.value : []
+                      const selectable = (cores ?? []).filter((core: CoreSimple) => core.id !== primaryId)
+                      const toggle = (id: number, on: boolean) => {
+                        const next = on ? Array.from(new Set([...selected, id])) : selected.filter(x => x !== id)
+                        field.onChange(next)
+                      }
+                      return (
+                        <FormItem>
+                          <FormLabel>{t('nodeModal.additionalCores', { defaultValue: 'Additional cores (run on the same node)' })}</FormLabel>
+                          <div className="flex flex-col gap-2 rounded-md border p-3">
+                            {selectable.length === 0 ? (
+                              <span className="text-xs text-muted-foreground">{t('nodeModal.noAdditionalCores', { defaultValue: 'No other cores available' })}</span>
+                            ) : (
+                              selectable.map((core: CoreSimple) => (
+                                <div key={core.id} className={cn('flex items-center justify-between gap-2', dir === 'rtl' && 'flex-row-reverse')}>
+                                  <span className="text-sm">{core.name}</span>
+                                  <Switch checked={selected.includes(core.id)} onCheckedChange={on => toggle(core.id, on)} />
+                                </div>
+                              ))
+                            )}
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )
+                    }}
                   />
 
                   <FormField

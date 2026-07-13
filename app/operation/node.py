@@ -201,6 +201,16 @@ class NodeOperation(BaseOperation):
             asyncio.create_task(notification.error_node(node_notif))
 
     @staticmethod
+    def _additional_for(node: Node, cores_by_id: dict, users_by_core: dict) -> list:
+        """Build the (core, users) list for a node's extra backends."""
+        extra = []
+        for cid in node.additional_core_config_ids or []:
+            if cid == (node.core_config_id or 1):
+                continue
+            extra.append((cores_by_id.get(cid), users_by_core.get(cid, [])))
+        return extra
+
+    @staticmethod
     async def _get_core_users_map(
         db: AsyncSession, core_ids: set[int]
     ) -> tuple[dict[int, object | None], dict[int, list]]:
@@ -228,14 +238,16 @@ class NodeOperation(BaseOperation):
         return cores_by_id, users_by_core
 
     @staticmethod
-    async def connect_node(db_node: Node, core, users: list) -> dict | None:
+    async def connect_node(db_node: Node, core, users: list, additional: list | None = None) -> dict | None:
         """
         Connect to a node and return status result (does NOT update database).
 
         Args:
             db_node (Node): Node object from database.
-            core: Pre-fetched core config for this node.
-            users (list): Pre-fetched core users list.
+            core: Pre-fetched primary core config for this node.
+            users (list): Pre-fetched primary core users list.
+            additional (list): Pre-fetched extra cores as (core, users) tuples;
+                started as additional backends on the same node (multi-backend).
 
         Returns:
             dict: {node_id, status, message, xray_version, node_version, old_status}
@@ -263,6 +275,26 @@ class NodeOperation(BaseOperation):
 
             info = await pg_node.start(**start_kwargs)
             logger.info(f'Connected to "{db_node.name}" node v{info.node_version}, core run on v{info.core_version}')
+
+            # Bring up any extra cores on the same node (e.g. ikev2 alongside openvpn).
+            for extra_core, extra_users in additional or []:
+                if extra_core is None or extra_core.type == core.type:
+                    continue
+                extra_type = _BACKEND_TYPE_BY_CORE.get(extra_core.type, service.BackendType.XRAY)
+                add_kwargs = {
+                    "config": extra_core.to_str(),
+                    "backend_type": extra_type,
+                    "users": extra_users,
+                }
+                if extra_core.type == CoreType.xray:
+                    add_kwargs["exclude_inbounds"] = extra_core.exclude_inbound_tags
+                try:
+                    await pg_node.add_backend(**add_kwargs)
+                    logger.info(f'Added {extra_core.type} backend to "{db_node.name}" node')
+                except NodeAPIError as add_err:
+                    logger.error(
+                        f'Failed to add {extra_core.type} backend to "{db_node.name}": {add_err.detail}'
+                    )
 
             return {
                 "node_id": db_node.id,
@@ -296,8 +328,17 @@ class NodeOperation(BaseOperation):
         except Exception as exc:
             logger.error(f"Background node connection failed for node {node_id}: {exc}")
 
+    async def _validate_additional_cores(self, db: AsyncSession, primary_id: int | None, extra_ids) -> None:
+        for cid in extra_ids or []:
+            if cid == primary_id:
+                await self.raise_error(
+                    message="An additional core cannot be the same as the primary core", code=400, db=db
+                )
+            await self.get_validated_core_config(db, cid)
+
     async def create_node(self, db: AsyncSession, new_node: NodeCreate, admin: AdminDetails) -> NodeResponse:
         await self.get_validated_core_config(db, new_node.core_config_id)
+        await self._validate_additional_cores(db, new_node.core_config_id, new_node.additional_core_config_ids)
         try:
             db_node = await create_node(db, new_node)
         except IntegrityError:
@@ -320,6 +361,13 @@ class NodeOperation(BaseOperation):
         db_node = await self.get_validated_node(db=db, node_id=node_id)
         if modified_node.core_config_id is not None:
             await self.get_validated_core_config(db, modified_node.core_config_id)
+        if modified_node.additional_core_config_ids is not None:
+            primary_id = (
+                modified_node.core_config_id
+                if modified_node.core_config_id is not None
+                else db_node.core_config_id
+            )
+            await self._validate_additional_cores(db, primary_id, modified_node.additional_core_config_ids)
 
         try:
             db_node = await modify_node(db, db_node, modified_node)
@@ -574,6 +622,8 @@ class NodeOperation(BaseOperation):
             return
 
         core_ids = {node.core_config_id or 1 for node in nodes}
+        for node in nodes:
+            core_ids.update(node.additional_core_config_ids or [])
         cores_by_id, users_by_core = await self._get_core_users_map(db, core_ids)
 
         async def connect_single(node: Node) -> dict | None:
@@ -593,7 +643,12 @@ class NodeOperation(BaseOperation):
                 }
 
             core_id = node.core_config_id or 1
-            return await self.connect_node(node, cores_by_id.get(core_id), users_by_core.get(core_id, []))
+            return await self.connect_node(
+                node,
+                cores_by_id.get(core_id),
+                users_by_core.get(core_id, []),
+                self._additional_for(node, cores_by_id, users_by_core),
+            )
 
         results = await asyncio.gather(*[connect_single(node) for node in nodes])
 
@@ -646,9 +701,12 @@ class NodeOperation(BaseOperation):
             return
 
         core_id = db_node.core_config_id or 1
-        cores_by_id, users_by_core = await self._get_core_users_map(db, {core_id})
+        core_ids = {core_id}
+        core_ids.update(db_node.additional_core_config_ids or [])
+        cores_by_id, users_by_core = await self._get_core_users_map(db, core_ids)
         core = cores_by_id.get(core_id)
         users = users_by_core.get(core_id, [])
+        additional = self._additional_for(db_node, cores_by_id, users_by_core)
 
         # Update node manager
         try:
@@ -672,7 +730,7 @@ class NodeOperation(BaseOperation):
             return
 
         # Connect the node
-        result = await NodeOperation.connect_node(db_node, core, users)
+        result = await NodeOperation.connect_node(db_node, core, users, additional)
 
         if not result:
             return

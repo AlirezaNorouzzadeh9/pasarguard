@@ -188,6 +188,41 @@ class Node(PasarGuardNode):
             await self._release_lifecycle_lease(lease, LifecycleStatus.BROKEN, desired=LifecycleStatus.HEALTHY)
             raise
 
+    async def add_backend(
+        self,
+        config: str,
+        backend_type: service.BackendType,
+        users: list[service.User],
+        exclude_inbounds: list[str] = [],
+        timeout: int | None = None,
+    ) -> service.BaseInfoResponse | None:
+        """Start an extra core on a node that is already connected.
+
+        The node treats a Start from the same client as additive, so this brings
+        up another backend (e.g. ikev2 alongside openvpn) without re-running the
+        session handshake that start() performs.
+        """
+        timeout = timeout or self._default_timeout
+        health = await self.get_health()
+        if health is Health.INVALID:
+            raise NodeAPIError(code=-4, detail="Invalid node")
+        if health is not Health.HEALTHY:
+            raise NodeAPIError(code=-4, detail="Node is not connected")
+
+        req = service.Backend(
+            type=backend_type, config=config, users=users, keep_alive=0, exclude_inbounds=exclude_inbounds
+        )
+
+        async with self._node_lock:
+            info: service.BaseInfoResponse = await self._handle_grpc_request(
+                method=self._client.Start,
+                request=req,
+                timeout=timeout,
+            )
+            if not info.started:
+                raise NodeAPIError(500, "Failed to start the additional backend")
+            return info
+
     async def stop(self, timeout: int | None = None) -> None:
         """Stop the node with proper cleanup"""
         timeout = timeout or self._default_timeout

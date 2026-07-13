@@ -21,6 +21,19 @@ class PasarGuardNode(Controller, ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def add_backend(
+        self,
+        config: str,
+        backend_type: service.BackendType,
+        users: list[service.User],
+        exclude_inbounds: list[str] = [],
+        timeout: int | None = None,
+    ) -> service.BaseInfoResponse | None:
+        """Start an additional core on an already-connected node (multi-backend),
+        without re-running the session handshake."""
+        raise NotImplementedError
+
+    @abstractmethod
     async def stop(self, timeout: int | None = None) -> None:
         raise NotImplementedError
 

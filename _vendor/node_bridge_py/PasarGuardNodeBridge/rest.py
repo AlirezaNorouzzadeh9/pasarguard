@@ -212,6 +212,41 @@ class Node(PasarGuardNode):
             await self._release_lifecycle_lease(lease, LifecycleStatus.BROKEN, desired=LifecycleStatus.HEALTHY)
             raise
 
+    async def add_backend(
+        self,
+        config: str,
+        backend_type: service.BackendType,
+        users: list[service.User],
+        exclude_inbounds: list[str] = [],
+        timeout: int | None = None,
+    ) -> service.BaseInfoResponse | None:
+        """Start an extra core on a node that is already connected (multi-backend),
+        without re-running the session handshake that start() performs."""
+        timeout = timeout or self._default_timeout
+        health = await self.get_health()
+        if health is Health.INVALID:
+            raise NodeAPIError(code=-4, detail="Invalid node")
+        if health is not Health.HEALTHY:
+            raise NodeAPIError(code=-4, detail="Node is not connected")
+
+        async with self._node_lock:
+            response = await self._make_request(
+                method="POST",
+                endpoint="start",
+                timeout=timeout,
+                proto_message=service.Backend(
+                    type=backend_type,
+                    config=config,
+                    users=users,
+                    keep_alive=0,
+                    exclude_inbounds=exclude_inbounds,
+                ),
+                proto_response_class=service.BaseInfoResponse,
+            )
+            if not response.started:
+                raise NodeAPIError(500, "Failed to start the additional backend")
+            return response
+
     async def stop(self, timeout: int | None = None) -> None:
         """Stop the node with proper cleanup"""
         timeout = timeout or self._default_timeout
