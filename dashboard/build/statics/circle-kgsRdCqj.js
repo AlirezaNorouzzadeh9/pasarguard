@@ -1,1 +1,0 @@
-import{z as e}from"./index-BLG6hDHB.js";var t=e(`circle`,[[`circle`,{cx:`12`,cy:`12`,r:`10`,key:`1mglay`}]]);export{t};
