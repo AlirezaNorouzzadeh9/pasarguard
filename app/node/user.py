@@ -114,6 +114,7 @@ async def core_users(
         select(
             User.id,
             User.proxy_settings,
+            User.ip_limit,
             inbound_agg,
         )
         .outerjoin(users_groups_association, User.id == users_groups_association.c.user_id)
