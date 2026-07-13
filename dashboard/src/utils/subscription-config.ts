@@ -180,6 +180,16 @@ export const downloadUserSubscriptionOpenVPN = async (subscribeUrl: string | nul
   return 'ok'
 }
 
+export const downloadUserSubscriptionIKEv2 = async (subscribeUrl: string | null | undefined, username: string, timeoutMs = 8000): Promise<'ok' | 'empty'> => {
+  const url = buildSubscriptionFormatUrl(subscribeUrl, 'ikev2')
+  const blob = await fetchSubscriptionBlobFromUrl(url, timeoutMs)
+  if (!blob || blob.size < 100) {
+    return 'empty'
+  }
+  downloadBlobFile(blob, `${sanitizeFileNameSegment(username) || 'ikev2'}-ikev2.zip`)
+  return 'ok'
+}
+
 export const fetchSubscriptionBlobFromUrl = (url: string, timeoutMs = 8000) => fetchSubscriptionResource(url, response => response.blob(), timeoutMs)
 
 export const fetchSubscriptionContent = (subscribeUrl: string, format: SubscriptionContentFormat, timeoutMs = 8000) =>

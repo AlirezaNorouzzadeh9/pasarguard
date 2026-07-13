@@ -2999,6 +2999,7 @@ export const CoreType = {
   mtproto: 'mtproto',
   singbox: 'singbox',
   openvpn: 'openvpn',
+  ikev2: 'ikev2',
 } as const
 
 export type CoreSimpleType = CoreType | null
@@ -3061,6 +3062,8 @@ export const ConfigFormat = {
   links_base64: 'links_base64',
   xray: 'xray',
   wireguard: 'wireguard',
+  openvpn: 'openvpn',
+  ikev2: 'ikev2',
   sing_box: 'sing_box',
   clash: 'clash',
   clash_meta: 'clash_meta',
