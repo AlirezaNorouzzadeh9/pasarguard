@@ -470,6 +470,12 @@ class SubscriptionOperation(BaseOperation):
             from app.utils.openvpn import get_openvpn_tags_from_groups
             from config import openvpn_env_settings
 
+            # IKEv2 configs are delivered as a .mobileconfig zip, same as OpenVPN.
+            ikev2_url = None
+            from app.utils.ikev2 import get_ikev2_tags_from_groups
+            from config import ikev2_env_settings
+
+            groups = None
             if openvpn_env_settings.enabled:
                 groups = db_user.__dict__.get("groups")
                 if groups is None:
@@ -478,11 +484,27 @@ class SubscriptionOperation(BaseOperation):
                     base = (request_url or "").split("?")[0].rstrip("/")
                     openvpn_url = f"{base}/openvpn" if base else None
 
+            if ikev2_env_settings.enabled:
+                if groups is None:
+                    groups = db_user.__dict__.get("groups")
+                    if groups is None:
+                        groups = await db_user.awaitable_attrs.groups
+                if await get_ikev2_tags_from_groups(groups):
+                    base = (request_url or "").split("?")[0].rstrip("/")
+                    ikev2_url = f"{base}/ikev2" if base else None
+
             return HTMLResponse(
                 render_template(
                     template,
                     self._build_subscription_body_payload(
-                        user, links, formatted_announce, sub_settings, format_variables, is_hwid_enabled, openvpn_url
+                        user,
+                        links,
+                        formatted_announce,
+                        sub_settings,
+                        format_variables,
+                        is_hwid_enabled,
+                        openvpn_url,
+                        ikev2_url,
                     ),
                 )
             )
@@ -617,6 +639,7 @@ class SubscriptionOperation(BaseOperation):
         format_variables: dict,
         is_hwid_enabled: bool,
         openvpn_url: str | None = None,
+        ikev2_url: str | None = None,
     ) -> dict[str, Any]:
         return {
             "user": SubscriptionUserResponse.model_validate(user),
@@ -624,6 +647,7 @@ class SubscriptionOperation(BaseOperation):
             "announce": formatted_announce,
             "announce_url": sub_settings.announce_url,
             "openvpn_url": openvpn_url,
+            "ikev2_url": ikev2_url,
             "apps": self._make_apps_import_urls(
                 sub_settings.applications,
                 format_variables,

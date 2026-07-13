@@ -643,6 +643,29 @@
             </div>
             {% endif %}
 
+            {% if ikev2_url %}
+            <div class="links-section">
+                <h2>IKEv2 / IPsec</h2>
+                <div class="link-item">
+                    <input type="text" class="link-input" value="{{ ikev2_url }}" readonly />
+                    <button
+                        class="copy-button"
+                        onclick="copyLink('{{ ikev2_url }}', this)"
+                    >
+                        Copy
+                    </button>
+                </div>
+                <a
+                    href="{{ ikev2_url }}"
+                    class="copy-all-button"
+                    style="text-decoration: none; display: inline-block; text-align: center;"
+                    download
+                >
+                    Download .mobileconfig (zip)
+                </a>
+            </div>
+            {% endif %}
+
             {% if apps %}
             <h2 style="text-align: center; font-size: 1.8rem; font-weight: 600; margin-bottom: 25px;">Recommended Applications</h2>
             <div class="applications-container">
