@@ -48,6 +48,8 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
   const [showErrorDetails, setShowErrorDetails] = useState(false)
   const [debouncedValues, setDebouncedValues] = useState<NodeFormValues | null>(null)
   const [isFetchingNodeData, setIsFetchingNodeData] = useState(false)
+  // Backend types the node reports it can run (deps installed). null = unknown -> allow all.
+  const [availableBackends, setAvailableBackends] = useState<string[] | null>(null)
 
   const { data: node, refetch: refetchNode } = useGetNode(
     editingNodeId || 0,
@@ -133,6 +135,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
     )
 
     lastSyncedNodeRef.current = node
+    setAvailableBackends(node.available_backends ?? null)
   }, [node, isDialogOpen, editingNode, editingNodeId, form, cores])
 
   useEffect(() => {
@@ -188,6 +191,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
           proxy_url: nodeData.proxy_url ?? '',
         })
         lastSyncedNodeRef.current = nodeData
+        setAvailableBackends(nodeData.available_backends ?? null)
         setIsFetchingNodeData(false)
       } else {
         const fetchNodeData = async () => {
@@ -220,6 +224,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
               proxy_url: nodeData.proxy_url ?? '',
             })
             lastSyncedNodeRef.current = nodeData
+            setAvailableBackends(nodeData.available_backends ?? null)
           } catch (error) {
             console.error('Error fetching node data:', error)
             toast.error(t('nodes.fetchFailed'))
@@ -252,6 +257,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
         internal_timeout: 15,
         proxy_url: '',
       })
+      setAvailableBackends(null)
     }
   }, [editingNode, editingNodeId, isDialogOpen, cores, initialNodeData, form])
 
@@ -510,9 +516,12 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
                       // Unified selection, primary first. The node runs all of these; the
                       // first one establishes the connection (core_config_id).
                       const selectedOrder: number[] = typeof primaryId === 'number' ? [primaryId, ...additional.filter(x => x !== primaryId)] : additional.slice()
+                      const isInstalled = (core: CoreSimple) => availableBackends == null || core.type == null || availableBackends.includes(core.type)
                       const toggle = (id: number, on: boolean) => {
                         let next: number[]
                         if (on) {
+                          const core = (cores ?? []).find((c: CoreSimple) => c.id === id)
+                          if (core && !isInstalled(core)) return // backend not installed on this node
                           next = selectedOrder.includes(id) ? selectedOrder : [...selectedOrder, id]
                         } else {
                           if (selectedOrder.length <= 1) return // a node must run at least one core
@@ -533,15 +542,19 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
                             ) : (cores ?? []).length === 0 ? (
                               <span className="text-muted-foreground text-xs">{t('nodeModal.noCores', { defaultValue: 'No cores available' })}</span>
                             ) : (
-                              (cores ?? []).map((core: CoreSimple) => (
-                                <div key={core.id} className={cn('flex items-center justify-between gap-2', dir === 'rtl' && 'flex-row-reverse')}>
-                                  <span className="text-sm">
-                                    {core.name}
-                                    {selectedOrder[0] === core.id && <span className="text-muted-foreground ml-1 text-xs">({t('nodeModal.primaryCore', { defaultValue: 'primary' })})</span>}
-                                  </span>
-                                  <Switch checked={selectedOrder.includes(core.id)} onCheckedChange={on => toggle(core.id, on)} />
-                                </div>
-                              ))
+                              (cores ?? []).map((core: CoreSimple) => {
+                                const installed = isInstalled(core)
+                                return (
+                                  <div key={core.id} className={cn('flex items-center justify-between gap-2', !installed && 'opacity-50', dir === 'rtl' && 'flex-row-reverse')}>
+                                    <span className="text-sm">
+                                      {core.name}
+                                      {selectedOrder[0] === core.id && <span className="text-muted-foreground ml-1 text-xs">({t('nodeModal.primaryCore', { defaultValue: 'primary' })})</span>}
+                                      {!installed && <span className="ml-1 text-xs text-amber-600 dark:text-amber-400">({t('nodeModal.notInstalled', { defaultValue: 'not installed' })})</span>}
+                                    </span>
+                                    <Switch checked={selectedOrder.includes(core.id)} disabled={!installed} onCheckedChange={on => toggle(core.id, on)} />
+                                  </div>
+                                )
+                              })
                             )}
                           </div>
                           <FormMessage />

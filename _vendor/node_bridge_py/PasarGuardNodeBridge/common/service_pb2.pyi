@@ -38,14 +38,16 @@ class Empty(_message.Message):
     def __init__(self) -> None: ...
 
 class BaseInfoResponse(_message.Message):
-    __slots__ = ("started", "core_version", "node_version")
+    __slots__ = ("started", "core_version", "node_version", "available_backends")
     STARTED_FIELD_NUMBER: _ClassVar[int]
     CORE_VERSION_FIELD_NUMBER: _ClassVar[int]
     NODE_VERSION_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_BACKENDS_FIELD_NUMBER: _ClassVar[int]
     started: bool
     core_version: str
     node_version: str
-    def __init__(self, started: bool = ..., core_version: _Optional[str] = ..., node_version: _Optional[str] = ...) -> None: ...
+    available_backends: _containers.RepeatedScalarFieldContainer[BackendType]
+    def __init__(self, started: bool = ..., core_version: _Optional[str] = ..., node_version: _Optional[str] = ..., available_backends: _Optional[_Iterable[_Union[BackendType, str]]] = ...) -> None: ...
 
 class Backend(_message.Message):
     __slots__ = ("type", "config", "users", "keep_alive", "exclude_inbounds")

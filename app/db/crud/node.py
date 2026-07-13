@@ -471,6 +471,7 @@ async def update_node_status(
     message: str = "",
     xray_version: str = "",
     node_version: str = "",
+    available_backends: list | None = None,
 ) -> Node:
     """
     Updates the status of a node.
@@ -485,17 +486,17 @@ async def update_node_status(
     Returns:
         Node: The updated Node object.
     """
-    stmt = (
-        update(Node)
-        .where(Node.id == db_node.id)
-        .values(
-            status=status,
-            message=message,
-            xray_version=xray_version,
-            node_version=node_version,
-            last_status_change=datetime.now(timezone.utc),
-        )
+    values = dict(
+        status=status,
+        message=message,
+        xray_version=xray_version,
+        node_version=node_version,
+        last_status_change=datetime.now(timezone.utc),
     )
+    # Only overwrite the reported capabilities when the node actually reported them.
+    if available_backends is not None:
+        values["available_backends"] = available_backends
+    stmt = update(Node).where(Node.id == db_node.id).values(**values)
     await db.execute(stmt)
     await db.commit()
 

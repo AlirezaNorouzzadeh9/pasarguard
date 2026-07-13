@@ -77,6 +77,25 @@ _BACKEND_TYPE_BY_CORE = {
     CoreType.ikev2: service.BackendType.IKEV2,
 }
 
+# Inverse: a node reports available_backends as BackendType enum values; map them
+# back to core-type strings so the UI can grey out cores the node cannot serve.
+_CORE_STR_BY_BACKEND_TYPE = {
+    int(service.BackendType.XRAY): CoreType.xray.value,
+    int(service.BackendType.WIREGUARD): CoreType.wg.value,
+    int(service.BackendType.OPENVPN): CoreType.openvpn.value,
+    int(service.BackendType.IKEV2): CoreType.ikev2.value,
+}
+
+
+def _available_core_types(info) -> list[str]:
+    """Convert a node's reported available_backends (enum values) to core-type strings."""
+    out: list[str] = []
+    for v in getattr(info, "available_backends", None) or []:
+        s = _CORE_STR_BY_BACKEND_TYPE.get(int(v))
+        if s and s not in out:
+            out.append(s)
+    return out
+
 
 class NodeOperation(BaseOperation):
     def __init__(self, operator_type: OperatorType):
@@ -340,6 +359,7 @@ class NodeOperation(BaseOperation):
                 "message": "",
                 "xray_version": info.core_version,
                 "node_version": info.node_version,
+                "available_backends": _available_core_types(info),
                 "old_status": old_status,
             }
         except NodeAPIError as e:
@@ -784,6 +804,7 @@ class NodeOperation(BaseOperation):
             message=result.get("message", ""),
             xray_version=result.get("xray_version", ""),
             node_version=result.get("node_version", ""),
+            available_backends=result.get("available_backends"),
         )
 
         # Send appropriate notification

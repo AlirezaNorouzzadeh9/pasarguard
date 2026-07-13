@@ -624,6 +624,9 @@ class Node(Base, CreatedAtUTCMixin):
     # Per-node listen-port overrides for openvpn/wireguard cores, so one core can
     # run on different ports across nodes. Map of core_configs.id (str) -> port.
     port_overrides: Mapped[Optional[dict]] = mapped_column(PostgresJSONB, default=None)
+    # Backend types the node reports it can run (deps installed): e.g. ["xray","openvpn"].
+    # None = unknown (not yet reported); the UI then allows all.
+    available_backends: Mapped[Optional[list[str]]] = mapped_column(PostgresJSONB, default=None)
     user_usages: Mapped[List["NodeUserUsage"]] = relationship(
         back_populates="node", cascade="all, delete-orphan", init=False
     )

@@ -2154,6 +2154,7 @@ export interface NodeResponse {
   core_config_id: NodeResponseCoreConfigId
   additional_core_config_ids?: number[] | null
   port_overrides?: Record<string, number> | null
+  available_backends?: string[] | null
   api_key: NodeResponseApiKey
   data_limit?: number
   data_limit_reset_strategy?: DataLimitResetStrategy
