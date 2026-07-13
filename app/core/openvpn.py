@@ -137,6 +137,10 @@ class OpenVPNConfig(dict):
             raise ValueError("dns must be a list of strings")
         self["dns"] = list(dns)
 
+        self["extra_server_directives"] = self._clean_server_directives(
+            self.get("extra_server_directives")
+        )
+
         # Server-side PKI material (injected by ensure_openvpn_core_material).
         self["ca_cert"] = _require_pem_cert(self.get("ca_cert"), "ca_cert")
         self["server_cert"] = _require_pem_cert(self.get("server_cert"), "server_cert")
@@ -146,6 +150,39 @@ class OpenVPNConfig(dict):
         if "OpenVPN Static key" not in tls_crypt_key:
             raise ValueError("tls_crypt_key is required and must be an OpenVPN static key")
         self["tls_crypt_key"] = tls_crypt_key
+
+    # Directives that would run code, or clash with lines the node always emits,
+    # are rejected — extra_server_directives is for safe tuning only.
+    _FORBIDDEN_SERVER_DIRECTIVES = frozenset(
+        (
+            "script-security", "up", "down", "route-up", "route-pre-down", "ipchange",
+            "client-connect", "client-disconnect", "learn-address", "tls-verify",
+            "auth-user-pass-verify", "management", "management-client-auth",
+            "auth-user-pass-optional", "status", "status-version", "verify-client-cert",
+            "ca", "cert", "key", "dh", "tls-crypt", "tls-auth", "client-config-dir",
+        )
+    )
+
+    @classmethod
+    def _clean_server_directives(cls, value) -> list[str] | None:
+        if value in (None, "", []):
+            return None
+        if not isinstance(value, list):
+            raise ValueError("extra_server_directives must be a list of strings")
+        cleaned: list[str] = []
+        for line in value:
+            if not isinstance(line, str):
+                continue
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("<"):
+                raise ValueError(f"directive '{line}' is not allowed")
+            keyword = line.split()[0].lower()
+            if keyword in cls._FORBIDDEN_SERVER_DIRECTIVES:
+                raise ValueError(f"server directive '{keyword}' is not allowed")
+            cleaned.append(line)
+        return cleaned or None
 
     def _resolve_inbounds(self):
         inbound_tag = self["inbound_tag"]

@@ -36,6 +36,7 @@ interface OpenVPNFormValues {
   dns: string
   data_ciphers: string
   push: string
+  extra_server_directives: string
 }
 
 function splitLines(v: string): string[] {
@@ -58,6 +59,7 @@ function defaultValues(): OpenVPNFormValues {
     dns: '1.1.1.1',
     data_ciphers: 'AES-256-GCM\nCHACHA20-POLY1305',
     push: '',
+    extra_server_directives: '',
   }
 }
 
@@ -75,6 +77,7 @@ function configToFormValues(config: Record<string, unknown>): OpenVPNFormValues 
     dns: Array.isArray(config.dns) ? (config.dns as string[]).join('\n') : d.dns,
     data_ciphers: Array.isArray(config.data_ciphers) ? (config.data_ciphers as string[]).join('\n') : d.data_ciphers,
     push: Array.isArray(config.push) ? (config.push as string[]).join('\n') : '',
+    extra_server_directives: Array.isArray(config.extra_server_directives) ? (config.extra_server_directives as string[]).join('\n') : '',
   }
 }
 
@@ -94,6 +97,9 @@ export default function OpenVPNCoreEditorPage() {
   const [restartNodes, setRestartNodes] = useState(true)
   const [saving, setSaving] = useState(false)
   const [preservedMaterial, setPreservedMaterial] = useState<Record<string, unknown>>({})
+  const [advanced, setAdvanced] = useState(false)
+  const [advancedJson, setAdvancedJson] = useState('')
+  const [advancedError, setAdvancedError] = useState<string | null>(null)
 
   const form = useForm<OpenVPNFormValues>({ defaultValues: defaultValues() })
 
@@ -124,8 +130,30 @@ export default function OpenVPNCoreEditorPage() {
     max_clients: Number(v.max_clients),
     dns: splitLines(v.dns),
     push: splitLines(v.push),
+    extra_server_directives: splitLines(v.extra_server_directives),
     ...preservedMaterial,
   })
+
+  // Advanced mode edits the raw config JSON (minus PKI material, which is
+  // preserved on save) — the same pattern as the Xray core editor.
+  const enterAdvanced = () => {
+    const cfg = buildConfig(form.getValues()) as Record<string, unknown>
+    for (const k of MATERIAL_KEYS) delete cfg[k]
+    setAdvancedJson(JSON.stringify(cfg, null, 2))
+    setAdvancedError(null)
+    setAdvanced(true)
+  }
+
+  const exitAdvanced = () => {
+    try {
+      const parsed = JSON.parse(advancedJson)
+      form.reset(configToFormValues(parsed as Record<string, unknown>))
+      setAdvancedError(null)
+      setAdvanced(false)
+    } catch (e) {
+      setAdvancedError((e as Error).message)
+    }
+  }
 
   const handleSave = async () => {
     const name = coreName.trim()
@@ -133,8 +161,23 @@ export default function OpenVPNCoreEditorPage() {
       toast.error(t('coreConfigModal.nameRequired', { defaultValue: 'Core name is required' }))
       return
     }
-    const v = form.getValues()
-    const config = buildConfig(v)
+    let config: Record<string, unknown>
+    if (advanced) {
+      try {
+        const parsed = JSON.parse(advancedJson)
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+          throw new Error('Config must be a JSON object')
+        }
+        config = { ...(parsed as Record<string, unknown>), ...preservedMaterial }
+      } catch (e) {
+        const msg = (e as Error).message
+        setAdvancedError(msg)
+        toast.error(t('coreEditor.openvpn.invalidJson', { defaultValue: 'Invalid JSON: ' }) + msg)
+        return
+      }
+    } else {
+      config = buildConfig(form.getValues())
+    }
     setSaving(true)
     try {
       if (isNew) {
@@ -232,6 +275,35 @@ export default function OpenVPNCoreEditorPage() {
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <PageHeader title={t('coreEditor.openvpn.title', { defaultValue: 'OpenVPN server' })} description={t('coreEditor.openvpn.desc', { defaultValue: 'Server settings the node runs. Certificates are generated automatically.' })} className="py-2.5 sm:py-4 md:pt-6" />
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4">
+          <div className="mb-4 inline-flex rounded-md border p-0.5" dir="ltr">
+            <Button type="button" size="sm" variant={advanced ? 'ghost' : 'secondary'} className="h-8" onClick={() => advanced && exitAdvanced()}>
+              {t('coreEditor.openvpn.formTab', { defaultValue: 'Form' })}
+            </Button>
+            <Button type="button" size="sm" variant={advanced ? 'secondary' : 'ghost'} className="h-8" onClick={() => !advanced && enterAdvanced()}>
+              {t('coreEditor.openvpn.advancedTab', { defaultValue: 'Advanced (JSON)' })}
+            </Button>
+          </div>
+          {advanced && (
+            <div className="space-y-2">
+              <Textarea
+                dir="ltr"
+                spellCheck={false}
+                className="h-[60vh] resize-none font-mono text-xs leading-relaxed"
+                value={advancedJson}
+                onChange={e => {
+                  setAdvancedJson(e.target.value)
+                  setAdvancedError(null)
+                }}
+              />
+              {advancedError && <p className="text-destructive text-xs">{advancedError}</p>}
+              <p className="text-muted-foreground text-[11px]">
+                {t('coreEditor.openvpn.advancedHint', {
+                  defaultValue: 'Raw core config JSON. Certificates/keys are preserved automatically. Switch back to Form to keep only the known fields.',
+                })}
+              </p>
+            </div>
+          )}
+          <div className={cn(advanced && 'hidden')}>
           <Form {...form}>
             <form className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2" onSubmit={e => e.preventDefault()}>
               <FormField
@@ -409,8 +481,27 @@ export default function OpenVPNCoreEditorPage() {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="extra_server_directives"
+                render={({ field }) => (
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>{lbl('extra_server_directives', 'Extra server directives (raw server.conf lines, one per line)')}</FormLabel>
+                    <FormControl>
+                      <Textarea rows={3} dir="ltr" className="text-xs" placeholder={'mssfix 1360\ncompress lz4-v2\nsndbuf 393216'} {...field} />
+                    </FormControl>
+                    <p className="text-muted-foreground text-[11px]">
+                      {t('coreEditor.openvpn.extraServerHint', {
+                        defaultValue: 'Appended verbatim to server.conf. Critical lines (management, status, certificates) are always set by the node and cannot be changed here.',
+                      })}
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </form>
           </Form>
+          </div>
         </div>
       </div>
       <StickySaveBar
