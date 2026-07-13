@@ -113,6 +113,7 @@ from app.utils.hwid import resolve_effective_hwid_settings
 from app.utils.jwt import create_subscription_token
 from app.utils.logger import get_logger
 from app.utils.system import readable_duration, readable_size
+from app.utils.ikev2 import prepare_ikev2_proxy_settings
 from app.utils.openvpn import prepare_openvpn_proxy_settings
 from app.utils.wireguard import (
     build_wireguard_peer_ip_allocator,
@@ -475,14 +476,18 @@ class UserOperation(BaseOperation):
     async def _issue_openvpn_cert_if_needed(
         self, db: AsyncSession, db_user: User, groups: list, *, force_reissue: bool = False
     ) -> None:
-        """Issue/renew the user's OpenVPN cert after the row exists (CN = user id).
+        """Issue/renew the user's OpenVPN cert and IKEv2 credentials after the row
+        exists (both keyed by user id).
 
-        Persists ``proxy_settings`` in place when a cert is (re)issued so the
-        subsequent node sync carries the new serial.
+        Persists ``proxy_settings`` in place when material is (re)issued so the
+        subsequent node sync carries the new serial/credentials.
         """
         proxy_settings = ProxyTable.model_validate(db_user.proxy_settings)
         updated = await prepare_openvpn_proxy_settings(
             db, proxy_settings, groups, db_user.id, force_reissue=force_reissue
+        )
+        updated = await prepare_ikev2_proxy_settings(
+            db, updated, groups, db_user.id, force_reissue=force_reissue
         )
         new_settings = updated.dict()
         if new_settings != db_user.proxy_settings:
@@ -504,9 +509,12 @@ class UserOperation(BaseOperation):
             exclude_user_id=db_user.id,
             skip_peer_ip_validation=True,
         )
-        # Reissue the OpenVPN client cert so its serial changes — the node then
-        # denies the previously distributed .ovpn profile.
-        return await prepare_openvpn_proxy_settings(
+        # Reissue the OpenVPN client cert (new serial) and rotate the IKEv2
+        # password so the previously distributed profiles are denied.
+        proxy_settings = await prepare_openvpn_proxy_settings(
+            db, proxy_settings, groups, db_user.id, force_reissue=True
+        )
+        return await prepare_ikev2_proxy_settings(
             db, proxy_settings, groups, db_user.id, force_reissue=True
         )
 
@@ -867,9 +875,12 @@ class UserOperation(BaseOperation):
             exclude_user_id=db_user.id,
             skip_peer_ip_validation=not peer_ips_changed,
         )
-        # Issue an OpenVPN cert if the (possibly new) groups grant an openvpn
-        # inbound and the user has none yet. CN = user id (row already exists).
+        # Issue an OpenVPN cert / IKEv2 credentials if the (possibly new) groups
+        # grant such an inbound and the user has none yet (keyed by user id).
         prepared_proxy_settings = await prepare_openvpn_proxy_settings(
+            db, prepared_proxy_settings, effective_groups, db_user.id
+        )
+        prepared_proxy_settings = await prepare_ikev2_proxy_settings(
             db, prepared_proxy_settings, effective_groups, db_user.id
         )
         if modified_user.proxy_settings is not None or prepared_proxy_settings.dict() != current_proxy_settings_data:

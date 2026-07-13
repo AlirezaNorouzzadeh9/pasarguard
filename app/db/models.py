@@ -830,6 +830,7 @@ class CoreType(str, Enum):
     mtproto = "mtproto"
     singbox = "singbox"
     openvpn = "openvpn"
+    ikev2 = "ikev2"
 
 
 class CoreConfig(Base, CreatedAtUTCMixin):

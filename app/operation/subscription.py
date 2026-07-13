@@ -287,6 +287,7 @@ class SubscriptionOperation(BaseOperation):
         Covers users who gained an OpenVPN inbound without going through the
         create/modify issuance paths (e.g. bulk-created users).
         """
+        from app.utils.ikev2 import prepare_ikev2_proxy_settings
         from app.utils.openvpn import prepare_openvpn_proxy_settings
 
         groups = db_user.__dict__.get("groups")
@@ -295,6 +296,7 @@ class SubscriptionOperation(BaseOperation):
 
         proxy_settings = ProxyTable.model_validate(db_user.proxy_settings)
         updated = await prepare_openvpn_proxy_settings(db, proxy_settings, groups, db_user.id)
+        updated = await prepare_ikev2_proxy_settings(db, updated, groups, db_user.id)
         new_settings = updated.dict()
         if new_settings != db_user.proxy_settings:
             db_user.proxy_settings = new_settings

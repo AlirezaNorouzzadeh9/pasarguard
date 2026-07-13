@@ -86,6 +86,10 @@ def _serialize_user_for_node(
         openvpn_settings = user_settings.get("openvpn", {})
         proxy_kwargs["openvpn_serial"] = openvpn_settings.get("serial")
         proxy_kwargs["openvpn_fingerprint"] = openvpn_settings.get("fingerprint")
+    if ProxyProtocol.ikev2 in allowed_protocols:
+        ikev2_settings = user_settings.get("ikev2", {})
+        proxy_kwargs["ikev2_username"] = ikev2_settings.get("username")
+        proxy_kwargs["ikev2_password"] = ikev2_settings.get("password")
 
     return create_user(
         str(id),

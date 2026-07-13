@@ -209,6 +209,10 @@ class OpenVPNEnvSettings(EnvSettings):
     enabled: bool = Field(default=True, validation_alias="OPENVPN_ENABLED")
 
 
+class IKEv2EnvSettings(EnvSettings):
+    enabled: bool = Field(default=True, validation_alias="IKEV2_ENABLED")
+
+
 database_settings = DatabaseSettings()
 server_settings = ServerSettings()
 dashboard_settings = DashboardSettings()
@@ -226,6 +230,7 @@ job_settings = JobSettings()
 feature_settings = FeatureSettings()
 wireguard_settings = WireGuardSettings()
 openvpn_env_settings = OpenVPNEnvSettings()
+ikev2_env_settings = IKEv2EnvSettings()
 
 if not database_settings.is_postgresql:
     usage_settings.enable_recording_nodes_stats = False

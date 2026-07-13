@@ -297,6 +297,12 @@ class SubscriptionInboundData(BaseModel):
         cleaned = [remote for remote in parsed if remote is not None]
         return cleaned or None
 
+    # ---- IKEv2 (from inbound metadata; user creds come from proxy settings) ----
+    ikev2_server_addr: str = Field("")
+    ikev2_identity: str = Field("")
+    ikev2_ca_cert: str = Field("")
+    ikev2_dns: list[str] | None = Field(default=None)
+
     # Flow (from inbound, user can override)
     inbound_flow: str = Field("")
 

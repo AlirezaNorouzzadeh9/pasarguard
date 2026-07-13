@@ -73,6 +73,7 @@ logger = get_logger("node-operation")
 _BACKEND_TYPE_BY_CORE = {
     CoreType.wg: service.BackendType.WIREGUARD,
     CoreType.openvpn: service.BackendType.OPENVPN,
+    CoreType.ikev2: service.BackendType.IKEV2,
 }
 
 

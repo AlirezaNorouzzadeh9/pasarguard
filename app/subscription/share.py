@@ -15,11 +15,12 @@ from app.models.user import UsersResponseWithInbounds
 from app.settings import subscription_settings
 from app.subscription.client_templates import subscription_client_templates, subscription_xray_templates
 from app.utils.system import readable_size
-from config import openvpn_env_settings, wireguard_settings
+from config import ikev2_env_settings, openvpn_env_settings, wireguard_settings
 
 from . import (
     ClashConfiguration,
     ClashMetaConfiguration,
+    IKEv2Configuration,
     OpenVPNConfiguration,
     OutlineConfiguration,
     SingBoxConfiguration,
@@ -73,6 +74,8 @@ def _build_subscription_config(
         return WireGuardConfiguration()
     if config_format == "openvpn":
         return OpenVPNConfiguration()
+    if config_format == "ikev2":
+        return IKEv2Configuration()
     if config_format == "xray":
         return XrayConfiguration(
             xray_template_content=client_templates["XRAY_SUBSCRIPTION_TEMPLATE"],
@@ -457,6 +460,8 @@ async def process_inbounds_and_tags(
         if host_data.protocol == "wireguard" and not wireguard_settings.enabled:
             continue
         if host_data.protocol == "openvpn" and not openvpn_env_settings.enabled:
+            continue
+        if host_data.protocol == "ikev2" and not ikev2_env_settings.enabled:
             continue
 
         result = await process_host(host_data, format_variables, user.inbounds, proxy_settings, custom_variables)
