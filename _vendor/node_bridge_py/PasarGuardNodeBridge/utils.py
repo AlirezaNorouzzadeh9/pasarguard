@@ -17,8 +17,8 @@ from PasarGuardNodeBridge.common.service_pb2 import (
 )
 
 
-def create_user(email: str, proxies: Proxy, inbounds: list[str]) -> User:
-    return User(email=email, proxies=proxies, inbounds=inbounds)
+def create_user(email: str, proxies: Proxy, inbounds: list[str], ip_limit: int = 0) -> User:
+    return User(email=email, proxies=proxies, inbounds=inbounds, ip_limit=ip_limit or 0)
 
 
 def create_proxy(

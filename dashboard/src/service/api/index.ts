@@ -1117,6 +1117,7 @@ export interface UserResponse {
   group_ids?: UserResponseGroupIds
   auto_delete_in_days?: UserResponseAutoDeleteInDays
   hwid_limit?: UserResponseHwidLimit
+  ip_limit?: number | null
   next_plan?: UserResponseNextPlan
   id: number
   username: string
@@ -1183,6 +1184,7 @@ export interface UserModify {
   group_ids?: UserModifyGroupIds
   auto_delete_in_days?: UserModifyAutoDeleteInDays
   hwid_limit?: UserModifyHwidLimit
+  ip_limit?: number | null
   next_plan?: UserModifyNextPlan
   status?: UserModifyStatus
 }
@@ -1267,6 +1269,7 @@ export interface UserCreate {
   group_ids?: UserCreateGroupIds
   auto_delete_in_days?: UserCreateAutoDeleteInDays
   hwid_limit?: UserCreateHwidLimit
+  ip_limit?: number | null
   next_plan?: UserCreateNextPlan
   username: string
   status?: UserCreateStatus

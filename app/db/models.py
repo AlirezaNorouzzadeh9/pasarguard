@@ -222,6 +222,8 @@ class User(Base, CreatedAtUTCMixin):
     status: Mapped[UserStatus] = mapped_column(SQLEnum(UserStatus), default=UserStatus.active)
     used_traffic: Mapped[int] = mapped_column(BigInteger, default=0)
     data_limit: Mapped[Optional[int]] = mapped_column(BigInteger, default=None)
+    # Max simultaneous connections/devices (distinct source IPs); 0/None = unlimited.
+    ip_limit: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0", nullable=False)
     data_limit_reset_strategy: Mapped[DataLimitResetStrategy] = mapped_column(
         SQLEnum(DataLimitResetStrategy),
         default=DataLimitResetStrategy.no_reset,
