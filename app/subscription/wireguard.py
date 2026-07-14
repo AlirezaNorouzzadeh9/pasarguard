@@ -62,7 +62,13 @@ class WireGuardConfiguration(BaseSubscription):
         config_content = self._render_config(config_data)
         self.configs.append((components["remark"], config_content))
 
-    def render(self) -> bytes:
+    def render(self) -> bytes | str:
+        # A single host is returned as the raw .conf so the user imports it
+        # directly (no unzip step). Multiple hosts still need a zip, because
+        # several WireGuard tunnels can't live in one importable .conf file.
+        if len(self.configs) == 1:
+            return self.configs[0][1]
+
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
             for remark, config_content in self.configs:

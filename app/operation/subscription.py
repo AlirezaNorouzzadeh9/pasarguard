@@ -73,15 +73,17 @@ client_config = {
     },
     ConfigFormat.wireguard: {
         "config_format": "wireguard",
-        "media_type": "application/zip",
+        # Single host -> raw .conf (text); multiple hosts -> zip. media_type and
+        # extension are adjusted at request time based on what render() returned.
+        "media_type": "text/plain",
         "as_base64": False,
-        "extension": ".zip",
+        "extension": ".conf",
     },
     ConfigFormat.openvpn: {
         "config_format": "openvpn",
-        "media_type": "application/zip",
+        "media_type": "text/plain",
         "as_base64": False,
-        "extension": ".zip",
+        "extension": ".ovpn",
     },
     ConfigFormat.ikev2: {
         "config_format": "ikev2",
@@ -316,15 +318,18 @@ class SubscriptionOperation(BaseOperation):
         randomize_order = sub_settings.randomize_order
 
         # Generate subscription content
-        return (
-            await generate_subscription(
-                user=user,
-                config_format=config.get("config_format", ""),
-                as_base64=config.get("as_base64", ""),
-                randomize_order=randomize_order,
-            ),
-            config["media_type"],
+        content = await generate_subscription(
+            user=user,
+            config_format=config.get("config_format", ""),
+            as_base64=config.get("as_base64", ""),
+            randomize_order=randomize_order,
         )
+        media_type = config["media_type"]
+        # WireGuard/OpenVPN render a raw config (str) for a single host and a zip
+        # bundle (bytes) for several; reflect that in the media type.
+        if client_type in (ConfigFormat.wireguard, ConfigFormat.openvpn):
+            media_type = "application/zip" if isinstance(content, (bytes, bytearray)) else "text/plain"
+        return content, media_type
 
     @staticmethod
     def is_hwid_enabled(
@@ -633,8 +638,16 @@ class SubscriptionOperation(BaseOperation):
             is_manual_sub=True,
         )
 
+        conf, media_type = await self.fetch_config(user, client_type)
+
+        # WireGuard/OpenVPN come back as a raw config for one host or a zip bundle
+        # for several; name the download accordingly (.conf/.ovpn vs .zip).
+        extension = client_config.get(client_type, {}).get("extension", "")
+        if client_type in (ConfigFormat.wireguard, ConfigFormat.openvpn) and isinstance(conf, (bytes, bytearray)):
+            extension = ".zip"
+
         response_headers = self.create_response_headers(
-            user, request_url, sub_settings, extension=client_config.get(client_type, {}).get("extension", "")
+            user, request_url, sub_settings, extension=extension
         )
         try:
             response_headers.update(
@@ -645,7 +658,6 @@ class SubscriptionOperation(BaseOperation):
             response_headers = self.sanitize_response_headers(response_headers)
         except ValueError as exc:
             await self.raise_error(message=str(exc), code=400)
-        conf, media_type = await self.fetch_config(user, client_type)
 
         # Create response headers
         return Response(content=conf, media_type=media_type, headers=response_headers)

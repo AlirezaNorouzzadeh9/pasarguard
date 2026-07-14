@@ -79,7 +79,12 @@ class OpenVPNConfiguration(BaseSubscription):
 
         self.configs.append((validated_remark, "\n".join(blocks) + "\n"))
 
-    def render(self) -> bytes:
+    def render(self) -> bytes | str:
+        # A single host is returned as the raw .ovpn so the user imports it
+        # directly (no unzip step). Multiple hosts still get a zip bundle.
+        if len(self.configs) == 1:
+            return self.configs[0][1]
+
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
             for remark, config_content in self.configs:
