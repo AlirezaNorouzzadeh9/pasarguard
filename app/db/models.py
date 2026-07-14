@@ -627,6 +627,8 @@ class Node(Base, CreatedAtUTCMixin):
     # Backend types the node reports it can run (deps installed): e.g. ["xray","openvpn"].
     # None = unknown (not yet reported); the UI then allows all.
     available_backends: Mapped[Optional[list[str]]] = mapped_column(PostgresJSONB, default=None)
+    # Installed version per backend the node reports: {"xray":"26.3.27","openvpn":"2.6.3"}.
+    backend_versions: Mapped[Optional[dict]] = mapped_column(PostgresJSONB, default=None)
     user_usages: Mapped[List["NodeUserUsage"]] = relationship(
         back_populates="node", cascade="all, delete-orphan", init=False
     )

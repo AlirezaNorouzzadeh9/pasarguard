@@ -211,6 +211,7 @@ class NodeResponse(Node):
     api_key: str | None
     core_config_id: int | None
     available_backends: list[str] | None = None
+    backend_versions: dict[str, str] | None = None
     xray_version: str | None
     node_version: str | None
     status: NodeStatus

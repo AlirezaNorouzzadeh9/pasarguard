@@ -38,16 +38,25 @@ class Empty(_message.Message):
     def __init__(self) -> None: ...
 
 class BaseInfoResponse(_message.Message):
-    __slots__ = ("started", "core_version", "node_version", "available_backends")
+    __slots__ = ("started", "core_version", "node_version", "available_backends", "backend_versions")
+    class BackendVersionsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     STARTED_FIELD_NUMBER: _ClassVar[int]
     CORE_VERSION_FIELD_NUMBER: _ClassVar[int]
     NODE_VERSION_FIELD_NUMBER: _ClassVar[int]
     AVAILABLE_BACKENDS_FIELD_NUMBER: _ClassVar[int]
+    BACKEND_VERSIONS_FIELD_NUMBER: _ClassVar[int]
     started: bool
     core_version: str
     node_version: str
     available_backends: _containers.RepeatedScalarFieldContainer[BackendType]
-    def __init__(self, started: bool = ..., core_version: _Optional[str] = ..., node_version: _Optional[str] = ..., available_backends: _Optional[_Iterable[_Union[BackendType, str]]] = ...) -> None: ...
+    backend_versions: _containers.ScalarMap[str, str]
+    def __init__(self, started: bool = ..., core_version: _Optional[str] = ..., node_version: _Optional[str] = ..., available_backends: _Optional[_Iterable[_Union[BackendType, str]]] = ..., backend_versions: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class Backend(_message.Message):
     __slots__ = ("type", "config", "users", "keep_alive", "exclude_inbounds")

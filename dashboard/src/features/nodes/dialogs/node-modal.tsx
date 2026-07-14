@@ -50,6 +50,8 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
   const [isFetchingNodeData, setIsFetchingNodeData] = useState(false)
   // Backend types the node reports it can run (deps installed). null = unknown -> allow all.
   const [availableBackends, setAvailableBackends] = useState<string[] | null>(null)
+  // Installed version per backend the node reports, e.g. { openvpn: "2.6.3" }.
+  const [backendVersions, setBackendVersions] = useState<Record<string, string> | null>(null)
 
   const { data: node, refetch: refetchNode } = useGetNode(
     editingNodeId || 0,
@@ -136,6 +138,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
 
     lastSyncedNodeRef.current = node
     setAvailableBackends(node.available_backends ?? null)
+    setBackendVersions(node.backend_versions ?? null)
   }, [node, isDialogOpen, editingNode, editingNodeId, form, cores])
 
   useEffect(() => {
@@ -192,6 +195,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
         })
         lastSyncedNodeRef.current = nodeData
         setAvailableBackends(nodeData.available_backends ?? null)
+        setBackendVersions(nodeData.backend_versions ?? null)
         setIsFetchingNodeData(false)
       } else {
         const fetchNodeData = async () => {
@@ -225,6 +229,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
             })
             lastSyncedNodeRef.current = nodeData
             setAvailableBackends(nodeData.available_backends ?? null)
+            setBackendVersions(nodeData.backend_versions ?? null)
           } catch (error) {
             console.error('Error fetching node data:', error)
             toast.error(t('nodes.fetchFailed'))
@@ -258,6 +263,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
         proxy_url: '',
       })
       setAvailableBackends(null)
+      setBackendVersions(null)
     }
   }, [editingNode, editingNodeId, isDialogOpen, cores, initialNodeData, form])
 
@@ -548,6 +554,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
                                   <div key={core.id} className={cn('flex items-center justify-between gap-2', !installed && 'opacity-50', dir === 'rtl' && 'flex-row-reverse')}>
                                     <span className="text-sm">
                                       {core.name}
+                                      {core.type && backendVersions?.[core.type] && <span className="text-muted-foreground ml-1 font-mono text-xs">v{backendVersions[core.type]}</span>}
                                       {selectedOrder[0] === core.id && <span className="text-muted-foreground ml-1 text-xs">({t('nodeModal.primaryCore', { defaultValue: 'primary' })})</span>}
                                       {!installed && <span className="ml-1 text-xs text-amber-600 dark:text-amber-400">({t('nodeModal.notInstalled', { defaultValue: 'not installed' })})</span>}
                                     </span>

@@ -360,6 +360,7 @@ class NodeOperation(BaseOperation):
                 "xray_version": info.core_version,
                 "node_version": info.node_version,
                 "available_backends": _available_core_types(info),
+                "backend_versions": dict(getattr(info, "backend_versions", {}) or {}),
                 "old_status": old_status,
             }
         except NodeAPIError as e:
@@ -805,6 +806,7 @@ class NodeOperation(BaseOperation):
             xray_version=result.get("xray_version", ""),
             node_version=result.get("node_version", ""),
             available_backends=result.get("available_backends"),
+            backend_versions=result.get("backend_versions"),
         )
 
         # Send appropriate notification
