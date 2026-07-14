@@ -253,6 +253,41 @@ class NodeOperation(BaseOperation):
         return json.dumps(data)
 
     @staticmethod
+    def _config_with_ikev2_cert(config: str, core_type, address: str, ca: dict | None) -> str:
+        """Issue a per-node IKEv2 server cert so a single ikev2 core works on any
+        node. The panel signs a cert (SAN = this node's address) with the shared
+        CA and injects it, so native clients validate the node they connect to.
+        Loopback/co-located nodes keep the core's static cert (clients reach them
+        via a different public address).
+        """
+        if core_type != CoreType.ikev2 or not ca:
+            return config
+        addr = (address or "").strip()
+        if not addr or addr in ("127.0.0.1", "localhost", "::1"):
+            return config
+        try:
+            data = json.loads(config)
+        except (ValueError, TypeError):
+            return config
+        from app.utils.openvpn_pki import issue_ikev2_server_cert
+
+        server_cert, server_key = issue_ikev2_server_cert(ca["ca_cert"], ca["ca_key"], addr)
+        data["server_cert"] = server_cert
+        data["server_key"] = server_key
+        data["identity"] = addr
+        data["server_addr"] = addr
+        return json.dumps(data)
+
+    @staticmethod
+    async def _load_ikev2_ca(db: AsyncSession, cores_by_id: dict) -> dict | None:
+        """Load the shared CA (cert+key) once if any core here is ikev2."""
+        if not any(getattr(c, "type", None) == CoreType.ikev2 for c in cores_by_id.values() if c):
+            return None
+        from app.utils.openvpn import ensure_openvpn_ca
+
+        return await ensure_openvpn_ca(db)
+
+    @staticmethod
     def _additional_for(node: Node, cores_by_id: dict, users_by_core: dict) -> list:
         """Build the (core, users, port_override) list for a node's extra backends."""
         extra = []
@@ -293,7 +328,12 @@ class NodeOperation(BaseOperation):
 
     @staticmethod
     async def connect_node(
-        db_node: Node, core, users: list, additional: list | None = None, primary_port: int | None = None
+        db_node: Node,
+        core,
+        users: list,
+        additional: list | None = None,
+        primary_port: int | None = None,
+        ca: dict | None = None,
     ) -> dict | None:
         """
         Connect to a node and return status result (does NOT update database).
@@ -321,8 +361,10 @@ class NodeOperation(BaseOperation):
         type = _BACKEND_TYPE_BY_CORE.get(core.type, service.BackendType.XRAY)
 
         try:
+            primary_cfg = NodeOperation._config_with_port(core, primary_port)
+            primary_cfg = NodeOperation._config_with_ikev2_cert(primary_cfg, core.type, db_node.address, ca)
             start_kwargs = {
-                "config": NodeOperation._config_with_port(core, primary_port),
+                "config": primary_cfg,
                 "backend_type": type,
                 "users": users,
                 "keep_alive": db_node.keep_alive,
@@ -338,8 +380,10 @@ class NodeOperation(BaseOperation):
                 if extra_core is None or extra_core.type == core.type:
                     continue
                 extra_type = _BACKEND_TYPE_BY_CORE.get(extra_core.type, service.BackendType.XRAY)
+                extra_cfg = NodeOperation._config_with_port(extra_core, extra_port)
+                extra_cfg = NodeOperation._config_with_ikev2_cert(extra_cfg, extra_core.type, db_node.address, ca)
                 add_kwargs = {
-                    "config": NodeOperation._config_with_port(extra_core, extra_port),
+                    "config": extra_cfg,
                     "backend_type": extra_type,
                     "users": extra_users,
                 }
@@ -684,6 +728,7 @@ class NodeOperation(BaseOperation):
         for node in nodes:
             core_ids.update(node.additional_core_config_ids or [])
         cores_by_id, users_by_core = await self._get_core_users_map(db, core_ids)
+        ikev2_ca = await self._load_ikev2_ca(db, cores_by_id)
 
         async def connect_single(node: Node) -> dict | None:
             if node is None or node.status in (NodeStatus.disabled, NodeStatus.limited):
@@ -708,6 +753,7 @@ class NodeOperation(BaseOperation):
                 users_by_core.get(core_id, []),
                 self._additional_for(node, cores_by_id, users_by_core),
                 self._port_override_for(node, core_id),
+                ikev2_ca,
             )
 
         results = await asyncio.gather(*[connect_single(node) for node in nodes])
@@ -767,6 +813,7 @@ class NodeOperation(BaseOperation):
         core = cores_by_id.get(core_id)
         users = users_by_core.get(core_id, [])
         additional = self._additional_for(db_node, cores_by_id, users_by_core)
+        ikev2_ca = await self._load_ikev2_ca(db, cores_by_id)
 
         # Update node manager
         try:
@@ -791,7 +838,7 @@ class NodeOperation(BaseOperation):
 
         # Connect the node
         result = await NodeOperation.connect_node(
-            db_node, core, users, additional, self._port_override_for(db_node, core_id)
+            db_node, core, users, additional, self._port_override_for(db_node, core_id), ikev2_ca
         )
 
         if not result:
