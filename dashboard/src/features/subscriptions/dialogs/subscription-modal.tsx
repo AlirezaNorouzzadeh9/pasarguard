@@ -15,6 +15,7 @@ import {
   downloadTextFile,
   downloadUserSubscriptionOpenVPN,
   downloadUserSubscriptionIKEv2,
+  downloadUserSubscriptionWireguard,
   encodeSubscriptionContentToBase64,
   extractAddressFromConfigUrl,
   extractNameFromConfigUrl,
@@ -205,6 +206,24 @@ const SubscriptionModal: FC<SubscriptionModalProps> = memo(({ open, subscribeUrl
     }
   }, [subscribeUrl, username, t])
 
+  const [isDownloadingWireguard, setIsDownloadingWireguard] = useState(false)
+  const handleDownloadWireguard = useCallback(async () => {
+    if (!subscribeUrl) return
+    setIsDownloadingWireguard(true)
+    try {
+      const result = await downloadUserSubscriptionWireguard(subscribeUrl, username, LINKS_FETCH_TIMEOUT_MS)
+      if (result === 'empty') {
+        toast.error(t('subscriptionModal.noWireguard', { defaultValue: 'This user has no WireGuard config' }))
+        return
+      }
+      toast.success(t('usersTable.downloadStarted', { defaultValue: 'Download started' }))
+    } catch {
+      toast.error(t('downloadFailed', { defaultValue: 'Failed to download config' }))
+    } finally {
+      setIsDownloadingWireguard(false)
+    }
+  }, [subscribeUrl, username, t])
+
   const [isReissuing, setIsReissuing] = useState(false)
   const handleReissueOpenVPN = useCallback(async () => {
     if (!username) return
@@ -273,6 +292,10 @@ const SubscriptionModal: FC<SubscriptionModalProps> = memo(({ open, subscribeUrl
                   <Button variant="ghost" size="sm" onClick={handleDownloadIKEv2} disabled={isDownloadingIKEv2} className="h-7 px-2 text-xs" title="IKEv2">
                     <ShieldCheck className={cn('h-3 w-3', isRTL ? 'ml-1' : 'mr-1')} />
                     <span className="hidden sm:inline">IKEv2</span>
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleDownloadWireguard} disabled={isDownloadingWireguard} className="h-7 px-2 text-xs" title="WireGuard">
+                    <ShieldCheck className={cn('h-3 w-3', isRTL ? 'ml-1' : 'mr-1')} />
+                    <span className="hidden sm:inline">WireGuard</span>
                   </Button>
                   <Button
                     variant="ghost"

@@ -643,6 +643,29 @@
             </div>
             {% endif %}
 
+            {% if wireguard_url %}
+            <div class="links-section">
+                <h2>WireGuard</h2>
+                <div class="link-item">
+                    <input type="text" class="link-input" value="{{ wireguard_url }}" readonly />
+                    <button
+                        class="copy-button"
+                        onclick="copyLink('{{ wireguard_url }}', this)"
+                    >
+                        Copy
+                    </button>
+                </div>
+                <a
+                    href="{{ wireguard_url }}"
+                    class="copy-all-button"
+                    style="text-decoration: none; display: inline-block; text-align: center;"
+                    download
+                >
+                    Download .conf (zip)
+                </a>
+            </div>
+            {% endif %}
+
             {% if ikev2_url %}
             <div class="links-section">
                 <h2>IKEv2 / IPsec</h2>

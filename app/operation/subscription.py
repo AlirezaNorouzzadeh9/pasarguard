@@ -478,6 +478,11 @@ class SubscriptionOperation(BaseOperation):
             from app.utils.ikev2 import get_ikev2_tags_from_groups
             from config import ikev2_env_settings
 
+            # WireGuard is delivered as a .conf zip, same as OpenVPN.
+            wireguard_url = None
+            from app.utils.wireguard import get_wireguard_tags_from_groups
+            from config import wireguard_settings
+
             groups = None
             if openvpn_env_settings.enabled:
                 groups = db_user.__dict__.get("groups")
@@ -497,6 +502,15 @@ class SubscriptionOperation(BaseOperation):
                     ikev2_url = f"{base}/ikev2" if base else None
                     ikev2_details = await generate_ikev2_details(user, sub_settings.randomize_order)
 
+            if wireguard_settings.enabled:
+                if groups is None:
+                    groups = db_user.__dict__.get("groups")
+                    if groups is None:
+                        groups = await db_user.awaitable_attrs.groups
+                if await get_wireguard_tags_from_groups(groups):
+                    base = (request_url or "").split("?")[0].rstrip("/")
+                    wireguard_url = f"{base}/wireguard" if base else None
+
             return HTMLResponse(
                 render_template(
                     template,
@@ -510,6 +524,7 @@ class SubscriptionOperation(BaseOperation):
                         openvpn_url,
                         ikev2_url,
                         ikev2_details,
+                        wireguard_url,
                     ),
                 )
             )
@@ -646,12 +661,14 @@ class SubscriptionOperation(BaseOperation):
         openvpn_url: str | None = None,
         ikev2_url: str | None = None,
         ikev2_details: list[dict] | None = None,
+        wireguard_url: str | None = None,
     ) -> dict[str, Any]:
         return {
             "user": SubscriptionUserResponse.model_validate(user),
             "links": links,
             "announce": formatted_announce,
             "announce_url": sub_settings.announce_url,
+            "wireguard_url": wireguard_url,
             "openvpn_url": openvpn_url,
             "ikev2_url": ikev2_url,
             "ikev2_details": ikev2_details or [],
