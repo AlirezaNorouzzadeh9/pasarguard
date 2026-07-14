@@ -55,12 +55,14 @@ class IKEv2Configuration(BaseSubscription):
         validated_remark = self._remark_validation(remark)
         self.proxy_remarks.append(validated_remark)
 
-        # Prefer the per-location host address (like every other protocol) so a
-        # user connecting to a given node validates that node's own certificate.
-        # The core's server_addr/identity are only a fallback default.
+        # RemoteAddress (where to connect) is the per-location host address, so
+        # you can point the host at any node / change the IP freely.
+        # RemoteIdentifier (what the client validates the server cert against) is
+        # the core's FIXED identity — decoupled from the IP — so the same shared
+        # server certificate validates no matter which node/IP the host points to.
         host_addr = (address or "").strip()
         server = host_addr or inbound.ikev2_server_addr
-        identity = host_addr or inbound.ikev2_identity or server
+        identity = inbound.ikev2_identity or inbound.ikev2_server_addr or host_addr
         self.details.append(
             {
                 "remark": validated_remark,
