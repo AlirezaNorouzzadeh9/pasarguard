@@ -33,6 +33,12 @@ async def ensure_ikev2_core_material(db: AsyncSession, config: dict) -> dict:
     the core identity. Idempotent — existing material is kept.
     """
     config = dict(config)
+
+    # Externally-provided certificate material (e.g. a public Let's Encrypt cert
+    # so native clients connect with no CA install) is kept exactly as given.
+    if config.get("server_cert") and config.get("server_key") and config.get("ca_cert"):
+        return config
+
     ca = await ensure_openvpn_ca(db)
 
     config["ca_cert"] = ca["ca_cert"]
