@@ -2711,7 +2711,7 @@ function UserModal({ isDialogOpen, onOpenChange, form, editingUser, editingUserI
       </AlertDialog>
 
       {canViewAllUserIps && currentUserId && currentUsername && (
-        <UserAllIPsModal isOpen={isUserAllIPsModalOpen} onOpenChange={setUserAllIPsModalOpen} userId={currentUserId} username={currentUsername} />
+        <UserAllIPsModal isOpen={isUserAllIPsModalOpen} onOpenChange={setUserAllIPsModalOpen} userId={currentUserId} username={currentUsername} ipLimit={editingUserData?.ip_limit ?? 0} />
       )}
       {currentUserId && <UsageModal open={isUsageModalOpen} onClose={() => setUsageModalOpen(false)} userId={currentUserId} />}
       {currentUserId && <UserHwidsModal isOpen={isHwidsModalOpen} onOpenChange={setHwidsModalOpen} userId={currentUserId} username={currentUsername} />}
