@@ -72,6 +72,7 @@ button{ font-family:inherit; }
 {% set offset = 628.318 * (1 - frac) %}
 {% set gb_left = ((limit - used) / 1073741824) if limit else None %}
 {% set status = user.status.value %}
+{% set xray_links = [] %}{% for _l in links %}{% if not _l.startswith('wireguard://') %}{% set _ = xray_links.append(_l) %}{% endif %}{% endfor %}
 <div class="wrap" id="app" data-theme="dark" dir="rtl">
   <div class="inner">
 
@@ -133,19 +134,19 @@ button{ font-family:inherit; }
     </div>
 
     <!-- Config grid -->
-    {% if links or wireguard_configs or openvpn_configs or ikev2_details %}
+    {% if xray_links or wireguard_configs or openvpn_configs or ikev2_details %}
     <div class="grid2">
 
-      {% if links %}
+      {% if xray_links %}
       <div class="card" style="grid-row:span 2; display:flex; flex-direction:column;">
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:6px;">
           <div class="badge" style="background:var(--accent-soft); color:var(--accent-text);">XR</div>
-          <div style="flex:1; min-width:0;"><div style="font-size:15.5px; font-weight:700;">Xray</div><div style="font-size:11px; color:var(--faint);"><span dir="ltr">{{ links|length }}</span> <span data-i18n="servers">سرور</span> · VLESS / VMESS / TROJAN</div></div>
+          <div style="flex:1; min-width:0;"><div style="font-size:15.5px; font-weight:700;">Xray</div><div style="font-size:11px; color:var(--faint);"><span dir="ltr">{{ xray_links|length }}</span> <span data-i18n="servers">سرور</span> · VLESS / VMESS / TROJAN</div></div>
           <button class="dlbtn" style="border:1px solid var(--chip-border); background:transparent; color:var(--icon-fg);" onclick="copyAllXray()"><span data-i18n="copyAll">کپی همه</span></button>
         </div>
         <div style="font-size:11px; color:var(--faint); margin-bottom:14px; line-height:1.6;" data-i18n="xrayHint">برای اپ‌های v2rayN، v2rayNG و Streisand — لینک اشتراک یا کانفیگ تکی را کپی کنید.</div>
         <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
-          {% for link in links %}
+          {% for link in xray_links %}
           {% set scheme = (link.split('://')[0]) if '://' in link else 'sub' %}
           {% set nm = (link.split('#')[-1]) if '#' in link else scheme %}
           <div class="row" data-xray="{{ link }}">
