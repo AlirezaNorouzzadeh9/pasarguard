@@ -115,7 +115,7 @@ class OnlineStatResponse(_message.Message):
     def __init__(self, name: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
 
 class StatsOnlineIpListResponse(_message.Message):
-    __slots__ = ("name", "ips")
+    __slots__ = ("name", "ips", "ip_protocol")
     class IpsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -123,11 +123,20 @@ class StatsOnlineIpListResponse(_message.Message):
         key: str
         value: int
         def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    class IpProtocolEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     NAME_FIELD_NUMBER: _ClassVar[int]
     IPS_FIELD_NUMBER: _ClassVar[int]
+    IP_PROTOCOL_FIELD_NUMBER: _ClassVar[int]
     name: str
     ips: _containers.ScalarMap[str, int]
-    def __init__(self, name: _Optional[str] = ..., ips: _Optional[_Mapping[str, int]] = ...) -> None: ...
+    ip_protocol: _containers.ScalarMap[str, str]
+    def __init__(self, name: _Optional[str] = ..., ips: _Optional[_Mapping[str, int]] = ..., ip_protocol: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class Latency(_message.Message):
     __slots__ = ("name", "alive", "delay", "link", "last_seen_time", "last_try_time", "source")

@@ -628,7 +628,7 @@ class NodeOperation(BaseOperation):
     async def get_user_ip_list_all_nodes(self, db: AsyncSession, user_id: int) -> UserIPListAll:
         return await self._get_user_ip_list_all_impl(db, user_id)
 
-    async def _get_node_user_ip_list_safe(self, node_id: int, email: str) -> dict[str, int] | None:
+    async def _get_node_user_ip_list_safe(self, node_id: int, email: str) -> UserIPList | None:
         """Wrapper method that returns None instead of raising exceptions"""
         try:
             node = await node_manager.get_node(node_id)
@@ -639,7 +639,7 @@ class NodeOperation(BaseOperation):
             if stats is None:
                 return None
 
-            return stats.ips
+            return UserIPList(ips=dict(stats.ips), ip_protocol=dict(getattr(stats, "ip_protocol", {}) or {}))
         except NodeAPIError as e:
             if e.code != 404:
                 logger.error(f"Error getting IP list for user {email} on node {node_id}: {e}")
@@ -995,12 +995,12 @@ class NodeOperation(BaseOperation):
             await self.raise_error(message="User not found", code=404)
 
         email = f"{db_user.id}"
-        ips = await self._get_node_user_ip_list_safe(node_id, email)
+        result = await self._get_node_user_ip_list_safe(node_id, email)
 
-        if ips is None:
+        if result is None:
             await self.raise_error(message="Node unavailable or user not found", code=404)
 
-        return UserIPList(ips=ips)
+        return result
 
     async def _get_user_ip_list_remote(self, db: AsyncSession, node_id: int, user_id: int) -> UserIPList:
         try:
@@ -1026,7 +1026,7 @@ class NodeOperation(BaseOperation):
             if task.exception() or task.result() is None:
                 continue
             else:
-                results[node_id] = UserIPList(ips=task.result())
+                results[node_id] = task.result()
 
         return UserIPListAll(nodes=results)
 

@@ -26,6 +26,14 @@ const normalizeTs = (timestamp: number | string): number => {
 }
 const isTsActive = (timestamp: number | string): boolean => Date.now() - normalizeTs(timestamp) <= ONLINE_WINDOW_MS
 
+// Backend key (from the node) -> human label shown next to each IP.
+const PROTOCOL_LABELS: Record<string, string> = {
+  xray: 'Xray',
+  openvpn: 'OpenVPN',
+  wg: 'WireGuard',
+  ikev2: 'IKEv2',
+}
+
 interface UserAllIPsModalProps {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
@@ -38,9 +46,10 @@ interface NodeIPCardProps {
   nodeId: string
   nodeName: string
   ips: { [key: string]: number }
+  ipProtocol?: { [key: string]: string }
 }
 
-const NodeIPCard = React.memo(({ nodeId, nodeName, ips }: NodeIPCardProps) => {
+const NodeIPCard = React.memo(({ nodeId, nodeName, ips, ipProtocol = {} }: NodeIPCardProps) => {
   const { t } = useTranslation()
   const dir = useDirDetection()
   const { copy } = useClipboard()
@@ -64,10 +73,17 @@ const NodeIPCard = React.memo(({ nodeId, nodeName, ips }: NodeIPCardProps) => {
           second: '2-digit',
           hour12: false,
         })
-        return { ip, timestamp: tsNum, timeString, active: Date.now() - tsNum <= ONLINE_WINDOW_MS }
+        const protoKey = ipProtocol[ip]
+        return {
+          ip,
+          timestamp: tsNum,
+          timeString,
+          active: Date.now() - tsNum <= ONLINE_WINDOW_MS,
+          protocol: protoKey ? PROTOCOL_LABELS[protoKey] || protoKey : '',
+        }
       })
       .sort((a, b) => b.timestamp - a.timestamp)
-  }, [ips])
+  }, [ips, ipProtocol])
 
   // Only currently-active IPs count toward the online total.
   const totalIPs = useMemo(() => ipEntries.filter(e => e.active).length, [ipEntries])
@@ -93,17 +109,24 @@ const NodeIPCard = React.memo(({ nodeId, nodeName, ips }: NodeIPCardProps) => {
       <CardContent className="pt-0">
         <div className="space-y-2">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {ipEntries.map(({ ip, timeString, active }) => (
+            {ipEntries.map(({ ip, timeString, active, protocol }) => (
               <div key={ip} className={cn('rounded p-2 transition-colors', active ? 'bg-accent/40 hover:bg-accent/60' : 'bg-accent/20 opacity-60')}>
                 <div className="flex flex-col gap-1">
-                  <span
-                    className="hover:text-primary cursor-pointer font-mono text-sm font-medium break-all transition-colors"
-                    dir="ltr"
-                    onClick={() => handleCopyIP(ip)}
-                    title={t('userAllIPs.clickToCopy', { defaultValue: 'Click to copy IP address' })}
-                  >
-                    {ip}
-                  </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className="hover:text-primary cursor-pointer font-mono text-sm font-medium break-all transition-colors"
+                      dir="ltr"
+                      onClick={() => handleCopyIP(ip)}
+                      title={t('userAllIPs.clickToCopy', { defaultValue: 'Click to copy IP address' })}
+                    >
+                      {ip}
+                    </span>
+                    {protocol && (
+                      <Badge variant="secondary" className="shrink-0 text-[10px]" dir="ltr">
+                        {protocol}
+                      </Badge>
+                    )}
+                  </div>
                   <div dir={dir} className="flex items-center gap-1">
                     <span className="text-muted-foreground text-xs">
                       {active
@@ -271,7 +294,7 @@ export default function UserAllIPsModal({ isOpen, onOpenChange, userId, username
   const transformedData = useMemo(() => {
     if (!userIPsData || typeof userIPsData !== 'object') return null
 
-    const nodes: { nodeId: string; nodeName: string; ips: { [key: string]: number } }[] = []
+    const nodes: { nodeId: string; nodeName: string; ips: { [key: string]: number }; ipProtocol: { [key: string]: string } }[] = []
 
     if (userIPsData.nodes && typeof userIPsData.nodes === 'object') {
       Object.entries(userIPsData.nodes).forEach(([nodeId, ipList]) => {
@@ -280,6 +303,7 @@ export default function UserAllIPsModal({ isOpen, onOpenChange, userId, username
             nodeId,
             nodeName: nodeNameMap[nodeId] || nodeId,
             ips: ipList.ips,
+            ipProtocol: (ipList as { ip_protocol?: { [key: string]: string } }).ip_protocol || {},
           })
         }
       })
@@ -338,8 +362,8 @@ export default function UserAllIPsModal({ isOpen, onOpenChange, userId, username
             )}
           </div>
         </div>
-        {transformedData.map(({ nodeId, nodeName, ips }) => (
-          <NodeIPCard key={nodeId} nodeId={nodeId} nodeName={nodeName} ips={ips} />
+        {transformedData.map(({ nodeId, nodeName, ips, ipProtocol }) => (
+          <NodeIPCard key={nodeId} nodeId={nodeId} nodeName={nodeName} ips={ips} ipProtocol={ipProtocol} />
         ))}
       </div>
     )

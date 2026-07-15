@@ -359,7 +359,8 @@ class NodeNotification(BaseModel):
 class UserIPList(BaseModel):
     """User IP list - mapping of IP addresses to connection counts"""
 
-    ips: dict[str, int]  # {ip_address: connection_count}
+    ips: dict[str, int]  # {ip_address: last_seen_unix_ts}
+    ip_protocol: dict[str, str] = {}  # {ip_address: "xray"|"openvpn"|"wg"|"ikev2"}
 
 
 class UserIPListAll(BaseModel):
