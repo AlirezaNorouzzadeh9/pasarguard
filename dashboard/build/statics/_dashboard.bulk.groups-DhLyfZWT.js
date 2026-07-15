@@ -1,1 +1,0 @@
-import{z as e}from"./radix-dialog-3WJGVxoe.js";import{t}from"./bulk-flow-Rth93mC3.js";var n=e();function r(){return(0,n.jsx)(t,{operationType:`groups`})}export{r as default};
