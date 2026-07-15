@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CircleFadingArrowUp, Power, PowerOff, RefreshCcw, Trash2, WifiSync } from 'lucide-react'
 import Node from '@/features/nodes/components/node'
-import NodesOnlineSummary from '@/features/nodes/components/nodes-online-summary'
 import {
   useBulkDeleteNodes,
   useBulkDisableNodes,
@@ -678,7 +677,6 @@ export default function NodesList() {
   return (
     <div className="flex w-full flex-col items-start gap-2 px-4">
       <div className="w-full flex-1 space-y-4 py-4">
-        {canReadNodeStats && <NodesOnlineSummary />}
         <NodeFilters
           filters={filters}
           onFilterChange={handleFilterChange}

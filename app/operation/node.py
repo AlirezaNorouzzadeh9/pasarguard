@@ -53,7 +53,6 @@ from app.models.node import (
     UserIPListAll,
 )
 from app.models.stats import (
-    BackendOnlineCount,
     NodeOutboundsLatencyResponse,
     NodeRealtimeStats,
     NodeStatsList,
@@ -607,19 +606,6 @@ class NodeOperation(BaseOperation):
     async def get_nodes_system_stats(self) -> dict[int, NodeRealtimeStats | None]:
         return await self._get_nodes_stats_impl()
 
-    async def get_online_summary(self) -> dict[str, BackendOnlineCount]:
-        """Per-protocol online summary (users + distinct source IPs) summed across all nodes."""
-        per_node = await self.get_nodes_system_stats()
-        total: dict[str, BackendOnlineCount] = {}
-        for stats in per_node.values():
-            if not stats:
-                continue
-            for proto, count in (stats.online or {}).items():
-                agg = total.setdefault(proto, BackendOnlineCount())
-                agg.users += count.users
-                agg.ips += count.ips
-        return total
-
     async def get_outbounds_latency(
         self, node_id: int, name: str = "", timeout: int | None = None
     ) -> NodeOutboundsLatencyResponse:
@@ -899,7 +885,6 @@ class NodeOperation(BaseOperation):
             incoming_bandwidth_speed=stats.incoming_bandwidth_speed,
             outgoing_bandwidth_speed=stats.outgoing_bandwidth_speed,
             uptime=stats.uptime,
-            online={k: BackendOnlineCount(users=v.users, ips=v.ips) for k, v in (stats.online or {}).items()},
         )
 
     async def _get_node_system_stats_remote(self, node_id: int) -> NodeRealtimeStats:

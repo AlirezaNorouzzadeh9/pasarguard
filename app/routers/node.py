@@ -30,7 +30,6 @@ from app.models.node import (
     UserIPListAll,
 )
 from app.models.stats import (
-    BackendOnlineCount,
     NodeOutboundsLatencyResponse,
     NodeRealtimeStats,
     NodeStatsList,
@@ -355,12 +354,6 @@ async def node_outbounds_latency(
 async def realtime_nodes_stats(_: AdminDetails = Depends(require_permission("nodes", "stats"))):
     """Retrieve nodes real-time statistics."""
     return await node_operator.get_nodes_system_stats()
-
-
-@router.get("s/online_summary", response_model=dict[str, BackendOnlineCount])
-async def nodes_online_summary(_: AdminDetails = Depends(require_permission("nodes", "stats"))):
-    """Per-protocol online users/IPs summed across all nodes (keys: xray, openvpn, wg, ikev2)."""
-    return await node_operator.get_online_summary()
 
 
 @router.get("/online_stats/{user_id}/ip", response_model=UserIPListAll)
