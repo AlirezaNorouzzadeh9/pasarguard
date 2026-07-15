@@ -266,6 +266,107 @@
                 background: hsl(var(--success) / 0.9);
             }
 
+            /* Config download cards — one box per file-based protocol */
+            .download-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+                gap: 12px;
+            }
+
+            .download-card {
+                display: flex;
+                flex-direction: column;
+                gap: 14px;
+                background: hsl(var(--card));
+                border: 1px solid hsl(var(--border));
+                border-radius: 12px;
+                padding: 16px;
+                transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+            }
+
+            .download-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+                border-color: hsl(var(--primary) / 0.5);
+            }
+
+            .download-head {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .download-badge {
+                width: 42px;
+                height: 42px;
+                flex-shrink: 0;
+                border-radius: 11px;
+                background: hsl(var(--primary) / 0.14);
+                color: hsl(var(--primary));
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .download-badge svg {
+                width: 22px;
+                height: 22px;
+            }
+
+            .download-meta {
+                min-width: 0;
+            }
+
+            .download-name {
+                display: block;
+                font-weight: 600;
+                font-size: 0.98rem;
+                color: hsl(var(--foreground));
+            }
+
+            .download-sub {
+                display: block;
+                font-size: 0.75rem;
+                color: hsl(var(--muted-foreground));
+                margin-top: 2px;
+                font-family: ui-monospace, 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            }
+
+            .download-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 7px;
+                background: hsl(var(--primary));
+                color: hsl(var(--primary-foreground));
+                border: none;
+                border-radius: 9px;
+                padding: 10px 14px;
+                font-weight: 600;
+                font-size: 0.85rem;
+                cursor: pointer;
+                text-decoration: none;
+                transition: background-color 0.2s, transform 0.1s;
+            }
+
+            .download-btn:hover {
+                background: hsl(var(--primary) / 0.9);
+            }
+
+            .download-btn:active {
+                transform: scale(0.98);
+            }
+
+            .download-btn svg {
+                width: 16px;
+                height: 16px;
+            }
+
+            .download-btn:focus-visible {
+                outline: 2px solid hsl(var(--primary));
+                outline-offset: 2px;
+            }
+
             .applications-container {
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -620,49 +721,45 @@
             </div>
             {% endif %}
 
-            {% if openvpn_url %}
+            {% if openvpn_url or wireguard_url %}
             <div class="links-section">
-                <h2>OpenVPN</h2>
-                <div class="link-item">
-                    <input type="text" class="link-input" value="{{ openvpn_url }}" readonly />
-                    <button
-                        class="copy-button"
-                        onclick="copyLink('{{ openvpn_url }}', this)"
-                    >
-                        Copy
-                    </button>
+                <h2>Config Downloads</h2>
+                <div class="download-grid">
+                    {% if openvpn_url %}
+                    <div class="download-card">
+                        <div class="download-head">
+                            <span class="download-badge">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            </span>
+                            <span class="download-meta">
+                                <span class="download-name">OpenVPN</span>
+                                <span class="download-sub">.ovpn profile</span>
+                            </span>
+                        </div>
+                        <a href="{{ openvpn_url }}" class="download-btn" download>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Download
+                        </a>
+                    </div>
+                    {% endif %}
+                    {% if wireguard_url %}
+                    <div class="download-card">
+                        <div class="download-head">
+                            <span class="download-badge">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            </span>
+                            <span class="download-meta">
+                                <span class="download-name">WireGuard</span>
+                                <span class="download-sub">.conf file</span>
+                            </span>
+                        </div>
+                        <a href="{{ wireguard_url }}" class="download-btn" download>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Download
+                        </a>
+                    </div>
+                    {% endif %}
                 </div>
-                <a
-                    href="{{ openvpn_url }}"
-                    class="copy-all-button"
-                    style="text-decoration: none; display: inline-block; text-align: center;"
-                    download
-                >
-                    Download .ovpn
-                </a>
-            </div>
-            {% endif %}
-
-            {% if wireguard_url %}
-            <div class="links-section">
-                <h2>WireGuard</h2>
-                <div class="link-item">
-                    <input type="text" class="link-input" value="{{ wireguard_url }}" readonly />
-                    <button
-                        class="copy-button"
-                        onclick="copyLink('{{ wireguard_url }}', this)"
-                    >
-                        Copy
-                    </button>
-                </div>
-                <a
-                    href="{{ wireguard_url }}"
-                    class="copy-all-button"
-                    style="text-decoration: none; display: inline-block; text-align: center;"
-                    download
-                >
-                    Download .conf
-                </a>
             </div>
             {% endif %}
 
