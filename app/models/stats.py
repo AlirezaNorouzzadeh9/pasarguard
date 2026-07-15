@@ -104,6 +104,11 @@ class NodeUsageStatsList(StatList):
     stats: dict[int, list[NodeUsageStat]]
 
 
+class BackendOnlineCount(BaseModel):
+    users: int = 0
+    ips: int = 0
+
+
 class NodeRealtimeStats(BaseModel):
     mem_total: int
     mem_used: int
@@ -112,6 +117,8 @@ class NodeRealtimeStats(BaseModel):
     incoming_bandwidth_speed: int
     outgoing_bandwidth_speed: int
     uptime: int
+    # Per-backend online summary keyed by backend name ("xray"|"openvpn"|"wg"|"ikev2").
+    online: dict[str, BackendOnlineCount] = {}
 
 
 class NodeOutboundLatency(BaseModel):
