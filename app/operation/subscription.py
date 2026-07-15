@@ -1,3 +1,4 @@
+import base64
 import re
 from json import dumps as json_dumps
 from typing import Any
@@ -23,7 +24,9 @@ from app.settings import hwid_settings, subscription_settings
 from app.subscription.share import (
     apply_custom_format_variables,
     encode_title,
+    generate_openvpn_configs,
     generate_subscription,
+    generate_wireguard_configs,
     get_effective_custom_variables,
     setup_format_variables,
 )
@@ -98,6 +101,18 @@ client_config = {
         "extension": ".json",
     },
 }
+
+
+def _download_entry(name: str, content: str | bytes, ext: str, mime: str) -> dict[str, str]:
+    """Build a per-file download card entry with an inline base64 data: URL."""
+    raw = content.encode() if isinstance(content, str) else content
+    b64 = base64.b64encode(raw).decode()
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("_") or "config"
+    return {
+        "name": name,
+        "filename": f"{safe}{ext}",
+        "data_url": f"data:{mime};base64,{b64}",
+    }
 
 
 class SubscriptionOperation(BaseOperation):
@@ -469,22 +484,30 @@ class SubscriptionOperation(BaseOperation):
             format_variables = await self.get_format_variables(user)
             formatted_announce = self._format_announce(sub_settings, format_variables)
 
-            # OpenVPN configs are delivered as a .ovpn zip (not inline links), so
-            # surface a download link on the page when the user has an OpenVPN host.
+            # File-based backends (OpenVPN / WireGuard / IKEv2) can each yield
+            # SEVERAL per-host config files. We surface one download card per file
+            # (inline base64 data: URLs — no extra round-trip) plus, when there is
+            # more than one, the existing bundle endpoint as a "download all".
             openvpn_url = None
+            openvpn_configs: list[dict] = []
             from app.utils.openvpn import get_openvpn_tags_from_groups
             from config import openvpn_env_settings
 
-            # IKEv2 is delivered as a .mobileconfig zip AND as inline connection
-            # details (server / username / password) for manual setup.
+            # IKEv2 is delivered as per-host .mobileconfig files AND as inline
+            # connection details (server / username / password) for manual setup.
             ikev2_url = None
             ikev2_details: list[dict] = []
-            from app.subscription.share import generate_ikev2_details
+            from app.subscription.share import (
+                generate_ikev2_details,
+                generate_openvpn_configs,
+                generate_wireguard_configs,
+            )
             from app.utils.ikev2 import get_ikev2_tags_from_groups
             from config import ikev2_env_settings
 
-            # WireGuard is delivered as a .conf zip, same as OpenVPN.
+            # WireGuard is delivered as .conf files, same idea as OpenVPN.
             wireguard_url = None
+            wireguard_configs: list[dict] = []
             from app.utils.wireguard import get_wireguard_tags_from_groups
             from config import wireguard_settings
 
@@ -496,6 +519,10 @@ class SubscriptionOperation(BaseOperation):
                 if await get_openvpn_tags_from_groups(groups):
                     base = (request_url or "").split("?")[0].rstrip("/")
                     openvpn_url = f"{base}/openvpn" if base else None
+                    openvpn_configs = [
+                        _download_entry(remark, content, ".ovpn", "application/x-openvpn-profile")
+                        for remark, content in await generate_openvpn_configs(user, sub_settings.randomize_order)
+                    ]
 
             if ikev2_env_settings.enabled:
                 if groups is None:
@@ -506,6 +533,16 @@ class SubscriptionOperation(BaseOperation):
                     base = (request_url or "").split("?")[0].rstrip("/")
                     ikev2_url = f"{base}/ikev2" if base else None
                     ikev2_details = await generate_ikev2_details(user, sub_settings.randomize_order)
+                    # Turn each host's raw .mobileconfig bytes into an inline download.
+                    for detail in ikev2_details:
+                        mobileconfig = detail.pop("mobileconfig", None)
+                        detail["download"] = (
+                            _download_entry(
+                                detail["remark"], mobileconfig, ".mobileconfig", "application/x-apple-aspen-config"
+                            )
+                            if mobileconfig
+                            else None
+                        )
 
             if wireguard_settings.enabled:
                 if groups is None:
@@ -515,6 +552,10 @@ class SubscriptionOperation(BaseOperation):
                 if await get_wireguard_tags_from_groups(groups):
                     base = (request_url or "").split("?")[0].rstrip("/")
                     wireguard_url = f"{base}/wireguard" if base else None
+                    wireguard_configs = [
+                        _download_entry(remark, content, ".conf", "text/plain")
+                        for remark, content in await generate_wireguard_configs(user, sub_settings.randomize_order)
+                    ]
 
             return HTMLResponse(
                 render_template(
@@ -530,6 +571,8 @@ class SubscriptionOperation(BaseOperation):
                         ikev2_url,
                         ikev2_details,
                         wireguard_url,
+                        openvpn_configs,
+                        wireguard_configs,
                     ),
                 )
             )
@@ -674,6 +717,8 @@ class SubscriptionOperation(BaseOperation):
         ikev2_url: str | None = None,
         ikev2_details: list[dict] | None = None,
         wireguard_url: str | None = None,
+        openvpn_configs: list[dict] | None = None,
+        wireguard_configs: list[dict] | None = None,
     ) -> dict[str, Any]:
         return {
             "user": SubscriptionUserResponse.model_validate(user),
@@ -684,6 +729,8 @@ class SubscriptionOperation(BaseOperation):
             "openvpn_url": openvpn_url,
             "ikev2_url": ikev2_url,
             "ikev2_details": ikev2_details or [],
+            "openvpn_configs": openvpn_configs or [],
+            "wireguard_configs": wireguard_configs or [],
             "apps": self._make_apps_import_urls(
                 sub_settings.applications,
                 format_variables,

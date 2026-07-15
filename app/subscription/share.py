@@ -116,11 +116,56 @@ async def generate_subscription(
     return config
 
 
+async def _generate_protocol_configs(
+    user: UsersResponseWithInbounds,
+    conf,
+    randomize_order: bool = False,
+) -> list[tuple[str, str]]:
+    """Run the inbound/tag pipeline against `conf` and return its per-host `.configs`."""
+    sub_settings = await subscription_settings()
+    custom_variables = get_effective_custom_variables(user, sub_settings.custom_variables)
+    format_variables = setup_format_variables(user, sub_settings.custom_variables)
+    client_templates = await subscription_client_templates()
+    await process_inbounds_and_tags(
+        user,
+        format_variables,
+        conf,
+        client_templates,
+        randomize_order=randomize_order,
+        custom_variables=custom_variables,
+    )
+    return conf.configs
+
+
+async def generate_openvpn_configs(
+    user: UsersResponseWithInbounds,
+    randomize_order: bool = False,
+) -> list[tuple[str, str]]:
+    """Return per-host OpenVPN configs as (remark, .ovpn text) for the sub page."""
+    if not openvpn_env_settings.enabled:
+        return []
+    return await _generate_protocol_configs(user, OpenVPNConfiguration(), randomize_order)
+
+
+async def generate_wireguard_configs(
+    user: UsersResponseWithInbounds,
+    randomize_order: bool = False,
+) -> list[tuple[str, str]]:
+    """Return per-host WireGuard configs as (remark, .conf text) for the sub page."""
+    if not wireguard_settings.enabled:
+        return []
+    return await _generate_protocol_configs(user, WireGuardConfiguration(), randomize_order)
+
+
 async def generate_ikev2_details(
     user: UsersResponseWithInbounds,
     randomize_order: bool = False,
 ) -> list[dict[str, str]]:
-    """Return per-host IKEv2 connection details (server/username/password) for the sub page."""
+    """Return per-host IKEv2 connection details (server/username/password) for the sub page.
+
+    Each detail is enriched with the host's own `.mobileconfig` bytes so the page
+    can offer a per-host download without an extra round-trip.
+    """
     if not ikev2_env_settings.enabled:
         return []
     conf = IKEv2Configuration()
@@ -136,6 +181,11 @@ async def generate_ikev2_details(
         randomize_order=randomize_order,
         custom_variables=custom_variables,
     )
+    # Pair each detail with its .mobileconfig payload (kind == "apple").
+    mobileconfigs = {filename: content for filename, kind, content in conf.configs if kind == "apple"}
+    for detail in conf.details:
+        safe = detail["remark"].replace(" ", "_").replace("/", "_")
+        detail["mobileconfig"] = mobileconfigs.get(f"{safe}.mobileconfig")
     return conf.details
 
 
