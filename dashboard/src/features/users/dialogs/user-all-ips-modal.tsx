@@ -15,6 +15,17 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import React from 'react'
 
+// An IP counts as "online now" only if it was seen within this window; the node
+// keeps stale IPs in the list far longer, so we filter by last-seen here.
+const ONLINE_WINDOW_MS = 180000
+
+const normalizeTs = (timestamp: number | string): number => {
+  let ts = Number(timestamp)
+  if (ts < 1e12) ts *= 1000
+  return ts
+}
+const isTsActive = (timestamp: number | string): boolean => Date.now() - normalizeTs(timestamp) <= ONLINE_WINDOW_MS
+
 interface UserAllIPsModalProps {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
@@ -45,8 +56,7 @@ const NodeIPCard = React.memo(({ nodeId, nodeName, ips }: NodeIPCardProps) => {
   const ipEntries = useMemo(() => {
     return Object.entries(ips)
       .map(([ip, timestamp]) => {
-        let tsNum = Number(timestamp)
-        if (tsNum < 1e12) tsNum = tsNum * 1000
+        const tsNum = normalizeTs(timestamp)
         const date = new Date(tsNum)
         const timeString = date.toLocaleTimeString('en-US', {
           hour: '2-digit',
@@ -54,14 +64,13 @@ const NodeIPCard = React.memo(({ nodeId, nodeName, ips }: NodeIPCardProps) => {
           second: '2-digit',
           hour12: false,
         })
-        return { ip, timestamp: tsNum, timeString }
+        return { ip, timestamp: tsNum, timeString, active: Date.now() - tsNum <= ONLINE_WINDOW_MS }
       })
       .sort((a, b) => b.timestamp - a.timestamp)
   }, [ips])
 
-  const totalIPs = useMemo(() => {
-    return Object.keys(ips).length
-  }, [ips])
+  // Only currently-active IPs count toward the online total.
+  const totalIPs = useMemo(() => ipEntries.filter(e => e.active).length, [ipEntries])
 
   return (
     <Card className="hover:bg-accent/50 transition-colors">
@@ -84,8 +93,8 @@ const NodeIPCard = React.memo(({ nodeId, nodeName, ips }: NodeIPCardProps) => {
       <CardContent className="pt-0">
         <div className="space-y-2">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {ipEntries.map(({ ip, timeString }) => (
-              <div key={ip} className="bg-accent/40 hover:bg-accent/60 rounded p-2 transition-colors">
+            {ipEntries.map(({ ip, timeString, active }) => (
+              <div key={ip} className={cn('rounded p-2 transition-colors', active ? 'bg-accent/40 hover:bg-accent/60' : 'bg-accent/20 opacity-60')}>
                 <div className="flex flex-col gap-1">
                   <span
                     className="hover:text-primary cursor-pointer font-mono text-sm font-medium break-all transition-colors"
@@ -96,7 +105,11 @@ const NodeIPCard = React.memo(({ nodeId, nodeName, ips }: NodeIPCardProps) => {
                     {ip}
                   </span>
                   <div dir={dir} className="flex items-center gap-1">
-                    <span className="text-muted-foreground text-xs">{t('userAllIPs.lastSeen', { defaultValue: 'Last seen' })}:</span>
+                    <span className="text-muted-foreground text-xs">
+                      {active
+                        ? `${t('userAllIPs.lastSeen', { defaultValue: 'Last seen' })}:`
+                        : `${t('userAllIPs.offline', { defaultValue: 'Offline · last seen' })}:`}
+                    </span>
                     <span className="text-muted-foreground font-mono text-xs" dir="ltr">
                       {timeString}
                     </span>
@@ -300,7 +313,7 @@ export default function UserAllIPsModal({ isOpen, onOpenChange, userId, username
       )
     }
 
-    const totalDevices = transformedData.reduce((sum, n) => sum + Object.keys(n.ips).length, 0)
+    const totalDevices = transformedData.reduce((sum, n) => sum + Object.entries(n.ips).filter(([, ts]) => isTsActive(ts)).length, 0)
     const limit = ipLimit || 0
     const over = limit > 0 && totalDevices > limit
     const atCap = limit > 0 && totalDevices === limit
