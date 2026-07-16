@@ -56,11 +56,29 @@ button{ font-family:inherit; }
 .row{ display:flex; align-items:center; gap:11px; padding:12px 14px; border-radius:12px; background:var(--row-bg); border:1px solid var(--row-border); }
 .mini{ width:29px; height:29px; border-radius:8px; border:none; background:var(--icon-btn); color:var(--icon-fg); cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .dlbtn{ display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:9px; border:none; font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.gauge{ position:relative; width:230px; height:230px; }
 .chip-link{ display:flex; align-items:center; gap:8px; padding:8px 14px; border-radius:10px; border:1px solid var(--chip-border); background:var(--chip-bg); color:var(--fg); font-size:12.5px; font-weight:600; }
-@media (max-width:720px){
-  .inner{ padding:20px 16px 40px; gap:24px; }
+@media (max-width:900px){
   .grid2{ grid-template-columns:1fr; }
   .card[style*="span 2"]{ grid-column:auto !important; grid-row:auto !important; }
+}
+@media (max-width:720px){
+  .inner{ padding:20px 14px 40px; gap:22px; }
+  .card{ padding:16px; }
+  .cred-grid{ grid-template-columns:1fr !important; }
+  .stats{ gap:12px !important; font-size:12.5px !important; }
+  .sub-bar{ padding:8px 8px 8px 14px !important; }
+}
+@media (max-width:480px){
+  .inner{ padding:16px 11px 32px; gap:18px; }
+  .gauge{ width:186px; height:186px; }
+  .val{ font-size:34px !important; }
+  .card{ padding:14px; }
+  .row{ padding:10px 11px; gap:8px; }
+  .badge{ width:34px; height:34px; }
+  .sub-bar button span[data-i18n]{ display:none; }
+  .sub-bar button{ padding:10px 14px !important; }
+  .chip-link{ padding:7px 11px; font-size:12px; }
 }
 </style>
 </head>
@@ -80,7 +98,6 @@ button{ font-family:inherit; }
     <div style="display:flex; align-items:center; justify-content:space-between;">
       <span style="font-size:17px; font-weight:800;" data-i18n="brand">پاسارگارد</span>
       <div style="display:flex; align-items:center; gap:10px;">
-        <span dir="ltr" style="font-size:13px; color:var(--muted);">{{ user.username }}</span>
         <button class="icon-btn-sq" title="Language" onclick="toggleLang()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"></path><path d="m4 14 6-6 2-3"></path><path d="M2 5h12"></path><path d="M7 2h1"></path><path d="m22 22-5-10-5 10"></path><path d="M14 18h6"></path></svg></button>
         <button class="icon-btn-sq" title="Theme" onclick="toggleTheme()">
           <svg id="ic-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>
@@ -106,18 +123,18 @@ button{ font-family:inherit; }
         <span data-i18n="account" style="font-size:12px; color:var(--muted);">کاربر</span>
         <span dir="ltr" style="font-size:14px; font-weight:800; color:var(--fg); max-width:60vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ user.username }}</span>
       </div>
-      <div style="position:relative; width:230px; height:230px;">
-        <svg width="230" height="230" style="transform:rotate(-90deg);">
+      <div class="gauge">
+        <svg viewBox="0 0 230 230" style="transform:rotate(-90deg); width:100%; height:100%; display:block;">
           <circle cx="115" cy="115" r="100" stroke="var(--gauge-track)" stroke-width="16" fill="none"></circle>
           <circle cx="115" cy="115" r="100" stroke="var(--accent)" stroke-width="16" fill="none" stroke-dasharray="628.3" stroke-dashoffset="{{ '%.1f'|format(offset) }}" stroke-linecap="round" style="filter:drop-shadow(0 0 16px var(--accent-soft)); transition:stroke-dashoffset 1s ease-out;"></circle>
         </svg>
         <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-          <span dir="ltr" style="font-size:42px; font-weight:800; line-height:0.9;">{% if gb_left is not none %}{{ '%.1f'|format(gb_left) }}{% else %}∞{% endif %}</span>
+          <span class="val" dir="ltr" style="font-size:42px; font-weight:800; line-height:0.9;">{% if gb_left is not none %}{{ '%.1f'|format(gb_left) }}{% else %}∞{% endif %}</span>
           <span style="font-size:13px; color:var(--muted); line-height:1.6;" data-i18n="{% if gb_left is not none %}gbLeft{% else %}unlimited{% endif %}">{% if gb_left is not none %}گیگ باقی‌مانده{% else %}نامحدود{% endif %}</span>
           <span style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:{{ 'var(--green)' if status in ('active','on_hold') else 'var(--ov)' }}; white-space:nowrap; line-height:1.6;"><span style="width:7px; height:7px; border-radius:50%; background:currentColor; flex-shrink:0; animation:pulse 2s infinite;"></span><span data-i18n="st_{{ status }}">{{ {'active':'فعال','on_hold':'در انتظار','limited':'محدود','expired':'منقضی','disabled':'غیرفعال'}.get(status, status) }}</span></span>
         </div>
       </div>
-      <div style="display:flex; gap:20px; font-size:13.5px; color:var(--muted); flex-wrap:wrap; justify-content:center;">
+      <div class="stats" style="display:flex; gap:20px; font-size:13.5px; color:var(--muted); flex-wrap:wrap; justify-content:center;">
         <span><span data-i18n="used">مصرف شده</span>: <span dir="ltr" style="font-weight:700; color:var(--fg);">{{ used | bytesformat }}</span></span>
         <span>·</span>
         <span><span data-i18n="timeLeft">زمان باقی‌مانده</span>: <span style="font-weight:700; color:var(--fg);">{% if user.expire %}{% set days = ((user.expire - now()).days) %}<span dir="ltr">{{ days }}</span> <span data-i18n="daysWord">روز</span>{% else %}<span data-i18n="unlimited">نامحدود</span>{% endif %}</span></span>
@@ -126,8 +143,8 @@ button{ font-family:inherit; }
         <span><span data-i18n="renewal">تمدید</span>: <span dir="ltr" style="font-weight:700; color:var(--fg);">{{ user.expire | datetime }}</span></span>
         {% endif %}
       </div>
-      <div dir="ltr" style="display:flex; align-items:center; gap:10px; width:620px; max-width:100%; padding:8px 8px 8px 18px; border-radius:14px; border:1px solid var(--card-border); background:var(--card-bg); backdrop-filter:blur(10px);">
-        <span id="subUrl" style="flex:1; font-size:13.5px; font-family:monospace; color:var(--mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></span>
+      <div class="sub-bar" dir="ltr" style="display:flex; align-items:center; gap:10px; width:620px; max-width:100%; padding:8px 8px 8px 18px; border-radius:14px; border:1px solid var(--card-border); background:var(--card-bg); backdrop-filter:blur(10px);">
+        <span id="subUrl" style="flex:1; min-width:0; font-size:13.5px; font-family:monospace; color:var(--mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></span>
         <button class="icon-btn-sq" style="width:38px; height:38px;" title="QR" onclick="showQR(document.getElementById('subUrl').textContent, event)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 12v4a1 1 0 0 1-1 1h-4"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><rect x="7" y="7" width="5" height="5" rx="1"></rect></svg></button>
         <button onclick="copyText(document.getElementById('subUrl').textContent)" style="display:flex; align-items:center; gap:7px; padding:10px 22px; border-radius:10px; border:none; background:var(--accent); color:white; font-size:13.5px; font-weight:800; cursor:pointer; white-space:nowrap; flex-shrink:0; box-shadow:0 4px 20px var(--accent-soft);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg><span data-i18n="copySubLink">کپی لینک اشتراک</span></button>
       </div>
@@ -211,7 +228,7 @@ button{ font-family:inherit; }
               <a class="dlbtn" style="background:var(--ike-bg); color:var(--ike); text-decoration:none; border:1px solid var(--ike-border);" href="{{ d.download.data_url }}" download="{{ d.download.filename }}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg><span>.mobileconfig</span></a>
               {% endif %}
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;" dir="ltr">
+            <div class="cred-grid" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;" dir="ltr">
               <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 14px; border-radius:10px; background:var(--row-bg); font-size:12px;"><span style="color:var(--faint);">Server</span><span style="display:flex; align-items:center; gap:8px; min-width:0;"><span style="font-family:monospace; color:var(--fg); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ d.server }}</span><svg onclick="copyText('{{ d.server }}')" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer; flex-shrink:0;"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></span></div>
               <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 14px; border-radius:10px; background:var(--row-bg); font-size:12px;"><span style="color:var(--faint);">User</span><span style="display:flex; align-items:center; gap:8px; min-width:0;"><span style="font-family:monospace; color:var(--fg); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ d.username }}</span><svg onclick="copyText('{{ d.username }}')" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer; flex-shrink:0;"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></span></div>
               <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 14px; border-radius:10px; background:var(--row-bg); font-size:12px;"><span style="color:var(--faint);">Pass</span><span style="display:flex; align-items:center; gap:8px; min-width:0;"><span class="js-pass" data-pass="{{ d.password }}" style="font-family:monospace; color:var(--fg); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">••••••••</span><svg onclick="togglePass(this)" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer; flex-shrink:0;"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg><svg onclick="copyText(this.parentElement.querySelector('.js-pass').getAttribute('data-pass'))" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer; flex-shrink:0;"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></span></div>
