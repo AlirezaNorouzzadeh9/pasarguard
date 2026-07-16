@@ -163,8 +163,8 @@ async def generate_ikev2_details(
 ) -> list[dict[str, str]]:
     """Return per-host IKEv2 connection details (server/username/password) for the sub page.
 
-    Each detail is enriched with the host's own `.mobileconfig` bytes so the page
-    can offer a per-host download without an extra round-trip.
+    The sub page shows credentials only; the `.mobileconfig` profiles stay behind
+    the `/ikev2` bundle endpoint.
     """
     if not ikev2_env_settings.enabled:
         return []
@@ -181,11 +181,6 @@ async def generate_ikev2_details(
         randomize_order=randomize_order,
         custom_variables=custom_variables,
     )
-    # Pair each detail with its .mobileconfig payload (kind == "apple").
-    mobileconfigs = {filename: content for filename, kind, content in conf.configs if kind == "apple"}
-    for detail in conf.details:
-        safe = detail["remark"].replace(" ", "_").replace("/", "_")
-        detail["mobileconfig"] = mobileconfigs.get(f"{safe}.mobileconfig")
     return conf.details
 
 

@@ -533,16 +533,6 @@ class SubscriptionOperation(BaseOperation):
                     base = (request_url or "").split("?")[0].rstrip("/")
                     ikev2_url = f"{base}/ikev2" if base else None
                     ikev2_details = await generate_ikev2_details(user, sub_settings.randomize_order)
-                    # Turn each host's raw .mobileconfig bytes into an inline download.
-                    for detail in ikev2_details:
-                        mobileconfig = detail.pop("mobileconfig", None)
-                        detail["download"] = (
-                            _download_entry(
-                                detail["remark"], mobileconfig, ".mobileconfig", "application/x-apple-aspen-config"
-                            )
-                            if mobileconfig
-                            else None
-                        )
 
             if wireguard_settings.enabled:
                 if groups is None:

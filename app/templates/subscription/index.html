@@ -224,9 +224,6 @@ button{ font-family:inherit; }
           <div>
             <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
               <span dir="ltr" style="font-size:13px; font-weight:700;">{{ d.remark }}</span>
-              {% if d.download %}
-              <a class="dlbtn" style="background:var(--ike-bg); color:var(--ike); text-decoration:none; border:1px solid var(--ike-border);" href="{{ d.download.data_url }}" download="{{ d.download.filename }}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg><span>.mobileconfig</span></a>
-              {% endif %}
             </div>
             <div class="cred-grid" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;" dir="ltr">
               <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 14px; border-radius:10px; background:var(--row-bg); font-size:12px;"><span style="color:var(--faint);">Server</span><span style="display:flex; align-items:center; gap:8px; min-width:0;"><span style="font-family:monospace; color:var(--fg); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ d.server }}</span><svg onclick="copyText('{{ d.server }}')" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer; flex-shrink:0;"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></span></div>
