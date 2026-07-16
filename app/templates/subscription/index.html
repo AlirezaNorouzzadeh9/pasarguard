@@ -57,6 +57,11 @@ button{ font-family:inherit; }
 .mini{ width:29px; height:29px; border-radius:8px; border:none; background:var(--icon-btn); color:var(--icon-fg); cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .dlbtn{ display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:9px; border:none; font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap; }
 .gauge{ position:relative; width:230px; height:230px; }
+.rows-scroll{ overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--chip-border) transparent; }
+.rows-scroll::-webkit-scrollbar{ width:8px; }
+.rows-scroll::-webkit-scrollbar-track{ background:transparent; }
+.rows-scroll::-webkit-scrollbar-thumb{ background:var(--chip-border); border-radius:99px; }
+.rows-scroll::-webkit-scrollbar-thumb:hover{ background:var(--icon-fg); }
 .chip-link{ display:flex; align-items:center; gap:8px; padding:8px 14px; border-radius:10px; border:1px solid var(--chip-border); background:var(--chip-bg); color:var(--fg); font-size:12.5px; font-weight:600; }
 @media (max-width:900px){
   .grid2{ grid-template-columns:1fr; }
@@ -79,6 +84,7 @@ button{ font-family:inherit; }
   .sub-bar button span[data-i18n]{ display:none; }
   .sub-bar button{ padding:10px 14px !important; }
   .chip-link{ padding:7px 11px; font-size:12px; }
+  .rows-scroll{ max-height:min(46vh,300px) !important; }
 }
 </style>
 </head>
@@ -155,14 +161,14 @@ button{ font-family:inherit; }
     <div class="grid2">
 
       {% if xray_links %}
-      <div class="card" style="grid-row:span 2; display:flex; flex-direction:column;">
+      <div class="card" style="grid-row:span 2; display:flex; flex-direction:column; max-height:min(80vh,640px);">
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:6px;">
           <div class="badge" style="background:var(--accent-soft); color:var(--accent-text);">XR</div>
           <div style="flex:1; min-width:0;"><div style="font-size:15.5px; font-weight:700;">Xray</div><div style="font-size:11px; color:var(--faint);"><span dir="ltr">{{ xray_links|length }}</span> <span data-i18n="servers">سرور</span> · VLESS / VMESS / TROJAN</div></div>
           <button class="dlbtn" style="border:1px solid var(--chip-border); background:transparent; color:var(--icon-fg);" onclick="copyAllXray()"><span data-i18n="copyAll">کپی همه</span></button>
         </div>
         <div style="font-size:11px; color:var(--faint); margin-bottom:14px; line-height:1.6;" data-i18n="xrayHint">برای اپ‌های v2rayN، v2rayNG و Streisand — لینک اشتراک یا کانفیگ تکی را کپی کنید.</div>
-        <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+        <div class="rows-scroll" style="flex:1; min-height:0; display:flex; flex-direction:column; gap:8px;">
           {% for link in xray_links %}
           {% set scheme = (link.split('://')[0]) if '://' in link else 'sub' %}
           {% set nm = (link.split('#')[-1]) if '#' in link else scheme %}
@@ -184,7 +190,7 @@ button{ font-family:inherit; }
           <div style="flex:1; min-width:0;"><div style="font-size:15.5px; font-weight:700;">WireGuard</div><div style="font-size:11px; color:var(--faint);"><span dir="ltr">{{ wireguard_configs|length }}</span> <span data-i18n="servers">سرور</span></div></div>
         </div>
         <div style="font-size:11px; color:var(--faint); margin-bottom:12px; line-height:1.6;" data-i18n="wgHint">فایل کانفیگ را دانلود و در اپ رسمی WireGuard وارد کنید.</div>
-        <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="rows-scroll" style="display:flex; flex-direction:column; gap:8px; max-height:min(24vh,190px);">
           {% for cfg in wireguard_configs %}
           <div class="row">
             <div style="flex:1; min-width:0;"><div dir="ltr" style="font-size:13px; font-weight:600; text-align:start; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ cfg.name }}</div></div>
@@ -202,7 +208,7 @@ button{ font-family:inherit; }
           <div style="flex:1; min-width:0;"><div style="font-size:15.5px; font-weight:700;">OpenVPN</div><div style="font-size:11px; color:var(--faint);"><span dir="ltr">{{ openvpn_configs|length }}</span> <span data-i18n="servers">سرور</span></div></div>
         </div>
         <div style="font-size:11px; color:var(--faint); margin-bottom:12px; line-height:1.6;" data-i18n="ovHint">فایل ‎.ovpn را دانلود و در OpenVPN Connect باز کنید.</div>
-        <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="rows-scroll" style="display:flex; flex-direction:column; gap:8px; max-height:min(24vh,190px);">
           {% for cfg in openvpn_configs %}
           <div class="row">
             <div style="flex:1; min-width:0;"><div dir="ltr" style="font-size:13px; font-weight:600; text-align:start; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ cfg.name }}</div></div>
@@ -219,7 +225,7 @@ button{ font-family:inherit; }
           <div class="badge" style="background:var(--ike-bg); color:var(--ike); font-size:11px;">IKE</div>
           <div style="flex:1; min-width:0;"><div style="font-size:15.5px; font-weight:700;">IKEv2 / IPsec</div><div style="font-size:11px; color:var(--faint);" data-i18n="ikeSub">بدون نصب اپ — مستقیم در تنظیمات iOS و ویندوز</div></div>
         </div>
-        <div style="display:flex; flex-direction:column; gap:12px;">
+        <div class="rows-scroll" style="display:flex; flex-direction:column; gap:12px; max-height:min(48vh,400px);">
           {% for d in ikev2_details %}
           <div>
             <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
