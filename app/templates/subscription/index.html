@@ -220,22 +220,29 @@ button{ font-family:inherit; }
       {% endif %}
 
       {% if ikev2_details %}
+      {# Username/password are per-user (username = user id, one password per
+         user), not per-server — only the address changes. So show the credentials
+         once and list the servers under them, instead of repeating the same
+         user/pass on every row. #}
+      {% set ike = ikev2_details[0] %}
       <div class="card" style="grid-column:span 2; border-color:var(--ike-border);">
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
           <div class="badge" style="background:var(--ike-bg); color:var(--ike); font-size:11px;">IKE</div>
           <div style="flex:1; min-width:0;"><div style="font-size:15.5px; font-weight:700;">IKEv2 / IPsec</div><div style="font-size:11px; color:var(--faint);" data-i18n="ikeSub">بدون نصب اپ — مستقیم در تنظیمات iOS و ویندوز</div></div>
         </div>
-        <div class="rows-scroll" style="display:flex; flex-direction:column; gap:12px; max-height:min(48vh,400px);">
+
+        <div class="cred-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;" dir="ltr">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 14px; border-radius:10px; background:var(--row-bg); font-size:12px;"><span style="color:var(--faint);">User</span><span style="display:flex; align-items:center; gap:8px; min-width:0;"><span style="font-family:monospace; color:var(--fg); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ ike.username }}</span><svg onclick="copyText(&#39;{{ ike.username }}&#39;)" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer; flex-shrink:0;"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></span></div>
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 14px; border-radius:10px; background:var(--row-bg); font-size:12px;"><span style="color:var(--faint);">Pass</span><span style="display:flex; align-items:center; gap:8px; min-width:0;"><span class="js-pass" data-pass="{{ ike.password }}" style="font-family:monospace; color:var(--fg); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">••••••••</span><svg onclick="togglePass(this)" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer; flex-shrink:0;"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg><svg onclick="copyText(this.parentElement.querySelector(&#39;.js-pass&#39;).getAttribute(&#39;data-pass&#39;))" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer; flex-shrink:0;"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></span></div>
+        </div>
+
+        <div style="font-size:11px; color:var(--faint); margin:14px 0 8px;"><span data-i18n="servers">سرور</span> · <span dir="ltr">{{ ikev2_details|length }}</span></div>
+        <div class="rows-scroll" style="display:flex; flex-direction:column; gap:8px; max-height:min(34vh,240px);">
           {% for d in ikev2_details %}
-          <div>
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
-              <span dir="ltr" style="font-size:13px; font-weight:700;">{{ d.remark }}</span>
-            </div>
-            <div class="cred-grid" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;" dir="ltr">
-              <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 14px; border-radius:10px; background:var(--row-bg); font-size:12px;"><span style="color:var(--faint);">Server</span><span style="display:flex; align-items:center; gap:8px; min-width:0;"><span style="font-family:monospace; color:var(--fg); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ d.server }}</span><svg onclick="copyText('{{ d.server }}')" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer; flex-shrink:0;"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></span></div>
-              <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 14px; border-radius:10px; background:var(--row-bg); font-size:12px;"><span style="color:var(--faint);">User</span><span style="display:flex; align-items:center; gap:8px; min-width:0;"><span style="font-family:monospace; color:var(--fg); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ d.username }}</span><svg onclick="copyText('{{ d.username }}')" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer; flex-shrink:0;"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></span></div>
-              <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 14px; border-radius:10px; background:var(--row-bg); font-size:12px;"><span style="color:var(--faint);">Pass</span><span style="display:flex; align-items:center; gap:8px; min-width:0;"><span class="js-pass" data-pass="{{ d.password }}" style="font-family:monospace; color:var(--fg); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">••••••••</span><svg onclick="togglePass(this)" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer; flex-shrink:0;"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg><svg onclick="copyText(this.parentElement.querySelector('.js-pass').getAttribute('data-pass'))" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer; flex-shrink:0;"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></span></div>
-            </div>
+          <div class="row">
+            <div style="flex:1; min-width:0;"><div dir="ltr" style="font-size:13px; font-weight:600; text-align:start; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ d.remark }}</div></div>
+            <span dir="ltr" style="font-family:monospace; font-size:12px; color:var(--mono); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ d.server }}</span>
+            <button class="mini" title="Copy" onclick="copyText('{{ d.server }}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button>
           </div>
           {% endfor %}
         </div>
