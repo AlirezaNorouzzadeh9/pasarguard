@@ -76,7 +76,7 @@ button{ font-family:inherit; }
             .logo{ width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center;
               flex-shrink:0; box-shadow:0 6px 20px color-mix(in oklch,var(--tc) 32%,transparent); }
             .logo svg{ width:22px; height:22px; }
-            .b-title{ font-size:16px; font-weight:800; color:var(--tc); }
+            .b-title{ font-size:16px; font-weight:800; color:var(--fg); }
             .b-sub{ font-size:11px; color:var(--faint); margin-top:1px; }
             .pbody{ padding:16px 18px 18px; display:flex; flex-direction:column; min-height:0; }
             .phint{ font-size:11px; color:var(--faint); margin:0 0 12px; line-height:1.6; }
@@ -185,7 +185,7 @@ button{ font-family:inherit; }
 
       {% if xray_links %}
       <div class="pcard" style="--tc:var(--xr)">
-        <div class="banner"><div class="logo" style="background:var(--xr); color:var(--xr-fg,#0a0a0a)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></div>
+        <div class="banner"><div class="logo" style="background:var(--xr); color:var(--xr-fg,#0a0a0a)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-1.06 14.54L7.4 12l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41-5.64 5.65z"/></svg></div>
           <div style="flex:1; min-width:0;"><div class="b-title">Xray</div><div class="b-sub"><span dir="ltr">{{ xray_links|length }}</span> <span data-i18n="servers">سرور</span> · VLESS / VMESS / TROJAN</div></div><button class="dlbtn" style="border:1px solid var(--chip-border); background:transparent; color:var(--icon-fg);" onclick="copyAllXray()"><span data-i18n="copyAll">کپی همه</span></button></div>
         <div class="pbody">
           <div class="phint" data-i18n="xrayHint">برای اپ‌های v2rayN، v2rayNG و Streisand — لینک اشتراک یا کانفیگ تکی را کپی کنید.</div>
@@ -240,7 +240,7 @@ button{ font-family:inherit; }
       {% if ikev2_details %}
       {% set ike = ikev2_details[0] %}
       <div class="pcard" style="--tc:var(--ike);">
-        <div class="banner"><div class="logo" style="background:var(--ike); color:#160a1e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+        <div class="banner"><div class="logo" style="background:var(--ike); color:#160a1e"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 17a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5 5 5 0 0 1 5 5v2h1M12 3a3 3 0 0 0-3 3v2h6V6a3 3 0 0 0-3-3z"/></svg></div>
           <div style="flex:1; min-width:0;"><div class="b-title">IKEv2 / IPsec</div><div class="b-sub" data-i18n="ikeSub">بدون نصب اپ — مستقیم در تنظیمات iOS و ویندوز</div></div></div>
         <div class="pbody">
           <div class="cred-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;" dir="ltr">
