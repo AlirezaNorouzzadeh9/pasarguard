@@ -121,6 +121,7 @@ button{ font-family:inherit; }
 {% set gb_left = ((limit - used) / 1073741824) if limit else None %}
 {% set status = user.status.value %}
 {% set xray_links = [] %}{% for _l in links %}{% if not _l.startswith('wireguard://') %}{% set _ = xray_links.append(_l) %}{% endif %}{% endfor %}
+{% set xray_methods = [] %}{% for _l in xray_links %}{% set _s = (_l.split('://')[0]|upper) if '://' in _l else 'SUB' %}{% if _s not in xray_methods %}{% set _ = xray_methods.append(_s) %}{% endif %}{% endfor %}
 <div class="wrap" id="app" data-theme="dark" dir="rtl">
   <div class="inner">
 
@@ -187,7 +188,7 @@ button{ font-family:inherit; }
       {% if xray_links %}
       <div class="pcard" style="--tc:var(--xr)">
         <div class="banner"><div class="logo" style="background:oklch(0.72 0.12 250); color:oklch(0.42 0.13 250)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-1.06 14.54L7.4 12l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41-5.64 5.65z"/></svg></div>
-          <div style="flex:1; min-width:0;"><div class="b-title">Xray</div><div class="b-sub"><span dir="ltr">{{ xray_links|length }}</span> <span data-i18n="servers">سرور</span> · VLESS / VMESS / TROJAN</div></div><button class="dlbtn" style="border:1px solid var(--chip-border); background:transparent; color:var(--icon-fg);" onclick="copyAllXray()"><span data-i18n="copyAll">کپی همه</span></button></div>
+          <div style="flex:1; min-width:0;"><div class="b-title">Xray</div><div class="b-sub"><span dir="ltr">{{ xray_links|length }}</span> <span data-i18n="servers">سرور</span> · {{ xray_methods|join(' / ') }}</div></div><button class="dlbtn" style="border:1px solid var(--chip-border); background:transparent; color:var(--icon-fg);" onclick="copyAllXray()"><span data-i18n="copyAll">کپی همه</span></button></div>
         <div class="pbody">
           <div class="phint" data-i18n="xrayHint">برای اپ‌های v2rayN، v2rayNG و Streisand — لینک اشتراک یا کانفیگ تکی را کپی کنید.</div>
           <div class="rows-scroll" style="display:flex; flex-direction:column; gap:8px; max-height:min(46vh,400px);">
