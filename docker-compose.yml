@@ -1,6 +1,6 @@
 services:
   pasarguard:
-    image: pasarguard/panel:latest
+    image: ghcr.io/alirezanorouzzadeh9/pasarguard:latest
     restart: always
     env_file: .env
     network_mode: host

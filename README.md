@@ -122,36 +122,37 @@ PasarGuard is a user-friendly, feature-rich, and reliable proxy management tool.
 
 # 🚀 Installation guide
 
-> **Quick Start** - Get PasarGuard running in minutes
+> **Quick Start** - Get PasarGuard (this multi-backend fork) running in minutes
 
-### For a quick setup, use the following commands based on your preferred database.
+This fork ships its own Docker image (dashboard + multi-backend support baked
+in) and installer. One line on a fresh Ubuntu/Debian server:
+
+```bash
+sudo bash -c "$(curl -fsSL https://github.com/AlirezaNorouzzadeh9/pasarguard/raw/main/scripts/install.sh)"
+```
+
+It opens an interactive menu (panel port, image source), installs Docker if
+missing, writes `/opt/pasarguard/docker-compose.yml` + `.env`, pulls
+`ghcr.io/alirezanorouzzadeh9/pasarguard:latest`, starts the panel, and offers
+to create the first sudo admin. Non-interactive:
+
+```bash
+sudo bash -c "$(curl -fsSL https://github.com/AlirezaNorouzzadeh9/pasarguard/raw/main/scripts/install.sh)" @ install --port 8000 -y
+```
+
+Afterwards the script is installed as the `pasarguard` command:
+
+```bash
+pasarguard status | logs | restart | update
+pasarguard cli admin create --sudo     # manage admins
+```
+
+SQLite (inside `/var/lib/pasarguard`) is the default database; for
+PostgreSQL/MySQL set `SQLALCHEMY_DATABASE_URL` in `/opt/pasarguard/.env` and
+`pasarguard restart`. To install the matching multi-backend node, see
+[pasarguardNode](https://github.com/AlirezaNorouzzadeh9/pasarguardNode).
 
 ---
-
-**TimescaleDB (Recommended):**
-```bash
-sudo bash -c "$(curl -fsSL https://github.com/PasarGuard/scripts/raw/main/pasarguard.sh)" @ install --database timescaledb
-```
-
-**SQLite:**
-```bash
-sudo bash -c "$(curl -fsSL https://github.com/PasarGuard/scripts/raw/main/pasarguard.sh)" @ install
-```
-
-**MySQL:**
-```bash
-sudo bash -c "$(curl -fsSL https://github.com/PasarGuard/scripts/raw/main/pasarguard.sh)" @ install --database mysql
-```
-
-**MariaDB:**
-```bash
-sudo bash -c "$(curl -fsSL https://github.com/PasarGuard/scripts/raw/main/pasarguard.sh)" @ install --database mariadb
-```
-
-**PostgreSQL:**
-```bash
-sudo bash -c "$(curl -fsSL https://github.com/PasarGuard/scripts/raw/main/pasarguard.sh)" @ install --database postgresql
-```
 
 ### 📋 After installation:
 
