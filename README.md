@@ -125,31 +125,31 @@ PasarGuard is a user-friendly, feature-rich, and reliable proxy management tool.
 > **Quick Start** - Get PasarGuard (this multi-backend fork) running in minutes
 
 This fork ships its own Docker image (dashboard + multi-backend support baked
-in) and installer. One line on a fresh Ubuntu/Debian server:
+in) and installs exactly like the official PasarGuard panel. One line on a
+fresh server:
 
 ```bash
-sudo bash -c "$(curl -fsSL https://github.com/AlirezaNorouzzadeh9/pasarguard/raw/main/scripts/install.sh)"
+sudo bash -c "$(curl -sL https://github.com/AlirezaNorouzzadeh9/pasarguard/raw/main/scripts/pasarguard.sh)" @ install
 ```
 
-It opens an interactive menu (panel port, image source), installs Docker if
-missing, writes `/opt/pasarguard/docker-compose.yml` + `.env`, pulls
-`ghcr.io/alirezanorouzzadeh9/pasarguard:latest`, starts the panel, and offers
-to create the first sudo admin. Non-interactive:
+Same flow and options as upstream — it installs Docker if missing, fetches
+`.env` + `docker-compose.yml` into `/opt/pasarguard`, pulls
+`ghcr.io/alirezanorouzzadeh9/pasarguard:latest`, and starts the panel.
+Database flavors work too:
 
 ```bash
-sudo bash -c "$(curl -fsSL https://github.com/AlirezaNorouzzadeh9/pasarguard/raw/main/scripts/install.sh)" @ install --port 8000 -y
+... @ install --database postgresql    # or mysql / mariadb / timescaledb
 ```
 
 Afterwards the script is installed as the `pasarguard` command:
 
 ```bash
-pasarguard status | logs | restart | update
+pasarguard status | logs | restart | update | backup | restore
 pasarguard cli admin create --sudo     # manage admins
 ```
 
-SQLite (inside `/var/lib/pasarguard`) is the default database; for
-PostgreSQL/MySQL set `SQLALCHEMY_DATABASE_URL` in `/opt/pasarguard/.env` and
-`pasarguard restart`. To install the matching multi-backend node, see
+SQLite (inside `/var/lib/pasarguard`) is the default database. To install the
+matching multi-backend node, see
 [pasarguardNode](https://github.com/AlirezaNorouzzadeh9/pasarguardNode).
 
 ---
