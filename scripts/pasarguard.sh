@@ -1286,31 +1286,63 @@ ssl_command() {
         fi
     done
 
-    local failed=0
+    # All requested domains go into ONE certificate (SAN); the first domain
+    # names the storage directory.
+    local primary="${domains[0]}"
+    local cert_dir="$DATA_DIR/certs/$primary"
+    local acme_bin=""
+    local reload_cmd=""
+    local domain_args=()
     for d in "${domains[@]}"; do
-        setup_ssl_certificate "$d" "$http_port" || failed=1
+        domain_args+=(-d "$d")
     done
+
+    ensure_acme_dependencies
+
+    if ! acme_bin=$(get_acme_sh_binary); then
+        install_acme || exit 1
+        acme_bin=$(get_acme_sh_binary) || {
+            colorized_echo red "acme.sh binary not found after installation."
+            exit 1
+        }
+    fi
+
+    if is_port_in_use "$http_port"; then
+        colorized_echo yellow "Port ${http_port} is already in use. SSL issuance may fail unless that service is stopped."
+    fi
+
+    mkdir -p "$cert_dir"
+    reload_cmd=$(build_pasarguard_ssl_reload_command)
+
+    colorized_echo blue "Issuing one Let's Encrypt certificate for: ${domains[*]}"
+    "$acme_bin" --set-default-ca --server letsencrypt --force >/dev/null 2>&1 || true
+    if ! "$acme_bin" --issue "${domain_args[@]}" --standalone --httpport "$http_port" --force; then
+        colorized_echo red "Failed to issue certificate for: ${domains[*]}"
+        colorized_echo yellow "Every domain must point to this server and port ${http_port} must be reachable."
+        rm -rf "${HOME}/.acme.sh/${primary}" "$cert_dir" 2>/dev/null || true
+        exit 1
+    fi
+
+    if ! install_acme_cert_pair "$acme_bin" "$primary" "$cert_dir" "$reload_cmd"; then
+        colorized_echo red "Failed to install certificate for ${primary}."
+        exit 1
+    fi
+
+    ensure_acme_auto_renew "$acme_bin"
+    chmod 600 "${cert_dir}/privkey.pem" 2>/dev/null || true
+    chmod 644 "${cert_dir}/fullchain.pem" 2>/dev/null || true
 
     echo
-    colorized_echo cyan "================ SSL certificates ================"
-    for d in "${domains[@]}"; do
-        local cert_dir="$DATA_DIR/certs/$d"
-        if has_nonempty_ssl_pair "$cert_dir/fullchain.pem" "$cert_dir/privkey.pem"; then
-            colorized_echo green "$d"
-            colorized_echo green "  certificate: $cert_dir/fullchain.pem"
-            colorized_echo green "  private key: $cert_dir/privkey.pem"
-        else
-            colorized_echo red "$d  ->  FAILED (no certificate files in $cert_dir)"
-        fi
-    done
-    colorized_echo cyan "=================================================="
+    colorized_echo cyan "================ SSL certificate ================"
+    colorized_echo green "covers: ${domains[*]}"
+    colorized_echo green "  certificate: $cert_dir/fullchain.pem"
+    colorized_echo green "  private key: $cert_dir/privkey.pem"
+    colorized_echo cyan "================================================="
     colorized_echo yellow "Auto-renewal is scheduled via acme.sh's cron job."
-    colorized_echo yellow "To serve the panel with one of these, set in $ENV_FILE:"
-    colorized_echo yellow "  UVICORN_SSL_CERTFILE=\"<certificate path>\""
-    colorized_echo yellow "  UVICORN_SSL_KEYFILE=\"<private key path>\""
+    colorized_echo yellow "To serve the panel with it, set in $ENV_FILE:"
+    colorized_echo yellow "  UVICORN_SSL_CERTFILE=\"$cert_dir/fullchain.pem\""
+    colorized_echo yellow "  UVICORN_SSL_KEYFILE=\"$cert_dir/privkey.pem\""
     colorized_echo yellow "then: $APP_NAME restart"
-
-    [ "$failed" -eq 0 ] || exit 1
 }
 
 install_command() {
