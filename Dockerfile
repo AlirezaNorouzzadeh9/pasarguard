@@ -11,20 +11,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV UV_PYTHON_DOWNLOADS=0
 
-WORKDIR /build
+# Build in /code (same path as the final image): _vendor/node_bridge_py is an
+# editable install, so the venv records its absolute path — build and runtime
+# paths must match or the module disappears in the final image.
+WORKDIR /code
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     --mount=type=bind,source=_vendor,target=_vendor \
     uv sync --frozen --no-install-project --no-dev
-ADD . /build
+ADD . /code
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
 
 FROM python:$PYTHON_VERSION-slim-bookworm
 
-COPY --from=builder /build /code
+COPY --from=builder /code /code
 WORKDIR /code
 
 ENV PATH="/code/.venv/bin:$PATH"
