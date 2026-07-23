@@ -1240,6 +1240,79 @@ check_existing_database_volumes() {
     echo
 }
 
+ssl_command() {
+    check_running_as_root
+    detect_os
+
+    local domains=()
+    local http_port="80"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+        --domain)
+            if [ -z "${2:-}" ]; then
+                colorized_echo red "Error: --domain requires a value."
+                exit 1
+            fi
+            domains+=("${2// /}")
+            shift 2
+            ;;
+        --http-port | --port)
+            if [ -z "${2:-}" ] || ! [[ "$2" =~ ^[0-9]+$ ]] || [ "$2" -lt 1 ] || [ "$2" -gt 65535 ]; then
+                colorized_echo red "Invalid HTTP challenge port: ${2:-}"
+                exit 1
+            fi
+            http_port="$2"
+            shift 2
+            ;;
+        *)
+            colorized_echo red "Unknown option: $1"
+            colorized_echo yellow "Usage: $APP_NAME ssl --domain <domain> [--domain <domain2> ...] [--http-port <port>]"
+            exit 1
+            ;;
+        esac
+    done
+
+    if [ ${#domains[@]} -eq 0 ]; then
+        colorized_echo yellow "Usage: $APP_NAME ssl --domain <domain> [--domain <domain2> ...] [--http-port <port>]"
+        exit 1
+    fi
+
+    local d
+    for d in "${domains[@]}"; do
+        if ! is_domain "$d"; then
+            colorized_echo red "Invalid domain format: $d"
+            exit 1
+        fi
+    done
+
+    local failed=0
+    for d in "${domains[@]}"; do
+        setup_ssl_certificate "$d" "$http_port" || failed=1
+    done
+
+    echo
+    colorized_echo cyan "================ SSL certificates ================"
+    for d in "${domains[@]}"; do
+        local cert_dir="$DATA_DIR/certs/$d"
+        if has_nonempty_ssl_pair "$cert_dir/fullchain.pem" "$cert_dir/privkey.pem"; then
+            colorized_echo green "$d"
+            colorized_echo green "  certificate: $cert_dir/fullchain.pem"
+            colorized_echo green "  private key: $cert_dir/privkey.pem"
+        else
+            colorized_echo red "$d  ->  FAILED (no certificate files in $cert_dir)"
+        fi
+    done
+    colorized_echo cyan "=================================================="
+    colorized_echo yellow "Auto-renewal is scheduled via acme.sh's cron job."
+    colorized_echo yellow "To serve the panel with one of these, set in $ENV_FILE:"
+    colorized_echo yellow "  UVICORN_SSL_CERTFILE=\"<certificate path>\""
+    colorized_echo yellow "  UVICORN_SSL_KEYFILE=\"<private key path>\""
+    colorized_echo yellow "then: $APP_NAME restart"
+
+    [ "$failed" -eq 0 ] || exit 1
+}
+
 install_command() {
     check_running_as_root
 
@@ -1891,7 +1964,7 @@ _pasarguard_completions()
     local cur cmds
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
-    cmds="up down restart status logs cli tui install update uninstall install-script install-node backup backup-service restore core-update edit edit-env help completion"
+    cmds="up down restart status logs cli tui install update uninstall install-script install-node ssl backup backup-service restore core-update edit edit-env help completion"
     COMPREPLY=( $(compgen -W "$cmds" -- "$cur") )
     return 0
 }
@@ -1939,6 +2012,7 @@ usage() {
     colorized_echo yellow "  update          $(tput sgr0)– Update to latest version"
     colorized_echo yellow "  uninstall       $(tput sgr0)– Uninstall pasarguard"
     colorized_echo yellow "  install-script  $(tput sgr0)– Install pasarguard script"
+    colorized_echo yellow "  ssl             $(tput sgr0)– Issue Let's Encrypt certs: ssl --domain <d> [--domain <d2> ...]"
     colorized_echo yellow "  install-node    $(tput sgr0)– Install PasarGuard node"
     colorized_echo yellow "  backup          $(tput sgr0)– Manual backup launch"
     colorized_echo yellow "  backup-service  $(tput sgr0)– pasarguard Backup service to backup to TG, and a new job in crontab"
@@ -2012,6 +2086,10 @@ pasarguard_main() {
     install-script)
         shift
         install_pasarguard_script "$@"
+        ;;
+    ssl)
+        shift
+        ssl_command "$@"
         ;;
     install-node)
         shift
