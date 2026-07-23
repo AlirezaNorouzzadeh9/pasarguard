@@ -88,10 +88,25 @@ detect_and_update_package_manager() {
 # On a brand new VPS unattended-upgrades usually holds the apt/dpkg lock for
 # several minutes; apt calls below would fail instantly. Wait it out (quietly
 # returns at once when the lock is free or the distro is not debian-family).
+#
+# Only look at who actually HOLDS the dpkg/apt lock files. Do NOT match the
+# unattended-upgrades process by name: Ubuntu always runs a permanent
+# 'unattended-upgrade-shutdown' monitor that holds no lock, and matching it
+# would make this wait forever.
+apt_lock_busy() {
+    if command -v fuser >/dev/null 2>&1; then
+        fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock \
+              /var/lib/apt/lists/lock /var/cache/apt/archives/lock >/dev/null 2>&1
+        return $?
+    fi
+    # no fuser on this box - fall back to spotting an active apt/dpkg run
+    pgrep -x apt >/dev/null 2>&1 || pgrep -x apt-get >/dev/null 2>&1 || pgrep -x dpkg >/dev/null 2>&1
+}
+
 wait_for_apt_lock() {
     command -v apt-get >/dev/null 2>&1 || return 0
-    local waited=0 max="${APT_LOCK_TIMEOUT:-900}" holder=""
-    while fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock >/dev/null 2>&1 ||           pgrep -x unattended-upgr >/dev/null 2>&1 || pgrep -x dpkg >/dev/null 2>&1; do
+    local waited=0 max="${APT_LOCK_TIMEOUT:-900}"
+    while apt_lock_busy; do
         if [ "$waited" -eq 0 ]; then
             colorized_echo yellow "apt/dpkg is busy (likely unattended-upgrades on a fresh server) - waiting for it to finish..."
         fi
