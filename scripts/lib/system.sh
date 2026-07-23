@@ -103,18 +103,34 @@ apt_lock_busy() {
     pgrep -x apt >/dev/null 2>&1 || pgrep -x apt-get >/dev/null 2>&1 || pgrep -x dpkg >/dev/null 2>&1
 }
 
+# Best-effort name+pid of whoever holds an apt/dpkg lock, so the wait below
+# never looks like a black box.
+apt_lock_holder() {
+    local pid=""
+    command -v fuser >/dev/null 2>&1 || { echo "unknown"; return; }
+    pid=$(fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock \
+                /var/lib/apt/lists/lock /var/cache/apt/archives/lock 2>/dev/null \
+          | tr -s ' \n' ' ' | awk '{print $1}')
+    if [ -n "$pid" ]; then
+        printf '%s (pid %s)\n' "$(ps -o comm= -p "$pid" 2>/dev/null || echo process)" "$pid"
+    else
+        echo "unknown"
+    fi
+}
+
 wait_for_apt_lock() {
     command -v apt-get >/dev/null 2>&1 || return 0
     local waited=0 max="${APT_LOCK_TIMEOUT:-900}"
     while apt_lock_busy; do
         if [ "$waited" -eq 0 ]; then
-            colorized_echo yellow "apt/dpkg is busy (likely unattended-upgrades on a fresh server) - waiting for it to finish..."
+            colorized_echo yellow "apt/dpkg is busy - held by: $(apt_lock_holder). Waiting for it to finish..."
+            colorized_echo yellow "  (usually the initial unattended-upgrades run on a fresh server; to skip the wait: systemctl stop unattended-upgrades)"
         fi
         if [ "$waited" -ge "$max" ]; then
-            die "apt is still locked after $((max / 60))m. Wait for it (or: systemctl stop unattended-upgrades) and re-run."
+            die "apt is still locked after $((max / 60))m (holder: $(apt_lock_holder)). Wait for it (or: systemctl stop unattended-upgrades) and re-run."
         fi
         sleep 3; waited=$((waited + 3))
-        [ $((waited % 30)) -eq 0 ] && colorized_echo yellow "  still waiting... ${waited}s"
+        [ $((waited % 30)) -eq 0 ] && colorized_echo yellow "  still waiting... ${waited}s (holder: $(apt_lock_holder))"
     done
     [ "$waited" -gt 0 ] && colorized_echo green "apt lock released (waited ${waited}s)"
     return 0
