@@ -1171,19 +1171,8 @@ install_command() {
     install_completion
     up_node
     show_node_logs
-    local install_service_choice=""
-    if [ -n "${INSTALL_SERVICE_CHOICE:-}" ]; then
-        install_service_choice="$INSTALL_SERVICE_CHOICE"
-    elif [ "$AUTO_CONFIRM" = true ]; then
-        install_service_choice="y"
-    else
-        read -p "Do you want to install and start the systemd service for $APP_NAME? (Y/n): " install_service_choice
-    fi
-    if [[ -z "$install_service_choice" || "$install_service_choice" =~ ^[Yy]$ ]]; then
-        install_service_command
-    else
-        colorized_echo yellow "Skipped installing systemd service for $APP_NAME."
-    fi
+    # node-serviced (upstream's optional systemd helper) has no builds for this
+    # fork; the docker container is fully self-contained, so that step is skipped.
     colorized_echo blue "================================"
     colorized_echo magenta " node is set up with the following IP: $NODE_IP and Port: $SERVICE_PORT."
     colorized_echo magenta "Please use the following Certificate in pasarguard Panel (it's located in ${DATA_DIR}/certs):"
@@ -1336,6 +1325,8 @@ restart_command() {
     fi
 }
 install_service_command() {
+    colorized_echo yellow "node-serviced is not available for this fork; the docker container runs standalone and needs no systemd helper."
+    return 0
     check_running_as_root
     require_systemd
     set_service_paths
