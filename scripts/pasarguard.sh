@@ -1975,10 +1975,10 @@ install_node_command() {
 
     if [ "$(id -u)" = "0" ]; then
         colorized_echo blue "Running node installation as root..."
-        bash -c "$(curl -sL https://github.com/AlirezaNorouzzadeh9/pasarguardNode/raw/main/scripts/install.sh)" @ install
+        bash -c "$(curl -sL https://github.com/AlirezaNorouzzadeh9/pasarguard/raw/main/scripts/pg-node.sh)" @ install
     else
         colorized_echo blue "Running node installation with sudo..."
-        sudo bash -c "$(curl -sL https://github.com/AlirezaNorouzzadeh9/pasarguardNode/raw/main/scripts/install.sh)" @ install
+        sudo bash -c "$(curl -sL https://github.com/AlirezaNorouzzadeh9/pasarguard/raw/main/scripts/pg-node.sh)" @ install
     fi
 
     if [ $? -eq 0 ]; then

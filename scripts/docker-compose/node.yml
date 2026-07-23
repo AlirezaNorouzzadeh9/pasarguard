@@ -1,0 +1,14 @@
+services:
+  node:
+    container_name: node
+    image: ghcr.io/alirezanorouzzadeh9/pasarguardnode:latest
+    restart: always
+    network_mode: host
+    cap_add:
+      - NET_ADMIN   # tun/wg interfaces, iptables/nftables NAT, IPsec
+      - SYS_MODULE  # modprobe wireguard
+    devices:
+      - /dev/net/tun  # OpenVPN
+    env_file: .env
+    volumes:
+      - /var/lib/pg-node:/var/lib/pg-node
