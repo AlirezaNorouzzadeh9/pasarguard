@@ -684,6 +684,174 @@ read_and_save_file() {
         echo "$line" >>"$output_file"
     done
 }
+# Ask which VPN backends this node should run. The image ships all of them;
+# saying no writes PG_NODE_DISABLE_<TYPE>=1, which also greys the backend out
+# in the panel. Answers land in the BACKEND_* variables consumed by
+# write_backend_env below.
+#
+# OpenVPN/WireGuard listen ports are defined in the panel's core config, not
+# here — the port asked for is used to open this node's firewall and is echoed
+# at the end as the value to match in the panel.
+prompt_for_backends() {
+    BACKEND_XRAY="${BACKEND_XRAY:-yes}"
+    BACKEND_OPENVPN="${BACKEND_OPENVPN:-yes}"
+    BACKEND_WIREGUARD="${BACKEND_WIREGUARD:-yes}"
+    BACKEND_IKEV2="${BACKEND_IKEV2:-yes}"
+    BACKEND_OPENVPN_PORT="${BACKEND_OPENVPN_PORT:-1194}"
+    BACKEND_WIREGUARD_PORT="${BACKEND_WIREGUARD_PORT:-51820}"
+    BACKEND_IKEV2_DOMAIN="${BACKEND_IKEV2_DOMAIN:-}"
+
+    # -y keeps the run non-interactive: every backend stays enabled.
+    if [ "$AUTO_CONFIRM" = true ]; then
+        return 0
+    fi
+
+    local answer=""
+    echo
+    colorized_echo blue "=============================="
+    colorized_echo magenta "   Which backends run here?   "
+    colorized_echo blue "=============================="
+    colorized_echo yellow "The image ships all of them; disable the ones this node should not serve."
+    echo
+
+    read -p "Run Xray on this node? (Y/n): " -r answer
+    [[ "$answer" =~ ^[Nn]$ ]] && BACKEND_XRAY="no"
+
+    read -p "Run OpenVPN on this node? (Y/n): " -r answer
+    if [[ "$answer" =~ ^[Nn]$ ]]; then
+        BACKEND_OPENVPN="no"
+    else
+        while true; do
+            read -p "  OpenVPN port (default 1194, must match the panel's OpenVPN core): " -r answer
+            answer="${answer// /}"
+            [ -z "$answer" ] && answer=1194
+            if [[ "$answer" =~ ^[0-9]+$ ]] && [ "$answer" -ge 1 ] && [ "$answer" -le 65535 ]; then
+                BACKEND_OPENVPN_PORT="$answer"
+                break
+            fi
+            colorized_echo red "  Invalid port. Enter a number between 1 and 65535."
+        done
+    fi
+
+    read -p "Run WireGuard on this node? (Y/n): " -r answer
+    if [[ "$answer" =~ ^[Nn]$ ]]; then
+        BACKEND_WIREGUARD="no"
+    else
+        while true; do
+            read -p "  WireGuard port (default 51820, must match the core's listen_port): " -r answer
+            answer="${answer// /}"
+            [ -z "$answer" ] && answer=51820
+            if [[ "$answer" =~ ^[0-9]+$ ]] && [ "$answer" -ge 1 ] && [ "$answer" -le 65535 ]; then
+                BACKEND_WIREGUARD_PORT="$answer"
+                break
+            fi
+            colorized_echo red "  Invalid port. Enter a number between 1 and 65535."
+        done
+    fi
+
+    read -p "Run IKEv2/IPsec on this node? (Y/n): " -r answer
+    if [[ "$answer" =~ ^[Nn]$ ]]; then
+        BACKEND_IKEV2="no"
+    else
+        colorized_echo yellow "  IKEv2 needs a hostname pointing at this server: the node issues its own"
+        colorized_echo yellow "  Let's Encrypt certificate for it (port 80 must be reachable) and renews it"
+        colorized_echo yellow "  automatically, so clients connect with just that hostname + user/password."
+        while true; do
+            read -p "  IKEv2 domain for this node (e.g. p1.example.com, empty to skip): " -r answer
+            answer="${answer// /}"
+            if [ -z "$answer" ]; then
+                colorized_echo yellow "  No domain set — IKEv2 will use the certificate from the panel's core config."
+                break
+            fi
+            if is_domain "$answer"; then
+                BACKEND_IKEV2_DOMAIN="$answer"
+                break
+            fi
+            colorized_echo red "  Invalid domain format: $answer"
+        done
+    fi
+    echo
+}
+
+# Persist the backend answers into the node's .env.
+write_backend_env() {
+    local env_file="$APP_DIR/.env"
+
+    {
+        echo ""
+        echo "### Backends enabled on this node (written by the installer)"
+    } >>"$env_file"
+
+    [ "${BACKEND_XRAY:-yes}" = "no" ] && echo "PG_NODE_DISABLE_XRAY = 1" >>"$env_file"
+    [ "${BACKEND_OPENVPN:-yes}" = "no" ] && echo "PG_NODE_DISABLE_OPENVPN = 1" >>"$env_file"
+    [ "${BACKEND_WIREGUARD:-yes}" = "no" ] && echo "PG_NODE_DISABLE_WIREGUARD = 1" >>"$env_file"
+    [ "${BACKEND_IKEV2:-yes}" = "no" ] && echo "PG_NODE_DISABLE_IKEV2 = 1" >>"$env_file"
+
+    if [ "${BACKEND_IKEV2:-yes}" != "no" ] && [ -n "${BACKEND_IKEV2_DOMAIN:-}" ]; then
+        echo "PG_NODE_IKEV2_DOMAIN = ${BACKEND_IKEV2_DOMAIN}" >>"$env_file"
+    fi
+
+    open_backend_firewall_ports
+    return 0
+}
+
+# Best-effort: open the VPN ports on whichever firewall is active. A node with
+# no firewall running needs nothing here.
+open_backend_firewall_ports() {
+    local ports=()
+    [ "${BACKEND_OPENVPN:-yes}" != "no" ] && ports+=("${BACKEND_OPENVPN_PORT:-1194}/udp")
+    [ "${BACKEND_WIREGUARD:-yes}" != "no" ] && ports+=("${BACKEND_WIREGUARD_PORT:-51820}/udp")
+    if [ "${BACKEND_IKEV2:-yes}" != "no" ]; then
+        ports+=("500/udp" "4500/udp")
+        # HTTP-01 challenge for the node's own certificate.
+        [ -n "${BACKEND_IKEV2_DOMAIN:-}" ] && ports+=("80/tcp")
+    fi
+    [ ${#ports[@]} -eq 0 ] && return 0
+
+    local p=""
+    if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -qi '^Status: active'; then
+        colorized_echo blue "Opening VPN ports in ufw"
+        for p in "${ports[@]}"; do ufw allow "$p" >/dev/null 2>&1 || true; done
+    elif command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
+        colorized_echo blue "Opening VPN ports in firewalld"
+        for p in "${ports[@]}"; do firewall-cmd --permanent --add-port="${p/\//-}" >/dev/null 2>&1 || true; done
+        firewall-cmd --reload >/dev/null 2>&1 || true
+    else
+        colorized_echo yellow "No active ufw/firewalld detected — make sure these are reachable: ${ports[*]}"
+    fi
+    return 0
+}
+
+# Print what the panel side still needs to match.
+print_backend_summary() {
+    colorized_echo blue "================================"
+    colorized_echo magenta "Backends on this node:"
+    if [ "${BACKEND_XRAY:-yes}" = "no" ]; then
+        colorized_echo green "  Xray:      disabled"
+    else
+        colorized_echo green "  Xray:      enabled"
+    fi
+    if [ "${BACKEND_OPENVPN:-yes}" = "no" ]; then
+        colorized_echo green "  OpenVPN:   disabled"
+    else
+        colorized_echo green "  OpenVPN:   enabled — port ${BACKEND_OPENVPN_PORT:-1194}/udp (set the same in the panel's OpenVPN core)"
+    fi
+    if [ "${BACKEND_WIREGUARD:-yes}" = "no" ]; then
+        colorized_echo green "  WireGuard: disabled"
+    else
+        colorized_echo green "  WireGuard: enabled — port ${BACKEND_WIREGUARD_PORT:-51820}/udp (must equal the core's listen_port)"
+    fi
+    if [ "${BACKEND_IKEV2:-yes}" = "no" ]; then
+        colorized_echo green "  IKEv2:     disabled"
+    elif [ -n "${BACKEND_IKEV2_DOMAIN:-}" ]; then
+        colorized_echo green "  IKEv2:     enabled on ${BACKEND_IKEV2_DOMAIN} (own auto-renewing certificate)"
+        colorized_echo yellow "             Point ${BACKEND_IKEV2_DOMAIN} at this server and add it as the IKEv2 host in the panel."
+    else
+        colorized_echo green "  IKEv2:     enabled (using the certificate from the panel's core config)"
+    fi
+    colorized_echo blue "================================"
+}
+
 install_node() {
     local node_version=$1
     FILES_URL_PREFIX="https://raw.githubusercontent.com/AlirezaNorouzzadeh9/pasarguard/main/scripts/node"
@@ -793,6 +961,8 @@ install_node() {
             fi
         done
     fi
+    prompt_for_backends
+
     colorized_echo blue "Fetching .env and compose file"
     colorized_echo cyan "  Command: curl -fsL $FILES_URL_PREFIX/.env.example -o $APP_DIR/.env"
     # Pre-create .env as 0600 (and tighten any pre-existing copy) so the node
@@ -819,6 +989,7 @@ install_node() {
     else
         sed -i 's/^# \(SERVICE_PROTOCOL *=.*\)/SERVICE_PROTOCOL= "grpc"/' "$APP_DIR/.env"
     fi
+    write_backend_env
     colorized_echo green ".env file modified successfully"
     # Modifying compose file
     colorized_echo blue "Modifying docker-compose.yml..."
@@ -1040,6 +1211,38 @@ install_command() {
             INSTALL_OVERRIDE=true
             shift
             ;;
+        --no-xray)
+            BACKEND_XRAY="no"
+            shift
+            ;;
+        --no-openvpn)
+            BACKEND_OPENVPN="no"
+            shift
+            ;;
+        --no-wireguard | --no-wg)
+            BACKEND_WIREGUARD="no"
+            shift
+            ;;
+        --no-ikev2)
+            BACKEND_IKEV2="no"
+            shift
+            ;;
+        --openvpn-port)
+            BACKEND_OPENVPN_PORT="$2"
+            shift 2
+            ;;
+        --wireguard-port | --wg-port)
+            BACKEND_WIREGUARD_PORT="$2"
+            shift 2
+            ;;
+        --ikev2-domain)
+            if ! is_domain "${2:-}"; then
+                colorized_echo red "Invalid domain for --ikev2-domain: ${2:-}"
+                exit 1
+            fi
+            BACKEND_IKEV2_DOMAIN="$2"
+            shift 2
+            ;;
         --api-key)
             INSTALL_API_KEY="$2"
             shift 2
@@ -1180,6 +1383,7 @@ install_command() {
     colorized_echo blue "================================"
     colorized_echo magenta "Next, use the API Key (UUID v4) in pasarguard Panel: "
     colorized_echo red "${API_KEY}"
+    print_backend_summary
 }
 uninstall_command() {
     check_running_as_root
