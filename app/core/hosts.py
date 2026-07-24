@@ -17,6 +17,7 @@ from app.models.host import (
     BaseHost,
     FinalMask,
     OpenVPNHostOverrides,
+    OpenVPNRemote,
     TransportSettings,
     WireGuardHostOverrides,
 )
@@ -50,6 +51,30 @@ def _string_list(value) -> list[str]:
         return [str(item) for item in value]
     except TypeError:
         return [str(value)]
+
+
+def _openvpn_remotes_for(host, ov_over, inbound_config: dict):
+    """Pick the endpoints an OpenVPN host advertises.
+
+    Explicit per-host remotes always win. Otherwise, when the core declares
+    several listeners (e.g. UDP and TCP served by one core), each becomes a
+    remote so the client fails over between them from a single config file. A
+    core with one listener returns None, leaving the classic single-remote
+    rendering built from the host address and port.
+    """
+    if ov_over.remotes:
+        return list(ov_over.remotes)
+
+    listeners = inbound_config.get("listeners") or []
+    if len(listeners) < 2:
+        return None
+
+    addresses = list(host.address) if host.address else ["{SERVER_IP}"]
+    return [
+        OpenVPNRemote(host=address, port=listener.get("port"), proto=listener.get("proto"))
+        for address in addresses
+        for listener in listeners
+    ]
 
 
 async def _prepare_subscription_inbound_data(
@@ -148,7 +173,7 @@ async def _prepare_subscription_inbound_data(
             openvpn_extra_directives=(
                 list(ov_over.extra_client_directives) if ov_over.extra_client_directives else None
             ),
-            openvpn_remotes=list(ov_over.remotes) if ov_over.remotes else None,
+            openvpn_remotes=_openvpn_remotes_for(host, ov_over, inbound_config),
             priority=host.priority,
             status=list(host.status) if host.status else None,
             subscription_templates=host.subscription_templates.model_dump(exclude_none=True)

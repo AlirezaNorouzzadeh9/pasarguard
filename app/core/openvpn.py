@@ -117,6 +117,8 @@ class OpenVPNConfig(dict):
             raise ValueError("server_subnet is required")
         self["server_subnet"] = str(ip_network(server_subnet, strict=False))
 
+        self["listeners"] = self._validate_listeners(port, proto, server_subnet)
+
         cipher = str(self.get("cipher") or "AES-256-GCM").strip()
         if cipher not in _ALLOWED_CIPHERS:
             raise ValueError(f"cipher must be one of: {', '.join(sorted(_ALLOWED_CIPHERS))}")
@@ -184,6 +186,59 @@ class OpenVPNConfig(dict):
             cleaned.append(line)
         return cleaned or None
 
+    def _validate_listeners(self, default_port: int, default_proto: str, server_subnet: str) -> list[dict]:
+        """Normalise the endpoints this core serves.
+
+        A single OpenVPN process binds one port/protocol, so offering both UDP
+        and TCP means the node runs one server per entry — all sharing this
+        core's PKI, users and settings. Omitting ``listeners`` keeps the classic
+        single-endpoint behaviour built from ``port``/``proto``.
+
+        The node splits ``server_subnet`` into one block per listener, so the
+        subnet has to be large enough for that here too.
+        """
+        raw = self.get("listeners")
+        if raw in (None, [], ()):
+            return [{"port": default_port, "proto": default_proto}]
+
+        if not isinstance(raw, list):
+            raise ValueError("listeners must be a list")
+        if len(raw) > 8:
+            raise ValueError("at most 8 listeners are supported")
+
+        listeners: list[dict] = []
+        seen: set[tuple[str, int]] = set()
+        for entry in raw:
+            if not isinstance(entry, dict):
+                raise ValueError("each listener must be an object with 'port' and 'proto'")
+
+            port = entry.get("port", default_port)
+            if not isinstance(port, int) or port <= 0 or port > 65535:
+                raise ValueError("listener port must be an integer between 1 and 65535")
+
+            proto = str(entry.get("proto") or default_proto).strip().lower()
+            if proto not in _ALLOWED_PROTOS:
+                raise ValueError("listener proto must be one of: udp, tcp")
+
+            if (proto, port) in seen:
+                raise ValueError(f"duplicate listener {proto}/{port}")
+            seen.add((proto, port))
+            listeners.append({"port": port, "proto": proto})
+
+        # Mirror the node's split so an unusable layout is rejected at save time
+        # rather than failing when the node tries to start the servers.
+        if len(listeners) > 1:
+            network = ip_network(server_subnet, strict=False)
+            extra_bits = (len(listeners) - 1).bit_length()
+            per_listener_prefix = network.prefixlen + extra_bits
+            if per_listener_prefix > 24:
+                raise ValueError(
+                    f"server_subnet {network} is too small for {len(listeners)} listeners "
+                    f"(each would get a /{per_listener_prefix}); use a wider subnet"
+                )
+
+        return listeners
+
     def _resolve_inbounds(self):
         inbound_tag = self["inbound_tag"]
         # NOTE: server_key / ca_key must never appear in inbound metadata — it is
@@ -202,6 +257,9 @@ class OpenVPNConfig(dict):
             "tls_crypt_key": self.get("tls_crypt_key", ""),
             "server_subnet": self["server_subnet"],
             "dns": list(self.get("dns", [])),
+            # Every endpoint this core serves, so a host with no explicit
+            # remotes can offer them all (UDP first, TCP as fallback).
+            "listeners": [dict(listener) for listener in self.get("listeners") or []],
         }
         self._inbounds = [inbound_tag]
         self._inbounds_by_tag = {inbound_tag: metadata}
