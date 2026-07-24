@@ -692,12 +692,42 @@ read_and_save_file() {
 # OpenVPN/WireGuard listen ports are defined in the panel's core config, not
 # here — the port asked for is used to open this node's firewall and is echoed
 # at the end as the value to match in the panel.
+# Treat only an explicit no as no, so pressing Enter accepts the default (yes).
+# Matching a bare "n" alone used to let a typed "no" through as a yes.
+answer_is_no() {
+    [[ "${1,,}" =~ ^(n|no)$ ]]
+}
+
+# Read a port, echoing the chosen value. An empty answer takes the default;
+# with a third argument it may instead stay empty (an optional endpoint).
+ask_port() {
+    local label="$1" default="$2" allow_empty="${3:-}" value=""
+    local hint="default ${default}"
+    [ -n "$allow_empty" ] && hint="empty to skip"
+    while true; do
+        read -p "${label} (${hint}): " -r value
+        value="${value// /}"
+        if [ -z "$value" ]; then
+            printf '%s' "$default"
+            return 0
+        fi
+        if [[ "$value" =~ ^[0-9]+$ ]] && [ "$value" -ge 1 ] && [ "$value" -le 65535 ]; then
+            printf '%s' "$value"
+            return 0
+        fi
+        colorized_echo red "  Invalid port. Enter a number between 1 and 65535." >&2
+    done
+}
+
 prompt_for_backends() {
     BACKEND_XRAY="${BACKEND_XRAY:-yes}"
     BACKEND_OPENVPN="${BACKEND_OPENVPN:-yes}"
     BACKEND_WIREGUARD="${BACKEND_WIREGUARD:-yes}"
     BACKEND_IKEV2="${BACKEND_IKEV2:-yes}"
     BACKEND_OPENVPN_PORT="${BACKEND_OPENVPN_PORT:-1194}"
+    # Optional second OpenVPN endpoint. One OpenVPN process binds a single
+    # port/protocol, so a core that also serves TCP runs a second server.
+    BACKEND_OPENVPN_TCP_PORT="${BACKEND_OPENVPN_TCP_PORT:-}"
     BACKEND_WIREGUARD_PORT="${BACKEND_WIREGUARD_PORT:-51820}"
     BACKEND_IKEV2_DOMAIN="${BACKEND_IKEV2_DOMAIN:-}"
 
@@ -715,42 +745,27 @@ prompt_for_backends() {
     echo
 
     read -p "Run Xray on this node? (Y/n): " -r answer
-    [[ "$answer" =~ ^[Nn]$ ]] && BACKEND_XRAY="no"
+    answer_is_no "$answer" && BACKEND_XRAY="no"
 
     read -p "Run OpenVPN on this node? (Y/n): " -r answer
-    if [[ "$answer" =~ ^[Nn]$ ]]; then
+    if answer_is_no "$answer"; then
         BACKEND_OPENVPN="no"
     else
-        while true; do
-            read -p "  OpenVPN port (default 1194, must match the panel's OpenVPN core): " -r answer
-            answer="${answer// /}"
-            [ -z "$answer" ] && answer=1194
-            if [[ "$answer" =~ ^[0-9]+$ ]] && [ "$answer" -ge 1 ] && [ "$answer" -le 65535 ]; then
-                BACKEND_OPENVPN_PORT="$answer"
-                break
-            fi
-            colorized_echo red "  Invalid port. Enter a number between 1 and 65535."
-        done
+        BACKEND_OPENVPN_PORT="$(ask_port '  OpenVPN UDP port' 1194)"
+        colorized_echo yellow "  OpenVPN can also listen on TCP, which helps where UDP is throttled."
+        colorized_echo yellow "  It runs as a second server on its own port; leave empty to serve UDP only."
+        BACKEND_OPENVPN_TCP_PORT="$(ask_port '  OpenVPN TCP port' '' allow_empty)"
     fi
 
     read -p "Run WireGuard on this node? (Y/n): " -r answer
-    if [[ "$answer" =~ ^[Nn]$ ]]; then
+    if answer_is_no "$answer"; then
         BACKEND_WIREGUARD="no"
     else
-        while true; do
-            read -p "  WireGuard port (default 51820, must match the core's listen_port): " -r answer
-            answer="${answer// /}"
-            [ -z "$answer" ] && answer=51820
-            if [[ "$answer" =~ ^[0-9]+$ ]] && [ "$answer" -ge 1 ] && [ "$answer" -le 65535 ]; then
-                BACKEND_WIREGUARD_PORT="$answer"
-                break
-            fi
-            colorized_echo red "  Invalid port. Enter a number between 1 and 65535."
-        done
+        BACKEND_WIREGUARD_PORT="$(ask_port '  WireGuard port' 51820)"
     fi
 
     read -p "Run IKEv2/IPsec on this node? (Y/n): " -r answer
-    if [[ "$answer" =~ ^[Nn]$ ]]; then
+    if answer_is_no "$answer"; then
         BACKEND_IKEV2="no"
     else
         colorized_echo yellow "  IKEv2 needs a hostname pointing at this server: the node issues its own"
@@ -799,7 +814,10 @@ write_backend_env() {
 # no firewall running needs nothing here.
 open_backend_firewall_ports() {
     local ports=()
-    [ "${BACKEND_OPENVPN:-yes}" != "no" ] && ports+=("${BACKEND_OPENVPN_PORT:-1194}/udp")
+    if [ "${BACKEND_OPENVPN:-yes}" != "no" ]; then
+        ports+=("${BACKEND_OPENVPN_PORT:-1194}/udp")
+        [ -n "${BACKEND_OPENVPN_TCP_PORT:-}" ] && ports+=("${BACKEND_OPENVPN_TCP_PORT}/tcp")
+    fi
     [ "${BACKEND_WIREGUARD:-yes}" != "no" ] && ports+=("${BACKEND_WIREGUARD_PORT:-51820}/udp")
     if [ "${BACKEND_IKEV2:-yes}" != "no" ]; then
         ports+=("500/udp" "4500/udp")
@@ -834,7 +852,13 @@ print_backend_summary() {
     if [ "${BACKEND_OPENVPN:-yes}" = "no" ]; then
         colorized_echo green "  OpenVPN:   disabled"
     else
-        colorized_echo green "  OpenVPN:   enabled — port ${BACKEND_OPENVPN_PORT:-1194}/udp (set the same in the panel's OpenVPN core)"
+        colorized_echo green "  OpenVPN:   enabled — ${BACKEND_OPENVPN_PORT:-1194}/udp$([ -n "${BACKEND_OPENVPN_TCP_PORT:-}" ] && echo " + ${BACKEND_OPENVPN_TCP_PORT}/tcp")"
+        if [ -n "${BACKEND_OPENVPN_TCP_PORT:-}" ]; then
+            colorized_echo yellow "             Give the panel's OpenVPN core both endpoints:"
+            colorized_echo yellow "             \"listeners\": [{\"port\": ${BACKEND_OPENVPN_PORT:-1194}, \"proto\": \"udp\"}, {\"port\": ${BACKEND_OPENVPN_TCP_PORT}, \"proto\": \"tcp\"}]"
+        else
+            colorized_echo yellow "             Set the same port in the panel's OpenVPN core."
+        fi
     fi
     if [ "${BACKEND_WIREGUARD:-yes}" = "no" ]; then
         colorized_echo green "  WireGuard: disabled"
@@ -1229,6 +1253,10 @@ install_command() {
             ;;
         --openvpn-port)
             BACKEND_OPENVPN_PORT="$2"
+            shift 2
+            ;;
+        --openvpn-tcp-port)
+            BACKEND_OPENVPN_TCP_PORT="$2"
             shift 2
             ;;
         --wireguard-port | --wg-port)
