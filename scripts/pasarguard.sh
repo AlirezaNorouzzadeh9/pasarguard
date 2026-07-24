@@ -119,10 +119,6 @@ get_backup_proxy_url() {
     return 0
 }
 
-is_domain() {
-    [[ "$1" =~ ^([A-Za-z0-9](-*[A-Za-z0-9])*\.)+(xn--[a-z0-9]{2,}|[A-Za-z]{2,})$ ]] && return 0 || return 1
-}
-
 is_ipv4() {
     local ip="$1"
     local IFS='.'
