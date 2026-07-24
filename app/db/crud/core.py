@@ -146,7 +146,13 @@ async def get_cores_simple(
         (CoreConfig.type == CoreType.wg, CoreConfig.config["listen_port"].as_integer()),
         else_=None,
     ).label("listen_port")
-    stmt = select(CoreConfig.id, CoreConfig.name, CoreConfig.type, listen_port)
+    # An openvpn core can serve several endpoints; the UI needs them all to
+    # offer a per-node override for each.
+    listeners = case(
+        (CoreConfig.type == CoreType.openvpn, CoreConfig.config["listeners"]),
+        else_=None,
+    ).label("listeners")
+    stmt = select(CoreConfig.id, CoreConfig.name, CoreConfig.type, listen_port, listeners)
 
     if query.ids:
         stmt = stmt.where(CoreConfig.id.in_(query.ids))

@@ -75,6 +75,9 @@ class CoreSimple(BaseModel):
     type: CoreType | None = None
     # Default listen port for openvpn/wireguard cores (from the config JSON).
     listen_port: int | None = None
+    # Every endpoint an openvpn core serves, e.g.
+    # [{"port": 1194, "proto": "udp"}, {"port": 1195, "proto": "tcp"}].
+    listeners: list[dict] | None = None
     model_config = ConfigDict(from_attributes=True)
 
 

@@ -3020,6 +3020,8 @@ export interface CoreSimple {
   name: string
   type?: CoreSimpleType
   listen_port?: number | null
+  /** Every endpoint an openvpn core serves (UDP and/or TCP). */
+  listeners?: { port: number; proto?: string | null }[] | null
 }
 
 export interface CoreResponseList {

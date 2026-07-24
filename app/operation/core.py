@@ -1,3 +1,4 @@
+import json
 import asyncio
 
 from app import notification
@@ -32,6 +33,24 @@ from app.utils.ikev2 import ensure_ikev2_core_material
 from app.utils.openvpn import ensure_openvpn_core_material
 
 logger = get_logger("core-operation")
+
+
+def _as_listeners(value) -> list[dict] | None:
+    """Normalise the openvpn `listeners` column into a list of dicts.
+
+    Depending on the database, a JSON column comes back either already decoded
+    or as raw text, so accept both and drop anything unexpected.
+    """
+    if value in (None, "", []):
+        return None
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except (ValueError, TypeError):
+            return None
+    if not isinstance(value, list):
+        return None
+    return [entry for entry in value if isinstance(entry, dict)] or None
 
 
 class CoreOperation(BaseOperation):
@@ -73,7 +92,12 @@ class CoreOperation(BaseOperation):
         """Get lightweight core list with only id and name"""
         rows, total = await get_cores_simple(db=db, query=query)
 
-        cores = [CoreSimple(id=row[0], name=row[1], type=row[2], listen_port=row[3]) for row in rows]
+        cores = [
+            CoreSimple(
+                id=row[0], name=row[1], type=row[2], listen_port=row[3], listeners=_as_listeners(row[4])
+            )
+            for row in rows
+        ]
 
         return CoresSimpleResponse(cores=cores, total=total)
 
