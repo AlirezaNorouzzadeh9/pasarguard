@@ -34,6 +34,17 @@ class GeoFilseRegion(str, Enum):
     russia = "russia"
 
 
+class OpenVPNListenerOverride(BaseModel):
+    """One OpenVPN endpoint a specific node should listen on.
+
+    Lets several nodes share a single OpenVPN core while each binds its own
+    ports — or its own mix of UDP and TCP. Omitting ``proto`` keeps the core's.
+    """
+
+    port: int = Field(ge=1, le=65535)
+    proto: str | None = Field(default=None, pattern="^(udp|tcp)$")
+
+
 class NodeSettings(BaseModel):
     min_node_version: str = "v1.0.0"
 
@@ -49,7 +60,10 @@ class Node(BaseModel):
     keep_alive: int
     core_config_id: int
     additional_core_config_ids: list[int] | None = Field(default=None)
-    port_overrides: dict[str, int] | None = Field(default=None)
+    # Per-node listen overrides, keyed by core id. A value is either a single
+    # port, or — for OpenVPN — this node's own endpoints, e.g.
+    # {"2": [{"port": 1194, "proto": "udp"}, {"port": 1195, "proto": "tcp"}]}.
+    port_overrides: dict[str, int | list[OpenVPNListenerOverride]] | None = Field(default=None)
     api_key: str
     data_limit: int = Field(default=0)
     data_limit_reset_strategy: DataLimitResetStrategy = Field(default=DataLimitResetStrategy.no_reset)

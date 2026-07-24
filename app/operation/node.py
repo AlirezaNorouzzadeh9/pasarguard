@@ -221,21 +221,59 @@ class NodeOperation(BaseOperation):
             asyncio.create_task(notification.error_node(node_notif))
 
     @staticmethod
-    def _port_override_for(node: Node, core_id: int | None) -> int | None:
-        """The per-node listen-port override for a given core, if any."""
+    def _port_override_for(node: Node, core_id: int | None):
+        """The per-node listen override for a given core, if any.
+
+        Two shapes are accepted:
+
+        * ``1195`` — a single port, as before.
+        * ``[{"port": 1194, "proto": "udp"}, ...]`` — this node's own set of
+          OpenVPN endpoints, letting one shared core listen on different
+          ports (or a different UDP/TCP mix) per node.
+
+        Anything malformed is ignored so a bad override can never stop a node
+        from starting.
+        """
         overrides = node.port_overrides or {}
         if core_id is None:
             return None
         val = overrides.get(str(core_id))
-        return val if isinstance(val, int) and 0 < val <= 65535 else None
+
+        if isinstance(val, int):
+            return val if 0 < val <= 65535 else None
+
+        if isinstance(val, list):
+            listeners = []
+            for entry in val:
+                if not isinstance(entry, dict):
+                    return None
+                port = entry.get("port")
+                if not isinstance(port, int) or not 0 < port <= 65535:
+                    return None
+                listener = {"port": port}
+                proto = entry.get("proto")
+                if proto is not None:
+                    proto = str(proto).strip().lower()
+                    if proto not in ("udp", "tcp"):
+                        return None
+                    listener["proto"] = proto
+                listeners.append(listener)
+            return listeners or None
+
+        return None
 
     @staticmethod
-    def _config_with_port(core, port: int | None) -> str:
-        """Serialize a core config, overriding its listen port for this node.
+    def _config_with_port(core, port) -> str:
+        """Serialize a core config, overriding its listen ports for this node.
 
         openvpn/wireguard keep the listen port inside their config JSON, so a
         per-node override is a simple parse -> set -> dump (no mutation of the
         shared cached core object). Other backends are returned unchanged.
+
+        ``port`` is whatever _port_override_for returned: a single port, or a
+        list of OpenVPN endpoints for this node. A single port applied to a
+        multi-listener core moves only its first endpoint — the rest keep the
+        core's ports — so use the list form to place them all.
         """
         config = core.to_str()
         if port is None:
@@ -246,10 +284,29 @@ class NodeOperation(BaseOperation):
             data = json.loads(config)
         except (ValueError, TypeError):
             return config
-        if core.type == CoreType.openvpn:
-            data["port"] = port
-        elif core.type == CoreType.wg:
-            data["listen_port"] = port
+
+        if core.type == CoreType.wg:
+            # WireGuard has a single listener; a list override is meaningless.
+            if isinstance(port, int):
+                data["listen_port"] = port
+            return json.dumps(data)
+
+        if isinstance(port, list):
+            listeners = [dict(entry) for entry in port]
+            for entry in listeners:
+                entry.setdefault("proto", data.get("proto", "udp"))
+            data["listeners"] = listeners
+            data["port"] = listeners[0]["port"]
+            data["proto"] = listeners[0]["proto"]
+            return json.dumps(data)
+
+        existing = data.get("listeners")
+        if isinstance(existing, list) and existing:
+            existing = [dict(entry) for entry in existing]
+            existing[0]["port"] = port
+            data["listeners"] = existing
+            data["proto"] = existing[0].get("proto", data.get("proto", "udp"))
+        data["port"] = port
         return json.dumps(data)
 
     @staticmethod
