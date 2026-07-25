@@ -51,6 +51,9 @@ class User(BaseModel):
     auto_delete_in_days: int | None = Field(default=None)
     hwid_limit: int | None = Field(default=None)
     ip_limit: int | None = Field(default=None, ge=0)
+    # Per-direction throughput cap in kbit/s; None or 0 means no limit. Only the
+    # tunnel backends (openvpn, wireguard, l2tp/ikev2) can enforce it.
+    speed_limit: int | None = Field(default=None, ge=0)
     next_plan: NextPlanModel | None = Field(default=None)
 
 
@@ -423,6 +426,13 @@ class BulkUserFilter(BaseModel):
 
 class BulkUser(BulkUserFilter):
     amount: int
+
+
+class BulkUserSpeedLimit(BulkUserFilter):
+    # Absolute per-direction cap in kbit/s to set on every matched user; 0 clears
+    # the limit. This is a set, not an adjustment, so a whole group can be moved
+    # onto one speed.
+    speed_limit: int = Field(ge=0)
 
 
 class BulkUsersProxy(BulkUserFilter):

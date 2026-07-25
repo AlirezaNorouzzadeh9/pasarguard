@@ -14,10 +14,12 @@ from app.db import AsyncSession
 from app.db.crud.admin import get_admin
 from app.db.crud.bulk import (
     count_bulk_datalimit_targets,
+    count_bulk_speed_limit_targets,
     count_bulk_expire_targets,
     count_bulk_proxy_targets,
     reset_all_users_data_usage,
     update_users_datalimit,
+    set_users_speed_limit,
     update_users_expire,
     update_users_proxy_settings,
 )
@@ -67,6 +69,7 @@ from app.models.stats import (
 from app.models.user import (
     BulkOperationDryRunResponse,
     BulkUser,
+    BulkUserSpeedLimit,
     BulkUsersActionResponse,
     BulkUsersApplyTemplate,
     BulkUsersCreateResponse,
@@ -1634,6 +1637,7 @@ class UserOperation(BaseOperation):
             "status": template.status,
             "hwid_limit": template.hwid_limit,
             "ip_limit": template.ip_limit,
+            "speed_limit": template.speed_limit,
         }
 
         if template.status == UserStatus.active:
@@ -1938,6 +1942,17 @@ class UserOperation(BaseOperation):
             n = await count_bulk_datalimit_targets(db, bulk_model)
             return BulkOperationDryRunResponse(affected_users=n)
         users, users_count = await update_users_datalimit(db, bulk_model)
+        await sync_users(users)
+
+        if self.operator_type in (OperatorType.API, OperatorType.WEB):
+            return {"detail": f"operation has been successfuly done on {users_count} users"}
+        return users_count
+
+    async def bulk_modify_speed_limit(self, db: AsyncSession, bulk_model: BulkUserSpeedLimit):
+        if bulk_model.dry_run:
+            n = await count_bulk_speed_limit_targets(db, bulk_model)
+            return BulkOperationDryRunResponse(affected_users=n)
+        users, users_count = await set_users_speed_limit(db, bulk_model)
         await sync_users(users)
 
         if self.operator_type in (OperatorType.API, OperatorType.WEB):

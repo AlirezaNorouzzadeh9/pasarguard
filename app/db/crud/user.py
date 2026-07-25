@@ -887,6 +887,9 @@ async def create_user(
     if new_user.ip_limit is not None:
         db_user.ip_limit = new_user.ip_limit
 
+    if new_user.speed_limit is not None:
+        db_user.speed_limit = new_user.speed_limit
+
     db_user.proxy_settings = new_user.proxy_settings.dict()
 
     db.add(db_user)
@@ -922,6 +925,7 @@ async def create_users_bulk(
         db_user.on_hold_timeout = new_user.on_hold_timeout or None
         db_user.hwid_limit = new_user.hwid_limit if new_user.hwid_limit is not None else None
         db_user.ip_limit = new_user.ip_limit if new_user.ip_limit is not None else None
+        db_user.speed_limit = new_user.speed_limit if new_user.speed_limit is not None else None
         db_user.proxy_settings = new_user.proxy_settings.dict()
         db_users.append(db_user)
 
@@ -1076,6 +1080,9 @@ async def modify_user(
 
     if modify.ip_limit is not None:
         db_user.ip_limit = modify.ip_limit
+
+    if modify.speed_limit is not None:
+        db_user.speed_limit = modify.speed_limit
 
     if modify.next_plan is not None:
         db_user.next_plan = NextPlan(

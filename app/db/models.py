@@ -238,6 +238,12 @@ class User(Base, CreatedAtUTCMixin):
     # Connections this user may hold at once, across every backend and node.
     # None or 0 means no limit.
     ip_limit: Mapped[int | None] = mapped_column(BigInteger, default=None)
+    # Throughput ceiling in kbit/s, applied to each direction separately.
+    # None or 0 means no limit. Enforced on the node with tc, and only for the
+    # backends that give each client its own tunnel address (openvpn, wireguard,
+    # l2tp/ikev2) — xray and sing-box traffic cannot be told apart per user at
+    # the packet level.
+    speed_limit: Mapped[int | None] = mapped_column(BigInteger, default=None)
     edit_at: Mapped[dt | None] = mapped_column(DateTime(timezone=True), default=None)
     last_status_change: Mapped[dt | None] = mapped_column(DateTime(timezone=True), default=None)
 
@@ -451,6 +457,8 @@ class UserTemplate(Base, IdMixin):
     # Connections this user may hold at once, across every backend and node.
     # None or 0 means no limit.
     ip_limit: Mapped[int | None] = mapped_column(BigInteger, default=None)
+    # Throughput ceiling in kbit/s per direction; None or 0 means no limit.
+    speed_limit: Mapped[int | None] = mapped_column(BigInteger, default=None)
     expire_duration: Mapped[int] = mapped_column(BigInteger, default=0)  # in seconds
     on_hold_timeout: Mapped[int | None] = mapped_column(default=None)
     status: Mapped[UserStatusCreate] = mapped_column(SQLEnum(UserStatusCreate), default=UserStatusCreate.active)

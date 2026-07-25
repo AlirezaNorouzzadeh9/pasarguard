@@ -273,16 +273,18 @@ class Proxy(_message.Message):
     def __init__(self, vmess: _Optional[_Union[Vmess, _Mapping]] = ..., vless: _Optional[_Union[Vless, _Mapping]] = ..., trojan: _Optional[_Union[Trojan, _Mapping]] = ..., shadowsocks: _Optional[_Union[Shadowsocks, _Mapping]] = ..., wireguard: _Optional[_Union[Wireguard, _Mapping]] = ..., hysteria: _Optional[_Union[Hysteria, _Mapping]] = ..., openvpn: _Optional[_Union[Openvpn, _Mapping]] = ..., ikev2: _Optional[_Union[Ikev2, _Mapping]] = ...) -> None: ...
 
 class User(_message.Message):
-    __slots__ = ("email", "proxies", "inbounds", "ip_limit")
+    __slots__ = ("email", "proxies", "inbounds", "ip_limit", "speed_limit")
     EMAIL_FIELD_NUMBER: _ClassVar[int]
     PROXIES_FIELD_NUMBER: _ClassVar[int]
     INBOUNDS_FIELD_NUMBER: _ClassVar[int]
     IP_LIMIT_FIELD_NUMBER: _ClassVar[int]
+    SPEED_LIMIT_FIELD_NUMBER: _ClassVar[int]
     email: str
     proxies: Proxy
     inbounds: _containers.RepeatedScalarFieldContainer[str]
     ip_limit: int
-    def __init__(self, email: _Optional[str] = ..., proxies: _Optional[_Union[Proxy, _Mapping]] = ..., inbounds: _Optional[_Iterable[str]] = ..., ip_limit: _Optional[int] = ...) -> None: ...
+    speed_limit: int
+    def __init__(self, email: _Optional[str] = ..., proxies: _Optional[_Union[Proxy, _Mapping]] = ..., inbounds: _Optional[_Iterable[str]] = ..., ip_limit: _Optional[int] = ..., speed_limit: _Optional[int] = ...) -> None: ...
 
 class Users(_message.Message):
     __slots__ = ("users",)
