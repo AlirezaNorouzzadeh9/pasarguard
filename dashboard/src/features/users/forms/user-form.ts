@@ -52,6 +52,8 @@ const userSharedSchemaShape = {
   data_limit: z.number().min(0),
   hwid_limit: z.number().min(0).nullable().optional(),
   ip_limit: z.number().min(0).nullable().optional(),
+  // Stored in the form as Mbps; converted to kbit/s on submit.
+  speed_limit: z.number().min(0).nullable().optional(),
   expire: z.union([z.string(), z.number(), z.null()]).optional(),
   note: z.string().optional(),
   proxy_settings: proxyTableInputSchema.optional(),
@@ -102,6 +104,7 @@ export const getDefaultUserForm = async () => {
     data_limit: 0,
     hwid_limit: null,
     ip_limit: null,
+    speed_limit: 0,
     expire: '',
     note: '',
     group_ids: [],

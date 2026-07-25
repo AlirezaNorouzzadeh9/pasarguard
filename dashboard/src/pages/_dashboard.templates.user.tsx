@@ -81,6 +81,8 @@ export default function UserTemplates() {
       data_limit: bytesToFormGigabytes(userTemplate.data_limit),
       hwid_limit: userTemplate.hwid_limit ?? null,
       ip_limit: userTemplate.ip_limit ?? null,
+      // API stores kbit/s; the form works in Mbps.
+      speed_limit: userTemplate.speed_limit ? Number(userTemplate.speed_limit) / 1000 : null,
       expire_duration: userTemplate.expire_duration || undefined,
       method: userTemplate.extra_settings?.method || undefined,
       groups: userTemplate.group_ids || undefined,
@@ -105,6 +107,7 @@ export default function UserTemplates() {
           data_limit: template.data_limit,
           hwid_limit: template.hwid_limit,
           ip_limit: template.ip_limit,
+          speed_limit: template.speed_limit,
           expire_duration: template.expire_duration,
           username_prefix: template.username_prefix,
           username_suffix: template.username_suffix,

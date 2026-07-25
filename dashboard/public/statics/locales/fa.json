@@ -3589,6 +3589,11 @@
   "userDialog.ipLimitHint": "این کاربر هم‌زمان از چند جا می‌تواند وصل باشد — روی همهٔ پروتکل‌ها و همهٔ نودها روی هم. اتصال تازه‌تر همان است که رد می‌شود.",
   "templates.ipLimit": "محدودیت اتصال هم‌زمان",
   "templates.ipLimitPlaceholder": "خالی یا ۰ = نامحدود",
+  "userDialog.speedLimit": "محدودیت سرعت (مگابیت)",
+  "userDialog.speedLimitPlaceholder": "۰ = نامحدود",
+  "userDialog.speedLimitHint": "سقف سرعت به مگابیت‌برثانیه برای هر جهت — فقط OpenVPN / WireGuard / IKEv2 (نه Xray). ۰ = نامحدود.",
+  "templates.speedLimit": "محدودیت سرعت (مگابیت)",
+  "templates.speedLimitPlaceholder": "۰ = نامحدود",
   "userAllIPs.inUse": "در حال استفاده",
   "userAllIPs.noLimit": "محدودیت اتصالی تعیین نشده"
 }

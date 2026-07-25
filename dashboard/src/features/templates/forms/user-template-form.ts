@@ -14,6 +14,7 @@ const userTemplateFormObjectSchema = z.object({
   data_limit: z.number().min(0).optional(),
   hwid_limit: z.number().min(0).nullable().optional(),
   ip_limit: z.number().min(0).nullable().optional(),
+  speed_limit: z.number().min(0).nullable().optional(),
   expire_duration: z.number().min(0).max(MAX_ON_HOLD_EXPIRE_DURATION_SECONDS).optional(),
   on_hold_timeout: z.number().optional(),
   method: z
@@ -58,6 +59,7 @@ export const userTemplateFormDefaultValues: Partial<UserTemplatesFromValueInput>
   data_limit: 0,
   hwid_limit: null,
   ip_limit: null,
+  speed_limit: null,
   expire_duration: 0,
   method: ShadowsocksMethods['chacha20-ietf-poly1305'],
   on_hold_timeout: undefined,

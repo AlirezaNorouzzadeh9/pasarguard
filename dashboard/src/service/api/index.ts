@@ -858,6 +858,7 @@ export interface UserTemplateResponse {
   data_limit?: UserTemplateResponseDataLimit
   hwid_limit?: UserTemplateResponseHwidLimit
   ip_limit?: UserTemplateResponseIpLimit
+  speed_limit?: number | null
   /** expire_duration can be 0 or greater in seconds */
   expire_duration?: UserTemplateResponseExpireDuration
   username_prefix?: UserTemplateResponseUsernamePrefix
@@ -909,6 +910,7 @@ export interface UserTemplateModify {
   data_limit?: UserTemplateModifyDataLimit
   hwid_limit?: UserTemplateModifyHwidLimit
   ip_limit?: UserTemplateModifyIpLimit
+  speed_limit?: number | null
   /** expire_duration can be 0 or greater in seconds */
   expire_duration?: UserTemplateModifyExpireDuration
   username_prefix?: UserTemplateModifyUsernamePrefix
@@ -957,6 +959,7 @@ export interface UserTemplateCreate {
   data_limit?: UserTemplateCreateDataLimit
   hwid_limit?: UserTemplateCreateHwidLimit
   ip_limit?: UserTemplateCreateIpLimit
+  speed_limit?: number | null
   /** expire_duration can be 0 or greater in seconds */
   expire_duration?: UserTemplateCreateExpireDuration
   username_prefix?: UserTemplateCreateUsernamePrefix
@@ -1094,6 +1097,7 @@ export interface UserResponse {
   auto_delete_in_days?: UserResponseAutoDeleteInDays
   hwid_limit?: UserResponseHwidLimit
   ip_limit?: UserResponseIpLimit
+  speed_limit?: number | null
   next_plan?: UserResponseNextPlan
   id: number
   username: string
@@ -1162,6 +1166,7 @@ export interface UserModify {
   auto_delete_in_days?: UserModifyAutoDeleteInDays
   hwid_limit?: UserModifyHwidLimit
   ip_limit?: UserModifyIpLimit
+  speed_limit?: number | null
   next_plan?: UserModifyNextPlan
   status?: UserModifyStatus
 }
@@ -1248,6 +1253,7 @@ export interface UserCreate {
   auto_delete_in_days?: UserCreateAutoDeleteInDays
   hwid_limit?: UserCreateHwidLimit
   ip_limit?: UserCreateIpLimit
+  speed_limit?: number | null
   next_plan?: UserCreateNextPlan
   username: string
   status?: UserCreateStatus
