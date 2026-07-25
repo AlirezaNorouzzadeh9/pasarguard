@@ -17,7 +17,7 @@ from app.db.models import (
     users_groups_association,
 )
 from app.models.group import BulkGroup
-from app.models.user import BulkUser, BulkUserFilter, BulkUsersProxy
+from app.models.user import BulkUser, BulkUserFilter, BulkUsersProxy, BulkUserSpeedLimit
 
 from .general import get_datetime_add_expression
 from .user import load_user_attrs
@@ -256,6 +256,34 @@ async def count_bulk_datalimit_targets(db: AsyncSession, bulk_model: BulkUser) -
             select(func.count(User.id)).where(and_(final_filter, User.data_limit.isnot(None), User.data_limit != 0))
         )
     ).scalar_one_or_none() or 0
+
+
+async def count_bulk_speed_limit_targets(db: AsyncSession, bulk_model) -> int:
+    final_filter = _create_final_filter(bulk_model)
+    return (await db.execute(select(func.count(User.id)).where(final_filter))).scalar_one_or_none() or 0
+
+
+async def set_users_speed_limit(db: AsyncSession, bulk_model) -> tuple[list[User], int]:
+    """Set speed_limit on every matched user and return them for a node resync.
+
+    Unlike the data-limit bulk op this is an absolute set with no status side
+    effects, so it just writes the value and hands back the affected users so
+    the shaper on each node is updated.
+    """
+    final_filter = _create_final_filter(bulk_model)
+
+    count = (await db.execute(select(func.count(User.id)).where(final_filter))).scalar_one_or_none() or 0
+    if count == 0:
+        return [], 0
+
+    await db.execute(update(User).where(final_filter).values(speed_limit=bulk_model.speed_limit or 0))
+    await db.commit()
+
+    result = await db.execute(select(User).where(final_filter))
+    users = result.scalars().all()
+    for user in users:
+        await load_user_attrs(user, load_admin_role=True)
+    return list(users), count
 
 
 async def count_bulk_proxy_targets(db: AsyncSession, bulk_model: BulkUsersProxy) -> int:

@@ -224,6 +224,9 @@ class User(Base, CreatedAtUTCMixin):
     data_limit: Mapped[Optional[int]] = mapped_column(BigInteger, default=None)
     # Max simultaneous connections/devices (distinct source IPs); 0/None = unlimited.
     ip_limit: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0", nullable=False)
+    # Per-direction throughput cap in kbit/s; 0 = unlimited. Enforced on the node
+    # with tc, and only for the tunnel backends (openvpn/wireguard/ikev2).
+    speed_limit: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0", nullable=False)
     data_limit_reset_strategy: Mapped[DataLimitResetStrategy] = mapped_column(
         SQLEnum(DataLimitResetStrategy),
         default=DataLimitResetStrategy.no_reset,
