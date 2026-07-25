@@ -12,7 +12,7 @@ from google.protobuf.internal import builder as _builder
 _runtime_version.ValidateProtobufRuntimeVersion(
     _runtime_version.Domain.PUBLIC,
     7,
-    35,
+    34,
     1,
     '',
     'PasarGuardNodeBridge/common/service.proto'
