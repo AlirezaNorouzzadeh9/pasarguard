@@ -200,6 +200,7 @@ const buildUserEditFormValues = (user: UserResponse): UseEditFormValues => ({
   data_limit: user.data_limit ? bytesToFormGigabytes(Number(user.data_limit)) : 0,
   hwid_limit: user.hwid_limit ?? null,
   ip_limit: user.ip_limit ?? 0,
+  speed_limit: user.speed_limit ? Number(user.speed_limit) / 1000 : 0,
   expire: normalizeDatePickerValueForEditForm(user.expire),
   note: user.note || '',
   data_limit_reset_strategy: user.data_limit_reset_strategy || undefined,
