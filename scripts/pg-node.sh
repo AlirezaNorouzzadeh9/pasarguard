@@ -689,34 +689,15 @@ read_and_save_file() {
 # in the panel. Answers land in the BACKEND_* variables consumed by
 # write_backend_env below.
 #
-# OpenVPN/WireGuard listen ports are defined in the panel's core config, not
-# here — the port asked for is used to open this node's firewall and is echoed
-# at the end as the value to match in the panel.
+# Listen ports are NOT asked here: OpenVPN and WireGuard get their ports from
+# the panel's core config (a node can run several cores, each on its own port),
+# so there is no single port to fix at install time. Open whatever ports your
+# cores use in the firewall yourself if one is active. IKEv2 is the exception —
+# it always uses the standard IPsec ports (500/4500), so those are handled.
 # Treat only an explicit no as no, so pressing Enter accepts the default (yes).
 # Matching a bare "n" alone used to let a typed "no" through as a yes.
 answer_is_no() {
     [[ "${1,,}" =~ ^(n|no)$ ]]
-}
-
-# Read a port, echoing the chosen value. An empty answer takes the default;
-# with a third argument it may instead stay empty (an optional endpoint).
-ask_port() {
-    local label="$1" default="$2" allow_empty="${3:-}" value=""
-    local hint="default ${default}"
-    [ -n "$allow_empty" ] && hint="empty to skip"
-    while true; do
-        read -p "${label} (${hint}): " -r value
-        value="${value// /}"
-        if [ -z "$value" ]; then
-            printf '%s' "$default"
-            return 0
-        fi
-        if [[ "$value" =~ ^[0-9]+$ ]] && [ "$value" -ge 1 ] && [ "$value" -le 65535 ]; then
-            printf '%s' "$value"
-            return 0
-        fi
-        colorized_echo red "  Invalid port. Enter a number between 1 and 65535." >&2
-    done
 }
 
 prompt_for_backends() {
@@ -724,11 +705,6 @@ prompt_for_backends() {
     BACKEND_OPENVPN="${BACKEND_OPENVPN:-yes}"
     BACKEND_WIREGUARD="${BACKEND_WIREGUARD:-yes}"
     BACKEND_IKEV2="${BACKEND_IKEV2:-yes}"
-    BACKEND_OPENVPN_PORT="${BACKEND_OPENVPN_PORT:-1194}"
-    # Optional second OpenVPN endpoint. One OpenVPN process binds a single
-    # port/protocol, so a core that also serves TCP runs a second server.
-    BACKEND_OPENVPN_TCP_PORT="${BACKEND_OPENVPN_TCP_PORT:-}"
-    BACKEND_WIREGUARD_PORT="${BACKEND_WIREGUARD_PORT:-51820}"
     BACKEND_IKEV2_DOMAIN="${BACKEND_IKEV2_DOMAIN:-}"
 
     # -y keeps the run non-interactive: every backend stays enabled.
@@ -748,21 +724,10 @@ prompt_for_backends() {
     answer_is_no "$answer" && BACKEND_XRAY="no"
 
     read -p "Run OpenVPN on this node? (Y/n): " -r answer
-    if answer_is_no "$answer"; then
-        BACKEND_OPENVPN="no"
-    else
-        BACKEND_OPENVPN_PORT="$(ask_port '  OpenVPN UDP port' 1194)"
-        colorized_echo yellow "  OpenVPN can also listen on TCP, which helps where UDP is throttled."
-        colorized_echo yellow "  It runs as a second server on its own port; leave empty to serve UDP only."
-        BACKEND_OPENVPN_TCP_PORT="$(ask_port '  OpenVPN TCP port' '' allow_empty)"
-    fi
+    answer_is_no "$answer" && BACKEND_OPENVPN="no"
 
     read -p "Run WireGuard on this node? (Y/n): " -r answer
-    if answer_is_no "$answer"; then
-        BACKEND_WIREGUARD="no"
-    else
-        BACKEND_WIREGUARD_PORT="$(ask_port '  WireGuard port' 51820)"
-    fi
+    answer_is_no "$answer" && BACKEND_WIREGUARD="no"
 
     read -p "Run IKEv2/IPsec on this node? (Y/n): " -r answer
     if answer_is_no "$answer"; then
@@ -810,32 +775,43 @@ write_backend_env() {
     return 0
 }
 
-# Best-effort: open the VPN ports on whichever firewall is active. A node with
-# no firewall running needs nothing here.
+# Best-effort: open the ports we can know at install time on whichever firewall
+# is active. Only IKEv2 has fixed ports (the standard IPsec 500/4500, plus 80
+# for its HTTP-01 certificate challenge). OpenVPN/WireGuard ports come from the
+# panel cores and vary per node, so they're the operator's job — we just remind.
 open_backend_firewall_ports() {
     local ports=()
-    if [ "${BACKEND_OPENVPN:-yes}" != "no" ]; then
-        ports+=("${BACKEND_OPENVPN_PORT:-1194}/udp")
-        [ -n "${BACKEND_OPENVPN_TCP_PORT:-}" ] && ports+=("${BACKEND_OPENVPN_TCP_PORT}/tcp")
-    fi
-    [ "${BACKEND_WIREGUARD:-yes}" != "no" ] && ports+=("${BACKEND_WIREGUARD_PORT:-51820}/udp")
     if [ "${BACKEND_IKEV2:-yes}" != "no" ]; then
         ports+=("500/udp" "4500/udp")
-        # HTTP-01 challenge for the node's own certificate.
         [ -n "${BACKEND_IKEV2_DOMAIN:-}" ] && ports+=("80/tcp")
     fi
-    [ ${#ports[@]} -eq 0 ] && return 0
 
-    local p=""
+    local fw=""
     if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -qi '^Status: active'; then
-        colorized_echo blue "Opening VPN ports in ufw"
-        for p in "${ports[@]}"; do ufw allow "$p" >/dev/null 2>&1 || true; done
+        fw="ufw"
     elif command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
-        colorized_echo blue "Opening VPN ports in firewalld"
-        for p in "${ports[@]}"; do firewall-cmd --permanent --add-port="${p/\//-}" >/dev/null 2>&1 || true; done
-        firewall-cmd --reload >/dev/null 2>&1 || true
-    else
-        colorized_echo yellow "No active ufw/firewalld detected — make sure these are reachable: ${ports[*]}"
+        fw="firewalld"
+    fi
+
+    if [ -n "$fw" ] && [ ${#ports[@]} -gt 0 ]; then
+        colorized_echo blue "Opening IKEv2 ports in $fw"
+        local p=""
+        for p in "${ports[@]}"; do
+            if [ "$fw" = "ufw" ]; then
+                ufw allow "$p" >/dev/null 2>&1 || true
+            else
+                firewall-cmd --permanent --add-port="${p/\//-}" >/dev/null 2>&1 || true
+            fi
+        done
+        [ "$fw" = "firewalld" ] && firewall-cmd --reload >/dev/null 2>&1 || true
+    fi
+
+    # Remind about the ports we can't know here.
+    if [ "$fw" = "ufw" ] || [ "$fw" = "firewalld" ]; then
+        if [ "${BACKEND_OPENVPN:-yes}" != "no" ] || [ "${BACKEND_WIREGUARD:-yes}" != "no" ]; then
+            colorized_echo yellow "Firewall active ($fw): open your OpenVPN/WireGuard core ports manually,"
+            colorized_echo yellow "  e.g. '$fw allow 1194/udp' — the port is whatever you set in the panel core."
+        fi
     fi
     return 0
 }
@@ -852,18 +828,12 @@ print_backend_summary() {
     if [ "${BACKEND_OPENVPN:-yes}" = "no" ]; then
         colorized_echo green "  OpenVPN:   disabled"
     else
-        colorized_echo green "  OpenVPN:   enabled — ${BACKEND_OPENVPN_PORT:-1194}/udp$([ -n "${BACKEND_OPENVPN_TCP_PORT:-}" ] && echo " + ${BACKEND_OPENVPN_TCP_PORT}/tcp")"
-        if [ -n "${BACKEND_OPENVPN_TCP_PORT:-}" ]; then
-            colorized_echo yellow "             Give the panel's OpenVPN core both endpoints:"
-            colorized_echo yellow "             \"listeners\": [{\"port\": ${BACKEND_OPENVPN_PORT:-1194}, \"proto\": \"udp\"}, {\"port\": ${BACKEND_OPENVPN_TCP_PORT}, \"proto\": \"tcp\"}]"
-        else
-            colorized_echo yellow "             Set the same port in the panel's OpenVPN core."
-        fi
+        colorized_echo green "  OpenVPN:   enabled — port(s) set in the panel's OpenVPN core"
     fi
     if [ "${BACKEND_WIREGUARD:-yes}" = "no" ]; then
         colorized_echo green "  WireGuard: disabled"
     else
-        colorized_echo green "  WireGuard: enabled — port ${BACKEND_WIREGUARD_PORT:-51820}/udp (must equal the core's listen_port)"
+        colorized_echo green "  WireGuard: enabled — port(s) set in the panel's WireGuard core(s)"
     fi
     if [ "${BACKEND_IKEV2:-yes}" = "no" ]; then
         colorized_echo green "  IKEv2:     disabled"
@@ -1250,18 +1220,6 @@ install_command() {
         --no-ikev2)
             BACKEND_IKEV2="no"
             shift
-            ;;
-        --openvpn-port)
-            BACKEND_OPENVPN_PORT="$2"
-            shift 2
-            ;;
-        --openvpn-tcp-port)
-            BACKEND_OPENVPN_TCP_PORT="$2"
-            shift 2
-            ;;
-        --wireguard-port | --wg-port)
-            BACKEND_WIREGUARD_PORT="$2"
-            shift 2
             ;;
         --ikev2-domain)
             if ! is_domain "${2:-}"; then
