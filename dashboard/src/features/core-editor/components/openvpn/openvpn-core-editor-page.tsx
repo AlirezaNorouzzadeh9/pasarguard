@@ -30,6 +30,7 @@ interface OpenVPNFormValues {
   port: string
   proto: 'udp' | 'tcp'
   server_subnet: string
+  egress_interface: string
   cipher: string
   duplicate_cn: boolean
   keepalive: string
@@ -53,6 +54,7 @@ function defaultValues(): OpenVPNFormValues {
     port: '1194',
     proto: 'udp',
     server_subnet: '10.29.0.0/16',
+    egress_interface: '',
     cipher: 'AES-256-GCM',
     duplicate_cn: true,
     keepalive: '10 60',
@@ -71,6 +73,7 @@ function configToFormValues(config: Record<string, unknown>): OpenVPNFormValues 
     port: String(config.port ?? d.port),
     proto: config.proto === 'tcp' ? 'tcp' : 'udp',
     server_subnet: String(config.server_subnet ?? d.server_subnet),
+    egress_interface: String(config.egress_interface ?? d.egress_interface),
     cipher: String(config.cipher ?? d.cipher),
     duplicate_cn: config.duplicate_cn !== false,
     keepalive: String(config.keepalive ?? d.keepalive),
@@ -148,6 +151,7 @@ export default function OpenVPNCoreEditorPage() {
     port: Number(v.port),
     proto: v.proto,
     server_subnet: v.server_subnet.trim(),
+    egress_interface: v.egress_interface.trim(),
     cipher: v.cipher,
     data_ciphers: splitLines(v.data_ciphers),
     duplicate_cn: v.duplicate_cn,
@@ -426,6 +430,24 @@ export default function OpenVPNCoreEditorPage() {
                     <FormControl>
                       <Input dir="ltr" className="text-xs" placeholder="10.29.0.0/16" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="egress_interface"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{lbl('egress_interface', 'Egress interface (optional)')}</FormLabel>
+                    <FormControl>
+                      <Input dir="ltr" className="text-xs" placeholder="wg-de" {...field} />
+                    </FormControl>
+                    <p className="text-muted-foreground text-[11px]">
+                      {t('coreEditor.openvpn.egressHint', {
+                        defaultValue: "Route this core's traffic out a specific interface on the node (e.g. an upstream tunnel). Leave empty for the default route.",
+                      })}
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )}

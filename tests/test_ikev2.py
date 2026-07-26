@@ -35,6 +35,58 @@ def test_ikev2_config_validates_and_hides_key():
     assert "server_key" not in meta and "ca_key" not in meta
 
 
+def test_ikev2_egress_interface_round_trips():
+    import json
+
+    ca_cert, _, server_cert, server_key = _material()
+    cfg = IKEv2Config(
+        {
+            "inbound_tag": "ikev2-main",
+            "server_addr": "172.234.115.84",
+            "pool": "10.30.0.0/24",
+            "egress_interface": "wg-de",
+            "ca_cert": ca_cert,
+            "server_cert": server_cert,
+            "server_key": server_key,
+        }
+    )
+    # Serialized config sent to the node carries the egress interface.
+    assert json.loads(cfg.to_str())["egress_interface"] == "wg-de"
+    # And it is broadcast in the inbound metadata.
+    assert cfg.inbounds_by_tag["ikev2-main"]["egress_interface"] == "wg-de"
+
+
+def test_ikev2_egress_interface_defaults_empty():
+    ca_cert, _, server_cert, server_key = _material()
+    cfg = IKEv2Config(
+        {
+            "inbound_tag": "ikev2-main",
+            "server_addr": "172.234.115.84",
+            "pool": "10.30.0.0/24",
+            "ca_cert": ca_cert,
+            "server_cert": server_cert,
+            "server_key": server_key,
+        }
+    )
+    assert cfg["egress_interface"] == ""
+
+
+def test_ikev2_egress_interface_rejects_bad_name():
+    ca_cert, _, server_cert, server_key = _material()
+    with pytest.raises(ValueError):
+        IKEv2Config(
+            {
+                "inbound_tag": "ikev2-main",
+                "server_addr": "172.234.115.84",
+                "pool": "10.30.0.0/24",
+                "egress_interface": "bad name; rm -rf",
+                "ca_cert": ca_cert,
+                "server_cert": server_cert,
+                "server_key": server_key,
+            }
+        )
+
+
 def test_ikev2_config_requires_material():
     with pytest.raises(ValueError):
         IKEv2Config({"inbound_tag": "ikev2-main", "server_addr": "1.2.3.4", "pool": "10.30.0.0/24"})

@@ -331,6 +331,31 @@ export function WireGuardCoreForm({ className }: { className?: string }) {
             }
             return null
           })}
+          <FormItem className="sm:col-span-2">
+            <FormLabel>{wireGuardFieldLabel('egressInterface', 'Egress interface (optional)', t)}</FormLabel>
+            <FormControl>
+              <Input
+                dir="ltr"
+                className="text-xs"
+                placeholder="wg-de"
+                value={String((draft.extra?.egress_interface as string) ?? '')}
+                onChange={e => {
+                  const val = e.target.value
+                  updateWgDraft(d => {
+                    const extra = { ...(d.extra ?? {}) }
+                    if (val.trim()) extra.egress_interface = val.trim()
+                    else delete extra.egress_interface
+                    return { ...d, extra }
+                  })
+                }}
+              />
+            </FormControl>
+            <p className="text-muted-foreground text-[11px]">
+              {t('coreEditor.wg.egressHint', {
+                defaultValue: "Route this core's traffic out a specific interface on the node (e.g. an upstream tunnel). Leave empty for the default route.",
+              })}
+            </p>
+          </FormItem>
         </div>
       </form>
     </Form>

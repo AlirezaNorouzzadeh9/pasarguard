@@ -93,6 +93,16 @@ class WireGuardConfig(dict):
             normalized_addresses.append(str(ip_interface(cidr.strip())))
         self["address"] = normalized_addresses
 
+        # Optional per-node egress: route this core's subnet out a specific
+        # interface on the node (e.g. an upstream wg-de tunnel). The node does
+        # the policy routing; here we just validate the interface name.
+        egress = str(self.get("egress_interface") or "").strip()
+        if egress and not re.fullmatch(r"[A-Za-z0-9._@-]{1,15}", egress):
+            raise ValueError(
+                "egress_interface must be a valid interface name (letters, digits, '.', '_', '-', '@'; max 15 chars)"
+            )
+        self["egress_interface"] = egress
+
     def _resolve_inbounds(self):
         interface_name = self["interface_name"]
         metadata = {
@@ -103,6 +113,7 @@ class WireGuardConfig(dict):
             "interface_name": interface_name,
             "listen_port": self["listen_port"],
             "address": list(self["address"]),
+            "egress_interface": self.get("egress_interface", ""),
             "public_key": self.get("public_key", ""),
             "private_key": self.get("private_key", ""),
             "pre_shared_key": self.get("pre_shared_key", ""),

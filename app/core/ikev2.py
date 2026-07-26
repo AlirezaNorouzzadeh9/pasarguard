@@ -116,6 +116,16 @@ class IKEv2Config(dict):
             raise ValueError("pool is required")
         self["pool"] = str(ip_network(pool, strict=False))
 
+        # Optional per-node egress: route this core's subnet out a specific
+        # interface on the node (e.g. an upstream wg-de tunnel). The node does
+        # the policy routing; here we just validate the interface name.
+        egress = str(self.get("egress_interface") or "").strip()
+        if egress and not re.fullmatch(r"[A-Za-z0-9._@-]{1,15}", egress):
+            raise ValueError(
+                "egress_interface must be a valid interface name (letters, digits, '.', '_', '-', '@'; max 15 chars)"
+            )
+        self["egress_interface"] = egress
+
         dns = self.get("dns") or ["1.1.1.1", "8.8.8.8"]
         if not isinstance(dns, list) or not all(isinstance(d, str) for d in dns):
             raise ValueError("dns must be a list of strings")
@@ -145,6 +155,7 @@ class IKEv2Config(dict):
             "server_addr": self["server_addr"],
             "identity": self["identity"],
             "pool": self["pool"],
+            "egress_interface": self.get("egress_interface", ""),
             "dns": list(self.get("dns", [])),
             "ca_cert": self.get("ca_cert", ""),
         }

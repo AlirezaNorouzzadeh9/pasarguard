@@ -27,6 +27,7 @@ interface IKEv2FormValues {
   server_addr: string
   identity: string
   pool: string
+  egress_interface: string
   dns: string
   ike_proposals: string
   esp_proposals: string
@@ -45,6 +46,7 @@ function defaultValues(): IKEv2FormValues {
     server_addr: '',
     identity: '',
     pool: '10.30.0.0/24',
+    egress_interface: '',
     dns: '1.1.1.1\n8.8.8.8',
     ike_proposals: 'aes256-sha256-modp2048\naes128-sha256-modp2048',
     esp_proposals: 'aes256-sha256\naes128-sha256',
@@ -58,6 +60,7 @@ function configToFormValues(config: Record<string, unknown>): IKEv2FormValues {
     server_addr: String(config.server_addr ?? ''),
     identity: String(config.identity ?? ''),
     pool: String(config.pool ?? d.pool),
+    egress_interface: String(config.egress_interface ?? ''),
     dns: Array.isArray(config.dns) ? (config.dns as string[]).join('\n') : d.dns,
     ike_proposals: Array.isArray(config.ike_proposals) ? (config.ike_proposals as string[]).join('\n') : d.ike_proposals,
     esp_proposals: Array.isArray(config.esp_proposals) ? (config.esp_proposals as string[]).join('\n') : d.esp_proposals,
@@ -126,6 +129,7 @@ export default function IKEv2CoreEditorPage() {
     server_addr: v.server_addr.trim(),
     identity: v.identity.trim() || v.server_addr.trim(),
     pool: v.pool.trim(),
+    egress_interface: v.egress_interface.trim(),
     dns: splitLines(v.dns),
     ike_proposals: splitLines(v.ike_proposals),
     esp_proposals: splitLines(v.esp_proposals),
@@ -313,6 +317,24 @@ export default function IKEv2CoreEditorPage() {
                     <FormControl>
                       <Input dir="ltr" className="text-xs" placeholder="10.30.0.0/24" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="egress_interface"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{lbl('egress_interface', 'Egress interface (optional)')}</FormLabel>
+                    <FormControl>
+                      <Input dir="ltr" className="text-xs" placeholder="wg-de" {...field} />
+                    </FormControl>
+                    <p className="text-muted-foreground text-[11px]">
+                      {t('coreEditor.ikev2.egressHint', {
+                        defaultValue: "Route this core's traffic out a specific interface on the node (e.g. an upstream tunnel). Leave empty for the default route.",
+                      })}
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )}
