@@ -845,6 +845,7 @@ class CoreType(str, Enum):
     singbox = "singbox"
     openvpn = "openvpn"
     ikev2 = "ikev2"
+    l2tp = "l2tp"
 
 
 class CoreConfig(Base, CreatedAtUTCMixin):

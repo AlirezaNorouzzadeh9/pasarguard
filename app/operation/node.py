@@ -75,6 +75,7 @@ _BACKEND_TYPE_BY_CORE = {
     CoreType.wg: service.BackendType.WIREGUARD,
     CoreType.openvpn: service.BackendType.OPENVPN,
     CoreType.ikev2: service.BackendType.IKEV2,
+    CoreType.l2tp: service.BackendType.L2TP,
 }
 
 # Inverse: a node reports available_backends as BackendType enum values; map them
@@ -84,6 +85,7 @@ _CORE_STR_BY_BACKEND_TYPE = {
     int(service.BackendType.WIREGUARD): CoreType.wg.value,
     int(service.BackendType.OPENVPN): CoreType.openvpn.value,
     int(service.BackendType.IKEV2): CoreType.ikev2.value,
+    int(service.BackendType.L2TP): CoreType.l2tp.value,
 }
 
 
