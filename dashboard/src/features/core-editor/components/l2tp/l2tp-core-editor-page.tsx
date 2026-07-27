@@ -36,7 +36,7 @@ function splitLines(v: string): string[] {
     .filter(Boolean)
 }
 
-function randomPSK(len = 24): string {
+function randomPSK(len = 12): string {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
   const bytes = new Uint8Array(len)
   globalThis.crypto.getRandomValues(bytes)

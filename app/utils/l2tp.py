@@ -18,7 +18,7 @@ from app.core.manager import core_manager
 _PSK_ALPHABET = string.ascii_letters + string.digits
 
 
-def _random_psk(length: int = 32) -> str:
+def _random_psk(length: int = 12) -> str:
     return "".join(secrets.choice(_PSK_ALPHABET) for _ in range(length))
 
 
