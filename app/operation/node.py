@@ -898,14 +898,33 @@ class NodeOperation(BaseOperation):
     async def _disconnect_single_node_remote(self, node_id: int) -> None:
         await node_nats_client.publish("disconnect_node", {"node_id": node_id})
 
+    @staticmethod
+    def node_runs_core(node: Node, core_id: int) -> bool:
+        """True if the node runs ``core_id`` as its primary or an additional core.
+
+        A node's VPN cores (openvpn/wireguard/ikev2) usually run as *additional*
+        backends alongside a primary xray core. Filtering by ``core_config_id``
+        alone (as the ``core_id`` SQL filter does) therefore misses them, which
+        silently skipped "Restart Nodes" whenever an additional core was edited —
+        so an egress/config change never reached the running backend.
+        """
+        if node.core_config_id == core_id:
+            return True
+        if core_id == 1 and node.core_config_id is None:
+            return True
+        return core_id in (node.additional_core_config_ids or [])
+
     async def _restart_all_nodes_local(self, db: AsyncSession, admin: AdminDetails, core_id: int | None) -> None:
+        # Fetch by status only and match the core in Python: the SQL ``core_id``
+        # filter looks at the primary core alone, so additional cores were missed.
         nodes, _ = await get_nodes(
             db,
             query=NodeListQuery(
-                core_id=core_id,
                 status=[NodeStatus.connected, NodeStatus.connecting, NodeStatus.error],
             ),
         )
+        if core_id is not None:
+            nodes = [node for node in nodes if self.node_runs_core(node, core_id)]
         await self.connect_nodes_bulk(db, nodes)
 
     async def _restart_all_nodes_remote(self, db: AsyncSession, admin: AdminDetails, core_id: int | None) -> None:

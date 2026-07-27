@@ -182,13 +182,17 @@ class NodeWorkerService(BaseRpcService):
             if node_ids:
                 nodes, _ = await get_nodes(db, query=NodeListQuery(ids=node_ids))
             else:
+                # Match by status only, then filter core membership in Python: the
+                # SQL core_id filter matches the primary core alone and misses
+                # additional cores (openvpn/wireguard/ikev2 usually run as extras).
                 nodes, _ = await get_nodes(
                     db,
                     query=NodeListQuery(
-                        core_id=core_id,
                         status=[NodeStatus.connected, NodeStatus.connecting, NodeStatus.error],
                     ),
                 )
+                if core_id is not None:
+                    nodes = [node for node in nodes if NodeOperation.node_runs_core(node, core_id)]
             await self._node_operator.connect_nodes_bulk(db, nodes)
 
     async def _disconnect_node(self, data: dict):
