@@ -181,7 +181,10 @@ async def _prepare_subscription_inbound_data(
             else None,
         )
 
-    if protocol == "ikev2":
+    # IKEv2 and L2TP hosts share this address-only shape; the branch fills both
+    # the ikev2_* and l2tp_* fields from the inbound metadata (only the ones that
+    # exist for the actual protocol are non-empty).
+    if protocol in ("ikev2", "l2tp"):
         return SubscriptionInboundData(
             remark=host.remark,
             inbound_tag=host.inbound_tag,
