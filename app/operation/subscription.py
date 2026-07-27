@@ -559,6 +559,27 @@ class SubscriptionOperation(BaseOperation):
                         for remark, content in await generate_wireguard_configs(user, sub_settings.randomize_order)
                     ]
 
+            # Best-effort live "connected devices" count — only for users that
+            # carry a device limit, and never allowed to block the page (a short
+            # timeout falls back to no live data if the nodes are slow).
+            online_count = 0
+            if user.ip_limit:
+                try:
+                    import asyncio as _asyncio
+
+                    from app.routers.node import node_operator as _node_op
+
+                    _ipall = await _asyncio.wait_for(
+                        _node_op.get_user_ip_list_all_nodes(db, db_user.id), timeout=2.0
+                    )
+                    _seen: set[str] = set()
+                    for _ipl in (_ipall.nodes or {}).values():
+                        if _ipl:
+                            _seen.update((_ipl.ips or {}).keys())
+                    online_count = len(_seen)
+                except Exception:
+                    online_count = 0
+
             return HTMLResponse(
                 render_template(
                     template,
@@ -576,6 +597,7 @@ class SubscriptionOperation(BaseOperation):
                         openvpn_configs,
                         wireguard_configs,
                         l2tp_details,
+                        online_count,
                     ),
                 )
             )
@@ -723,9 +745,11 @@ class SubscriptionOperation(BaseOperation):
         openvpn_configs: list[dict] | None = None,
         wireguard_configs: list[dict] | None = None,
         l2tp_details: list[dict] | None = None,
+        online_count: int = 0,
     ) -> dict[str, Any]:
         return {
             "user": SubscriptionUserResponse.model_validate(user),
+            "online_count": online_count,
             "links": links,
             "announce": formatted_announce,
             "announce_url": sub_settings.announce_url,
