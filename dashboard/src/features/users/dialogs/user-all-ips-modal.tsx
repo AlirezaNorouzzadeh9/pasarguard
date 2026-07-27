@@ -32,6 +32,7 @@ const PROTOCOL_LABELS: Record<string, string> = {
   openvpn: 'OpenVPN',
   wg: 'WireGuard',
   ikev2: 'IKEv2',
+  l2tp: 'L2TP',
 }
 
 interface UserAllIPsModalProps {

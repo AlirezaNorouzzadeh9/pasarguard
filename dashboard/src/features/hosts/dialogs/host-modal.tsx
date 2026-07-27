@@ -360,7 +360,7 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
   const [wireguardOpenSection, setWireguardOpenSection] = useState<string | undefined>(undefined)
   const [openvpnOpenSection, setOpenvpnOpenSection] = useState<string | undefined>(undefined)
   const [isTransportOpen, setIsTransportOpen] = useState(false)
-  const [resolvedHostMode, setResolvedHostMode] = useState<'xray' | 'wireguard' | 'openvpn' | 'ikev2'>('xray')
+  const [resolvedHostMode, setResolvedHostMode] = useState<'xray' | 'wireguard' | 'openvpn' | 'ikev2' | 'l2tp'>('xray')
   const { t } = useTranslation()
   const dir = useDirDetection()
   const isMobile = useIsMobile()
@@ -727,10 +727,12 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
   const isWireGuardInbound = selectedInbound?.protocol === 'wireguard'
   const isOpenVPNInbound = selectedInbound?.protocol === 'openvpn'
   const isIKEv2Inbound = selectedInbound?.protocol === 'ikev2'
+  const isL2TPInbound = selectedInbound?.protocol === 'l2tp'
   const isInboundModeResolved = !isDialogOpen || !selectedInboundTag || !!selectedInbound || !isLoadingInbounds
   const shouldRenderWireGuardLayout = resolvedHostMode === 'wireguard'
   const shouldRenderOpenVPNLayout = resolvedHostMode === 'openvpn'
   const shouldRenderIKEv2Layout = resolvedHostMode === 'ikev2'
+  const shouldRenderL2TPLayout = resolvedHostMode === 'l2tp'
 
   // Update the hosts query to refetch only when needed (not on dialog open)
   const { data: hosts = [], isLoading: isLoadingHosts } = useQuery({
@@ -779,6 +781,8 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
         setResolvedHostMode('openvpn')
       } else if (selectedInbound.protocol === 'ikev2') {
         setResolvedHostMode('ikev2')
+      } else if (selectedInbound.protocol === 'l2tp') {
+        setResolvedHostMode('l2tp')
       } else {
         setResolvedHostMode('xray')
       }
@@ -1003,8 +1007,8 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
           }
           payload.openvpn_overrides = Object.keys(next).length > 0 ? next : undefined
         }
-      } else if (isIKEv2Inbound) {
-        // IKEv2 hosts only advertise an address; none of the Xray transport,
+      } else if (isIKEv2Inbound || isL2TPInbound) {
+        // IKEv2/L2TP hosts only advertise an address; none of the Xray transport,
         // security or override fields apply.
         payload.host = []
         payload.sni = []
@@ -1366,7 +1370,7 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
                 null
               ) : shouldRenderOpenVPNLayout ? (
                 null
-              ) : shouldRenderIKEv2Layout ? (
+              ) : shouldRenderIKEv2Layout || shouldRenderL2TPLayout ? (
                 null
               ) : (
                 <Accordion type="single" collapsible value={openSection} onValueChange={handleAccordionChange} className="!mt-0 mb-6 flex w-full flex-col gap-y-6">
