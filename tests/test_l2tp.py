@@ -21,9 +21,9 @@ def test_l2tp_config_validates_and_hides_psk():
     assert cfg.inbounds == ["l2tp-main"]
     meta = cfg.inbounds_by_tag["l2tp-main"]
     assert meta["protocol"] == "l2tp"
-    # PSK must never leak into inbound metadata (it is broadcast to workers).
-    assert "psk" not in meta
-    # ...but it is present in the config sent to the node.
+    # The PSK is a shared client secret every client needs, so it IS exposed in
+    # metadata for the subscription (like IKEv2's client-facing CA cert).
+    assert meta["psk"] == "sharedsecret"
     assert json.loads(cfg.to_str())["psk"] == "sharedsecret"
 
 

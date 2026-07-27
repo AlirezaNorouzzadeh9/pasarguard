@@ -184,6 +184,33 @@ async def generate_ikev2_details(
     return conf.details
 
 
+async def generate_l2tp_details(
+    user: UsersResponseWithInbounds,
+    randomize_order: bool = False,
+) -> list[dict[str, str]]:
+    """Return per-host L2TP/IPsec connection details (server/username/password/secret).
+
+    Shown inline on the sub page; the secret is the shared IPsec PSK. Credentials
+    reuse the user's IKEv2 proxy.
+    """
+    from .l2tp import L2TPConfiguration
+
+    conf = L2TPConfiguration()
+    sub_settings = await subscription_settings()
+    custom_variables = get_effective_custom_variables(user, sub_settings.custom_variables)
+    format_variables = setup_format_variables(user, sub_settings.custom_variables)
+    client_templates = await subscription_client_templates()
+    await process_inbounds_and_tags(
+        user,
+        format_variables,
+        conf,
+        client_templates,
+        randomize_order=randomize_order,
+        custom_variables=custom_variables,
+    )
+    return conf.details
+
+
 def format_time_left(seconds_left: int) -> str:
     if not seconds_left or seconds_left <= 0:
         return "∞"
@@ -359,8 +386,11 @@ async def process_host(
     if inbound.inbound_tag not in inbounds:
         return
 
-    # Get user settings for this protocol
+    # Get user settings for this protocol. L2TP has no proxy of its own — it
+    # reuses the user's IKEv2 username/password (both are IPsec-family user/pass).
     settings = proxies.get(inbound.protocol)
+    if not settings and inbound.protocol == "l2tp":
+        settings = proxies.get("ikev2")
     if not settings:
         return
     settings = dict(settings)

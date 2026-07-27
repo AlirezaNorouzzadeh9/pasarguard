@@ -196,6 +196,9 @@ async def _prepare_subscription_inbound_data(
             ikev2_identity=inbound_config.get("identity", ""),
             ikev2_ca_cert=inbound_config.get("ca_cert", ""),
             ikev2_dns=inbound_config.get("dns") or None,
+            l2tp_server_addr=inbound_config.get("server_addr", ""),
+            l2tp_psk=inbound_config.get("psk", ""),
+            l2tp_dns=inbound_config.get("dns") or None,
             priority=host.priority,
             status=list(host.status) if host.status else None,
             subscription_templates=host.subscription_templates.model_dump(exclude_none=True)

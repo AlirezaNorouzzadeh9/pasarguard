@@ -182,7 +182,7 @@ button{ font-family:inherit; }
     </div>
 
     <!-- Config grid -->
-    {% if xray_links or wireguard_configs or openvpn_configs or ikev2_details %}
+    {% if xray_links or wireguard_configs or openvpn_configs or ikev2_details or l2tp_details %}
     <div class="grid2">
 
       {% if xray_links %}
@@ -252,6 +252,28 @@ button{ font-family:inherit; }
           <div class="phint" style="margin:12px 0 8px;"><span data-i18n="servers">سرور</span> · <span dir="ltr">{{ ikev2_details|length }}</span></div>
           <div class="rows-scroll" style="display:flex; flex-direction:column; gap:8px; max-height:min(34vh,260px);">
             {% for d in ikev2_details %}
+            <div class="row"><span class="rname" dir="ltr">{{ d.remark }}</span>
+              <span class="acts"><span dir="ltr" style="font-family:monospace; font-size:12px; color:var(--mono); max-width:40vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ d.server }}</span><button class="mini" title="Copy" onclick="copyText('{{ d.server }}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button></span></div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if l2tp_details %}
+      {% set l2 = l2tp_details[0] %}
+      <div class="pcard" style="--tc:var(--ike);">
+        <div class="banner"><div class="logo" style="background:oklch(0.82 0.10 165); color:oklch(0.42 0.13 165)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 17a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5 5 5 0 0 1 5 5v2h1M12 3a3 3 0 0 0-3 3v2h6V6a3 3 0 0 0-3-3z"/></svg></div>
+          <div style="flex:1; min-width:0;"><div class="b-title">L2TP / IPsec</div><div class="b-sub" data-i18n="l2tpSub">بدون نصب اپ — مناسب اندروید و ویندوز قدیمی</div></div></div>
+        <div class="pbody">
+          <div class="cred-grid" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;" dir="ltr">
+            <div class="row"><span class="rname" style="font-weight:700; color:var(--faint); font-size:11px; text-transform:uppercase;">User</span><span class="acts"><span style="font-family:monospace; font-size:12.5px;">{{ l2.username }}</span><button class="mini" title="Copy" onclick="copyText('{{ l2.username }}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button></span></div>
+            <div class="row"><span class="rname" style="font-weight:700; color:var(--faint); font-size:11px; text-transform:uppercase;">Pass</span><span class="acts"><span class="js-pass" data-pass="{{ l2.password }}" style="font-family:monospace; font-size:12.5px;">••••••••</span><button class="mini" title="Show" onclick="togglePass(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="mini" title="Copy" onclick="copyText(this.closest('.row').querySelector('.js-pass').getAttribute('data-pass'))"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button></span></div>
+            <div class="row"><span class="rname" style="font-weight:700; color:var(--faint); font-size:11px; text-transform:uppercase;" data-i18n="secret">Secret</span><span class="acts"><span style="font-family:monospace; font-size:12.5px;">{{ l2.secret }}</span><button class="mini" title="Copy" onclick="copyText('{{ l2.secret }}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button></span></div>
+          </div>
+          <div class="phint" style="margin:12px 0 8px;"><span data-i18n="servers">سرور</span> · <span dir="ltr">{{ l2tp_details|length }}</span></div>
+          <div class="rows-scroll" style="display:flex; flex-direction:column; gap:8px; max-height:min(34vh,260px);">
+            {% for d in l2tp_details %}
             <div class="row"><span class="rname" dir="ltr">{{ d.remark }}</span>
               <span class="acts"><span dir="ltr" style="font-family:monospace; font-size:12px; color:var(--mono); max-width:40vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ d.server }}</span><button class="mini" title="Copy" onclick="copyText('{{ d.server }}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button></span></div>
             {% endfor %}

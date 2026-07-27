@@ -499,11 +499,16 @@ class SubscriptionOperation(BaseOperation):
             ikev2_details: list[dict] = []
             from app.subscription.share import (
                 generate_ikev2_details,
+                generate_l2tp_details,
                 generate_openvpn_configs,
                 generate_wireguard_configs,
             )
             from app.utils.ikev2 import get_ikev2_tags_from_groups
+            from app.utils.l2tp import get_l2tp_tags_from_groups
             from config import ikev2_env_settings
+
+            # L2TP has no env gate of its own; it reuses the IKEv2 credentials.
+            l2tp_details: list[dict] = []
 
             # WireGuard is delivered as .conf files, same idea as OpenVPN.
             wireguard_url = None
@@ -534,6 +539,13 @@ class SubscriptionOperation(BaseOperation):
                     ikev2_url = f"{base}/ikev2" if base else None
                     ikev2_details = await generate_ikev2_details(user, sub_settings.randomize_order)
 
+            if groups is None:
+                groups = db_user.__dict__.get("groups")
+                if groups is None:
+                    groups = await db_user.awaitable_attrs.groups
+            if await get_l2tp_tags_from_groups(groups):
+                l2tp_details = await generate_l2tp_details(user, sub_settings.randomize_order)
+
             if wireguard_settings.enabled:
                 if groups is None:
                     groups = db_user.__dict__.get("groups")
@@ -563,6 +575,7 @@ class SubscriptionOperation(BaseOperation):
                         wireguard_url,
                         openvpn_configs,
                         wireguard_configs,
+                        l2tp_details,
                     ),
                 )
             )
@@ -709,6 +722,7 @@ class SubscriptionOperation(BaseOperation):
         wireguard_url: str | None = None,
         openvpn_configs: list[dict] | None = None,
         wireguard_configs: list[dict] | None = None,
+        l2tp_details: list[dict] | None = None,
     ) -> dict[str, Any]:
         return {
             "user": SubscriptionUserResponse.model_validate(user),
@@ -719,6 +733,7 @@ class SubscriptionOperation(BaseOperation):
             "openvpn_url": openvpn_url,
             "ikev2_url": ikev2_url,
             "ikev2_details": ikev2_details or [],
+            "l2tp_details": l2tp_details or [],
             "openvpn_configs": openvpn_configs or [],
             "wireguard_configs": wireguard_configs or [],
             "apps": self._make_apps_import_urls(

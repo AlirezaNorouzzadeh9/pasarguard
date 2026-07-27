@@ -303,6 +303,11 @@ class SubscriptionInboundData(BaseModel):
     ikev2_ca_cert: str = Field("")
     ikev2_dns: list[str] | None = Field(default=None)
 
+    # ---- L2TP/IPsec (from inbound metadata; user creds reuse the IKEv2 proxy) ----
+    l2tp_server_addr: str = Field("")
+    l2tp_psk: str = Field("")
+    l2tp_dns: list[str] | None = Field(default=None)
+
     # Flow (from inbound, user can override)
     inbound_flow: str = Field("")
 

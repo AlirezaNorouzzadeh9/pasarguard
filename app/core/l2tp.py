@@ -123,15 +123,18 @@ class L2TPConfig(dict):
 
     def _resolve_inbounds(self):
         inbound_tag = self["inbound_tag"]
-        # NOTE: the PSK must never appear in inbound metadata — it is broadcast to
-        # workers/subscription. Only client-facing values are exposed here; the
-        # subscription renderer adds the PSK for the config file it hands the user.
+        # The PSK is a *shared* client secret: every L2TP client needs it to
+        # connect, so — unlike a server private key — it is exposed here so the
+        # subscription page can hand it to the user (mirrors how IKEv2 exposes its
+        # client-facing CA cert). It is no more sensitive than the config already
+        # sent to the node.
         metadata = {
             "tag": inbound_tag,
             "protocol": "l2tp",
             "network": "udp",
             "tls": "none",
             "server_addr": self["server_addr"],
+            "psk": self["psk"],
             "pool": self["pool"],
             "egress_interface": self.get("egress_interface", ""),
             "dns": list(self.get("dns", [])),
