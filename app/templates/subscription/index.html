@@ -19,19 +19,20 @@
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
 :root{
-  --bg:oklch(0.185 0.045 264);
-  --fg:oklch(0.96 0.006 255);
+  --bg:oklch(0.19 0.008 265);
+  --fg:oklch(0.95 0.003 250);
   --ac:oklch(0.72 0.15 250);
   --ac-ink:oklch(0.18 0.03 265);
-  --mut:oklch(0.72 0.03 255);
-  --fnt:oklch(0.62 0.035 258);
+  --mut:oklch(0.68 0.02 250);
+  --fnt:oklch(0.56 0.02 250);
   --line:rgb(255 255 255/.09);
-  --soft:rgb(255 255 255/.05);
-  --card:oklch(0.235 0.05 264);
-  --row:rgb(0 0 0/.22);
-  --btn:rgb(255 255 255/.08);
-  --shell:oklch(0.205 0.048 264);
-  --nav:oklch(0.245 0.05 264);
+  --soft:rgb(255 255 255/.045);
+  --tile:rgb(255 255 255/.03);
+  --card:oklch(0.165 0.012 265);
+  --row:rgb(0 0 0/.24);
+  --btn:rgb(255 255 255/.07);
+  --shell:oklch(0.135 0.01 265);
+  --nav:oklch(0.175 0.014 265);
   --mono:"Twemoji Country Flags",'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
 }
 :root[data-theme="light"]{
@@ -48,6 +49,7 @@ html,body{margin:0;padding:0;}
   --btn:rgb(0 0 0/.06);
   --shell:oklch(0.965 0.005 260);
   --nav:oklch(0.99 0.004 255);
+  --tile:rgb(0 0 0/.03);
 }
 body{background:var(--bg);font-family:"Twemoji Country Flags","Vazirmatn",system-ui,-apple-system,sans-serif;color:var(--fg);}
 a{color:oklch(0.75 0.10 250);text-decoration:none;}a:hover{opacity:.85;}
@@ -89,7 +91,7 @@ svg{display:block;}
 .usebar>span{display:block;height:100%;border-radius:999px;transition:width .7s ease-out;}
 .tl-ul{display:flex;justify-content:space-between;font-size:11.5px;color:var(--fnt);font-family:var(--mono);}
 .tl-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border-radius:14px;overflow:hidden;border:1px solid var(--line);margin-top:auto;}
-.tl-tile{background:var(--soft);padding:13px;display:flex;flex-direction:column;gap:5px;align-items:center;text-align:center;min-width:0;}
+.tl-tile{background:var(--tile);padding:13px;display:flex;flex-direction:column;gap:5px;align-items:center;text-align:center;min-width:0;}
 .tl-tile .l{font-size:10.5px;color:var(--fnt);font-weight:600;}
 .tl-tile .v{font-size:15px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tkt-r{border-radius:20px;border:1px solid var(--line);background:var(--card);padding:22px;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;min-width:0;}
