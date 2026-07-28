@@ -19,19 +19,19 @@
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
 :root{
-  --bg:oklch(0.115 0.01 265);
-  --fg:oklch(0.95 0.003 250);
+  --bg:oklch(0.185 0.045 264);
+  --fg:oklch(0.96 0.006 255);
   --ac:oklch(0.72 0.15 250);
   --ac-ink:oklch(0.18 0.03 265);
-  --mut:oklch(0.68 0.02 250);
-  --fnt:oklch(0.56 0.02 250);
+  --mut:oklch(0.72 0.03 255);
+  --fnt:oklch(0.62 0.035 258);
   --line:rgb(255 255 255/.09);
-  --soft:rgb(255 255 255/.045);
-  --card:oklch(0.165 0.012 265);
-  --row:rgb(0 0 0/.24);
-  --btn:rgb(255 255 255/.07);
-  --shell:oklch(0.135 0.01 265);
-  --nav:oklch(0.175 0.014 265);
+  --soft:rgb(255 255 255/.05);
+  --card:oklch(0.235 0.05 264);
+  --row:rgb(0 0 0/.22);
+  --btn:rgb(255 255 255/.08);
+  --shell:oklch(0.205 0.048 264);
+  --nav:oklch(0.245 0.05 264);
   --mono:"Twemoji Country Flags",'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
 }
 :root[data-theme="light"]{
@@ -215,6 +215,8 @@ svg{display:block;}
 {% set status = user.status.value %}
 {% set is_bad = status in ('expired','limited') %}
 {% set days_left = ((user.expire - now()).days) if user.expire else None %}
+{% set last_seen_str = None %}
+{% if user.online_at %}{% set _ls = (now() - user.online_at).total_seconds()|int %}{% if _ls < 0 %}{% set _ls = 0 %}{% endif %}{% if _ls < 60 %}{% set last_seen_str = 'هم‌اکنون' %}{% elif _ls < 3600 %}{% set last_seen_str = (_ls//60)|string ~ ' دقیقه پیش' %}{% elif _ls < 86400 %}{% set last_seen_str = (_ls//3600)|string ~ ' ساعت پیش' %}{% else %}{% set last_seen_str = (_ls//86400)|string ~ ' روز پیش' %}{% endif %}{% endif %}
 {% set barColor = 'oklch(0.62 0.2 25)' if pct_used>=90 else ('oklch(0.75 0.16 70)' if pct_used>=70 else 'oklch(0.65 0.13 250)') %}
 {% set statusColor = 'oklch(0.72 0.17 30)' if is_bad else 'oklch(0.78 0.15 155)' %}
 {% set xray_links = [] %}{% for _l in links %}{% if not _l.startswith('wireguard://') %}{% set _ = xray_links.append(_l) %}{% endif %}{% endfor %}
@@ -265,7 +267,7 @@ svg{display:block;}
               <div class="tl-stats">
                 <div class="tl-tile"><span class="l" data-i18n="timeLeft">زمان باقی‌مانده</span><span class="v" dir="ltr">{% if days_left is not none %}{{ days_left }} <span data-i18n="daysWord">روز</span>{% else %}<span data-i18n="unlimited">نامحدود</span>{% endif %}</span></div>
                 <div class="tl-tile"><span class="l" data-i18n="connected">دستگاه متصل</span><span class="v" dir="ltr">{% if user.ip_limit %}{{ online_count }} <span data-i18n="ofWord">از</span> {{ user.ip_limit }}{% else %}<span data-i18n="unlimited">نامحدود</span>{% endif %}</span></div>
-                <div class="tl-tile"><span class="l" data-i18n="lastSeen">آخرین اتصال</span><span class="v" dir="ltr">{% if user.online_at %}{{ user.online_at | datetime }}{% else %}<span data-i18n="never">هرگز</span>{% endif %}</span></div>
+                <div class="tl-tile"><span class="l" data-i18n="lastSeen">آخرین اتصال</span><span class="v" dir="ltr">{% if user.online_at %}{{ last_seen_str }}{% else %}<span data-i18n="never">هرگز</span>{% endif %}</span></div>
               </div>
             </div>
             <div class="tkt-r">
@@ -285,7 +287,7 @@ svg{display:block;}
             <div class="acct-tile"><span class="acct-ic" style="background:oklch(0.72 0.13 180/.15);color:oklch(0.8 0.12 182)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></span><span class="acct-tx"><span class="acct-l" data-i18n="lastEdit">آخرین ویرایش</span><span class="acct-v" dir="ltr">{% if user.edit_at %}{{ user.edit_at | datetime }}{% else %}—{% endif %}</span></span></div>
             <div class="acct-tile"><span class="acct-ic" style="background:oklch(0.7 0.16 300/.15);color:oklch(0.79 0.12 300)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18M8 2v4M16 2v4"></path></svg></span><span class="acct-tx"><span class="acct-l" data-i18n="createdAt">تاریخ ساخت</span><span class="acct-v" dir="ltr">{{ user.created_at | datetime }}</span></span></div>
             <div class="acct-tile"><span class="acct-ic" style="background:oklch(0.7 0.18 350/.14);color:oklch(0.79 0.14 350)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"></rect><path d="M12 18h.01"></path></svg></span><span class="acct-tx"><span class="acct-l" data-i18n="allowedCap">ظرفیت مجاز</span><span class="acct-v" dir="ltr">{% if user.ip_limit %}{{ user.ip_limit }} <span data-i18n="devicesWord">دستگاه</span>{% else %}<span data-i18n="unlimited">نامحدود</span>{% endif %}</span></span></div>
-            <div class="acct-tile"><span class="acct-ic" style="background:oklch(0.72 0.17 155/.14);color:oklch(0.8 0.15 155)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg></span><span class="acct-tx"><span class="acct-l" data-i18n="lastSeen">آخرین اتصال</span><span class="acct-v" dir="ltr">{% if user.online_at %}{{ user.online_at | datetime }}{% else %}<span data-i18n="never">هرگز</span>{% endif %}</span></span></div>
+            <div class="acct-tile"><span class="acct-ic" style="background:oklch(0.72 0.17 155/.14);color:oklch(0.8 0.15 155)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg></span><span class="acct-tx"><span class="acct-l" data-i18n="lastSeen">آخرین اتصال</span><span class="acct-v" dir="ltr">{% if user.online_at %}{{ last_seen_str }}{% else %}<span data-i18n="never">هرگز</span>{% endif %}</span></span></div>
           </div>
         </section>
 
