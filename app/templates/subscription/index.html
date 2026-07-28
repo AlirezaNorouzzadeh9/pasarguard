@@ -65,6 +65,16 @@ button{ font-family:inherit; }
 .qr-card{ width:620px; max-width:100%; display:flex; align-items:center; gap:18px; }
 .qr-card .qbox{ width:132px; height:132px; flex-shrink:0; background:#fff; border-radius:12px; padding:8px; }
 @media(max-width:520px){ .qr-card{ flex-direction:column; text-align:center; } }
+.ticket{ width:100%; border-radius:26px; border:0.8px solid rgba(255,255,255,0.10); background:radial-gradient(1000px 520px at 50% -14%, var(--accent-soft), transparent 62%), var(--card-bg); padding:24px 28px 30px; display:flex; flex-direction:column; gap:22px; }
+.tkt-head{ display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.tkt-grid{ display:grid; grid-template-columns:1.55fr 1fr; gap:18px; }
+.tkt-left{ border-radius:22px; border:0.8px solid var(--card-border); background:linear-gradient(160deg, rgba(255,255,255,0.055), rgba(255,255,255,0.015)); overflow:hidden; display:flex; flex-direction:column; }
+.tl-top{ padding:22px 24px 18px; display:flex; flex-direction:column; gap:14px; }
+.tl-stats{ display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--card-border); margin-top:auto; }
+.tl-tile{ background:var(--card-bg); padding:13px 16px; display:flex; flex-direction:column; gap:5px; min-width:0; }
+.tkt-right{ border-radius:22px; border:0.8px solid var(--card-border); background:var(--chip-bg); padding:20px; display:flex; flex-direction:column; gap:13px; }
+.big-num{ font-size:40px; font-weight:800; line-height:0.95; }
+@media(max-width:760px){ .tkt-grid{ grid-template-columns:1fr; } }
 .badge{ width:38px; height:38px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex-shrink:0; }
 .row{ display:flex; align-items:center; gap:11px; padding:12px 14px; border-radius:12px; background:var(--row-bg); border:1px solid var(--row-border); }
 .mini{ width:29px; height:29px; border-radius:8px; border:none; background:var(--icon-btn); color:var(--icon-fg); cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
@@ -178,51 +188,45 @@ button{ font-family:inherit; }
     </div>
     {% endif %}
 
-    <!-- Hero: gauge + stats + sub link -->
-    <div style="display:flex; flex-direction:column; align-items:center; gap:18px;">
-      <div style="display:flex; align-items:center; gap:9px; padding:8px 18px; border-radius:999px; border:1px solid var(--chip-border); background:var(--chip-bg);">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-        <span data-i18n="account" style="font-size:12px; color:var(--muted);">کاربر</span>
-        <span dir="ltr" style="font-size:14px; font-weight:800; color:var(--fg); max-width:60vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ user.username }}</span>
+    <!-- Ticket (design 1a) -->
+    <div class="ticket">
+      <div class="tkt-head">
+        <span style="display:flex; align-items:center; gap:9px; min-width:0;">
+          <span style="font-size:12px; color:var(--muted);" data-i18n="account">کاربر</span>
+          <span dir="ltr" style="font-size:15px; font-weight:800; max-width:46vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ user.username }}</span>
+        </span>
+        <span style="display:flex; align-items:center; gap:7px; font-size:12px; font-weight:700; white-space:nowrap; color:{{ 'var(--green)' if status in ('active','on_hold') else 'var(--ov)' }};"><span style="width:8px; height:8px; border-radius:50%; background:currentColor; animation:pulse 2s infinite;"></span><span data-i18n="st_{{ status }}">{{ {'active':'فعال','on_hold':'در انتظار','limited':'محدود','expired':'منقضی','disabled':'غیرفعال'}.get(status, status) }}</span></span>
       </div>
-      <div class="gauge">
-        <svg viewBox="0 0 230 230" style="transform:rotate(-90deg); width:100%; height:100%; display:block;">
-          <circle cx="115" cy="115" r="100" stroke="var(--gauge-track)" stroke-width="16" fill="none"></circle>
-          <circle cx="115" cy="115" r="100" stroke="var(--accent)" stroke-width="16" fill="none" stroke-dasharray="628.3" stroke-dashoffset="{{ '%.1f'|format(offset) }}" stroke-linecap="round" style="filter:drop-shadow(0 0 16px var(--accent-soft)); transition:stroke-dashoffset 1s ease-out;"></circle>
-        </svg>
-        <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-          <span class="val" dir="ltr" style="font-size:42px; font-weight:800; line-height:0.9;">{% if gb_left is not none %}{{ '%.1f'|format(gb_left) }}{% else %}∞{% endif %}</span>
-          <span style="font-size:13px; color:var(--muted); line-height:1.6;" data-i18n="{% if gb_left is not none %}gbLeft{% else %}unlimited{% endif %}">{% if gb_left is not none %}گیگ باقی‌مانده{% else %}نامحدود{% endif %}</span>
-          {% if rem_pct is not none %}<span dir="ltr" style="font-size:12.5px; font-weight:800; color:var(--accent-text); line-height:1.8;">{{ rem_pct | round(0, 'floor') | int }}%</span>{% endif %}
-          <span style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:{{ 'var(--green)' if status in ('active','on_hold') else 'var(--ov)' }}; white-space:nowrap; line-height:1.6;"><span style="width:7px; height:7px; border-radius:50%; background:currentColor; flex-shrink:0; animation:pulse 2s infinite;"></span><span data-i18n="st_{{ status }}">{{ {'active':'فعال','on_hold':'در انتظار','limited':'محدود','expired':'منقضی','disabled':'غیرفعال'}.get(status, status) }}</span></span>
+      <div class="tkt-grid">
+        <div class="tkt-left">
+          <div class="tl-top">
+            <div style="display:flex; align-items:baseline; gap:10px;">
+              <span class="big-num" dir="ltr">{% if gb_left is not none %}{{ '%.1f'|format(gb_left) }}{% else %}∞{% endif %}</span>
+              <span style="font-size:13px; color:var(--muted);" data-i18n="{% if gb_left is not none %}gbLeft{% else %}unlimited{% endif %}">{% if gb_left is not none %}گیگ باقی‌مانده{% else %}نامحدود{% endif %}</span>
+              {% if rem_pct is not none %}<span dir="ltr" style="margin-inline-start:auto; font-size:15px; font-weight:800; color:var(--accent-text);">{{ rem_pct | round(0,'floor') | int }}%</span>{% endif %}
+            </div>
+            {% if limit and limit > 0 %}{% set pct=(100.0*used/limit) if used else 0 %}{% if pct>100 %}{% set pct=100 %}{% endif %}
+            <div class="usebar"><span style="width:{{ '%.1f'|format(pct) }}%; background:{{ 'oklch(0.62 0.2 25)' if pct>=90 else ('oklch(0.75 0.16 70)' if pct>=70 else 'var(--accent)') }};"></span></div>{% endif %}
+            <div style="font-size:12px; color:var(--faint);"><span data-i18n="used">مصرف شده</span>: <span dir="ltr" style="color:var(--muted); font-weight:700;">{{ used | bytesformat }}{% if limit %} / {{ limit | bytesformat }}{% endif %}</span></div>
+          </div>
+          <div class="tl-stats">
+            <div class="tl-tile"><span class="acct-l"><svg class="acct-ic" style="color:oklch(0.75 0.15 70)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span data-i18n="timeLeft">زمان باقی‌مانده</span></span><span class="acct-v" dir="ltr">{% if user.expire %}{{ ((user.expire - now()).days) }} <span data-i18n="daysWord">روز</span>{% else %}<span data-i18n="unlimited">نامحدود</span>{% endif %}</span></div>
+            {% if user.expire %}<div class="tl-tile"><span class="acct-l"><svg class="acct-ic" style="color:oklch(0.7 0.16 300)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg><span data-i18n="renewal">تمدید</span></span><span class="acct-v" dir="ltr">{{ user.expire | datetime }}</span></div>{% endif %}
+            {% if user.ip_limit %}<div class="tl-tile"><span class="acct-l"><svg class="acct-ic" style="color:oklch(0.7 0.18 350)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></svg><span data-i18n="connected">دستگاه متصل</span></span><span class="acct-v" dir="ltr">{{ online_count }} <span data-i18n="ofWord">از</span> {{ user.ip_limit }}</span></div>{% endif %}
+            {% if user.online_at %}<div class="tl-tile"><span class="acct-l"><svg class="acct-ic" style="color:oklch(0.72 0.13 180)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span data-i18n="lastSeen">آخرین اتصال</span></span><span class="acct-v" dir="ltr">{{ user.online_at | datetime }}</span></div>{% endif %}
+          </div>
         </div>
-      </div>
-      <div class="card acct-box">
-        <div class="acct-grid">
-          <div class="acct-tile"><span class="acct-l"><svg class="acct-ic" style="color:oklch(0.7 0.15 250)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" x2="6.01" y1="16" y2="16"/></svg><span data-i18n="used">مصرف شده</span></span><span class="acct-v" dir="ltr">{{ used | bytesformat }}{% if limit %} / {{ limit | bytesformat }}{% endif %}</span></div>
-          {% if gb_left is not none %}<div class="acct-tile"><span class="acct-l"><svg class="acct-ic" style="color:oklch(0.72 0.17 155)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg><span data-i18n="gbLeft">باقی‌مانده</span></span><span class="acct-v" dir="ltr">{{ '%.1f'|format(gb_left) }} GB</span></div>{% endif %}
-          <div class="acct-tile"><span class="acct-l"><svg class="acct-ic" style="color:oklch(0.75 0.15 70)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span data-i18n="timeLeft">زمان باقی‌مانده</span></span><span class="acct-v" dir="ltr">{% if user.expire %}{{ ((user.expire - now()).days) }} <span data-i18n="daysWord">روز</span>{% else %}<span data-i18n="unlimited">نامحدود</span>{% endif %}</span></div>
-          {% if user.expire %}<div class="acct-tile"><span class="acct-l"><svg class="acct-ic" style="color:oklch(0.7 0.16 300)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg><span data-i18n="renewal">تمدید</span></span><span class="acct-v" dir="ltr">{{ user.expire | datetime }}</span></div>{% endif %}
-          {% if user.ip_limit %}<div class="acct-tile"><span class="acct-l"><svg class="acct-ic" style="color:oklch(0.7 0.18 350)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></svg><span data-i18n="connected">دستگاه متصل</span></span><span class="acct-v" dir="ltr">{{ online_count }} <span data-i18n="ofWord">از</span> {{ user.ip_limit }}</span></div>{% endif %}
-          {% if user.online_at %}<div class="acct-tile"><span class="acct-l"><svg class="acct-ic" style="color:oklch(0.72 0.13 180)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span data-i18n="lastSeen">آخرین اتصال</span></span><span class="acct-v" dir="ltr">{{ user.online_at | datetime }}</span></div>{% endif %}
-        </div>
-      </div>
-      {% if limit and limit > 0 %}
-      {% set pct = (100.0 * used / limit) if used else 0 %}
-      {% if pct > 100 %}{% set pct = 100 %}{% endif %}
-      <div class="usebar"><span style="width:{{ '%.1f'|format(pct) }}%; background:{{ 'oklch(0.62 0.2 25)' if pct >= 90 else ('oklch(0.75 0.16 70)' if pct >= 70 else 'var(--accent)') }};"></span></div>
-      {% endif %}
-      <div class="sub-bar" dir="ltr" style="display:flex; align-items:center; gap:10px; width:620px; max-width:100%; padding:8px 8px 8px 18px; border-radius:14px; border:1px solid var(--card-border); background:var(--card-bg); backdrop-filter:blur(10px);">
-        <span id="subUrl" style="flex:1; min-width:0; font-size:13.5px; font-family:monospace; color:var(--mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></span>
-        <button class="icon-btn-sq" style="width:38px; height:38px;" title="QR" onclick="showQR(document.getElementById('subUrl').textContent, event)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 12v4a1 1 0 0 1-1 1h-4"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><rect x="7" y="7" width="5" height="5" rx="1"></rect></svg></button>
-        <button onclick="copyText(document.getElementById('subUrl').textContent)" style="display:flex; align-items:center; gap:7px; padding:10px 22px; border-radius:10px; border:none; background:var(--accent); color:white; font-size:13.5px; font-weight:800; cursor:pointer; white-space:nowrap; flex-shrink:0; box-shadow:0 4px 20px var(--accent-soft);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg><span data-i18n="copySubLink">کپی لینک اشتراک</span></button>
-      </div>
-      <div class="card qr-card">
-        <div class="qbox" id="subQrBig"></div>
-        <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:9px;">
-          <div style="font-size:14.5px; font-weight:800; color:var(--fg);" data-i18n="scanTitle">اسکن برای افزودن سریع</div>
-          <div style="font-size:12px; color:var(--muted); line-height:1.65;" data-i18n="scanHint">این QR را با اپلیکیشن خود اسکن کنید تا لینک اشتراک به‌صورت خودکار اضافه شود.</div>
-          <button onclick="copyAllConfigs(this)" style="align-self:flex-start; display:flex; align-items:center; gap:7px; padding:9px 16px; border-radius:10px; border:1px solid var(--card-border); background:var(--chip-bg); color:var(--fg); font-size:12.5px; font-weight:700; cursor:pointer;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span data-i18n="copyAllConfigs">کپی همه کانفیگ‌ها</span></button>
+        <div class="tkt-right">
+          <div class="qbox" id="subQrBig" style="align-self:center; width:150px; height:150px;"></div>
+          <div style="font-size:11.5px; color:var(--muted); line-height:1.6; text-align:center;" data-i18n="scanHint">این QR را با اپلیکیشن خود اسکن کنید تا لینک اشتراک به‌صورت خودکار اضافه شود.</div>
+          <div dir="ltr" style="display:flex; align-items:center; gap:8px; padding:7px 8px 7px 13px; border-radius:12px; border:1px solid var(--card-border); background:rgba(0,0,0,0.16);">
+            <span id="subUrl" style="flex:1; min-width:0; font-size:11.5px; font-family:monospace; color:var(--mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></span>
+            <button class="mini" title="Copy" onclick="copyText(document.getElementById('subUrl').textContent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button onclick="copyText(document.getElementById('subUrl').textContent)" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; border-radius:11px; border:none; background:var(--accent); color:#fff; font-size:12.5px; font-weight:800; cursor:pointer; box-shadow:0 4px 18px var(--accent-soft);"><span data-i18n="copySubLink">کپی لینک اشتراک</span></button>
+            <button onclick="copyAllConfigs(this)" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; border-radius:11px; border:1px solid var(--card-border); background:var(--chip-bg); color:var(--fg); font-size:12.5px; font-weight:700; cursor:pointer;"><span data-i18n="copyAllConfigs">کپی همه</span></button>
+          </div>
         </div>
       </div>
     </div>
