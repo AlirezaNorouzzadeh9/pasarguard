@@ -146,7 +146,8 @@ button{font-family:inherit;}
 .srv-addr{flex:1;min-width:0;font-family:var(--mono);font-size:13px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .srv-country{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .srv-code{font-size:10px;font-weight:800;letter-spacing:.05em;padding:3px 7px;border-radius:6px;background:var(--btn);color:var(--mut);}
-.srv-cname{font-size:14px;font-weight:800;color:var(--fg);}
+.srv-cname{font-size:14px;font-weight:700;color:var(--fg);flex-shrink:0;display:flex;align-items:center;gap:8px;}
+.srv-addr{margin-inline-start:8px;}
 .srow-tag{font-size:9.5px;font-weight:700;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:rgb(128 128 128/.12);white-space:nowrap;}
 .srow-btn{width:30px;height:30px;border-radius:9px;border:none;background:var(--btn);color:var(--mut);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .srow-btn:hover{color:var(--fg);}
@@ -323,7 +324,7 @@ svg{display:block;}
             <span class="pp-srvlabel"><span data-i18n="servers">سرور</span> · <span dir="ltr">{{ ikev2_details|length }}</span></span>
             <div class="srv-frame">
               {% for d in ikev2_details %}
-              <div class="srv-row" dir="ltr"><button class="srow-btn" title="Copy" onclick="copyText('{{ d.server }}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button><span class="srv-proto">IKEV2</span><span class="srv-addr">{{ d.server }}</span><span class="srv-country" data-remark="{{ d.remark }}">{{ d.remark }}</span></div>
+              <div class="srv-row" dir="ltr"><span class="srv-cname">{{ d.remark }}</span><span class="srv-addr">{{ d.server }}</span><button class="srow-btn" title="Copy" onclick="copyText('{{ d.server }}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button></div>
               {% endfor %}
             </div>
           </div>
@@ -344,7 +345,7 @@ svg{display:block;}
             <span class="pp-srvlabel"><span data-i18n="servers">سرور</span> · <span dir="ltr">{{ l2tp_details|length }}</span></span>
             <div class="srv-frame">
               {% for d in l2tp_details %}
-              <div class="srv-row" dir="ltr"><button class="srow-btn" title="Copy" onclick="copyText('{{ d.server }}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button><span class="srv-proto">L2TP</span><span class="srv-addr">{{ d.server }}</span><span class="srv-country" data-remark="{{ d.remark }}">{{ d.remark }}</span></div>
+              <div class="srv-row" dir="ltr"><span class="srv-cname">{{ d.remark }}</span><span class="srv-addr">{{ d.server }}</span><button class="srow-btn" title="Copy" onclick="copyText('{{ d.server }}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button></div>
               {% endfor %}
             </div>
           </div>
