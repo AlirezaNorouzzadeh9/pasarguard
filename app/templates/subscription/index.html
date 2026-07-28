@@ -136,6 +136,9 @@ button{font-family:inherit;}
 .srv-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
 .srow{display:flex;align-items:center;gap:11px;padding:13px 15px;border-radius:14px;background:var(--row);border:1px solid var(--line);}
 .srow-name{flex:1;min-width:0;font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.srow-2l{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+.srow-2l .nm{font-size:13.5px;font-weight:600;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.srow-2l .ad{font-family:var(--mono);font-size:11px;color:var(--fnt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .srow-tag{font-size:9.5px;font-weight:700;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:rgb(128 128 128/.12);white-space:nowrap;}
 .srow-btn{width:30px;height:30px;border-radius:9px;border:none;background:var(--btn);color:var(--mut);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .srow-btn:hover{color:var(--fg);}
@@ -312,7 +315,7 @@ svg{display:block;}
             <span class="pp-srvlabel"><span data-i18n="servers">سرور</span> · <span dir="ltr">{{ ikev2_details|length }}</span></span>
             <div class="srv-grid">
               {% for d in ikev2_details %}
-              <div class="srow" dir="ltr"><span class="srow-name">{{ d.remark }}</span><span class="srow-tag" style="color:oklch(0.8 0.1 300);">ikev2</span><button class="srow-btn" title="Copy" onclick="copyText('{{ d.server }}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button></div>
+              <div class="srow" dir="ltr"><span class="srow-2l"><span class="nm">{{ d.remark }}</span><span class="ad" dir="ltr">{{ d.server }}</span></span><span class="srow-tag" style="color:oklch(0.8 0.1 300);">ikev2</span><button class="srow-btn" title="Copy" onclick="copyText('{{ d.server }}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button></div>
               {% endfor %}
             </div>
           </div>
@@ -333,7 +336,7 @@ svg{display:block;}
             <span class="pp-srvlabel"><span data-i18n="servers">سرور</span> · <span dir="ltr">{{ l2tp_details|length }}</span></span>
             <div class="srv-grid">
               {% for d in l2tp_details %}
-              <div class="srow" dir="ltr"><span class="srow-name">{{ d.remark }}</span><span class="srow-tag" style="color:oklch(0.82 0.12 165);">l2tp</span><button class="srow-btn" title="Copy" onclick="copyText('{{ d.server }}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button></div>
+              <div class="srow" dir="ltr"><span class="srow-2l"><span class="nm">{{ d.remark }}</span><span class="ad" dir="ltr">{{ d.server }}</span></span><span class="srow-tag" style="color:oklch(0.82 0.12 165);">l2tp</span><button class="srow-btn" title="Copy" onclick="copyText('{{ d.server }}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button></div>
               {% endfor %}
             </div>
           </div>
@@ -434,7 +437,7 @@ function copyProtoAll(btn){
     if(l && v){ out.push(l.textContent.trim() + ': ' + (v.getAttribute('data-val') || v.textContent.trim())); }
   });
   var srv = [];
-  panel.querySelectorAll('.srow-name').forEach(function(s){ srv.push(s.textContent.trim()); });
+  panel.querySelectorAll('.srow').forEach(function(r){ var a = r.querySelector('.ad') || r.querySelector('.srow-name'); if(a) srv.push(a.textContent.trim()); });
   if(srv.length) out.push('Servers: ' + srv.join(', '));
   copyText(out.join('\n'));
 }
