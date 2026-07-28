@@ -139,6 +139,14 @@ button{font-family:inherit;}
 .srow-2l{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
 .srow-2l .nm{font-size:13.5px;font-weight:600;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .srow-2l .ad{font-family:var(--mono);font-size:11px;color:var(--fnt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.srv-frame{border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:8px;background:var(--row);}
+.srv-row{display:flex;align-items:center;gap:12px;padding:12px 15px;border-bottom:1px solid var(--line);}
+.srv-row:last-child{border-bottom:none;}
+.srv-proto{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--fnt);flex-shrink:0;}
+.srv-addr{flex:1;min-width:0;font-family:var(--mono);font-size:13px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.srv-country{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.srv-code{font-size:10px;font-weight:800;letter-spacing:.05em;padding:3px 7px;border-radius:6px;background:var(--btn);color:var(--mut);}
+.srv-cname{font-size:14px;font-weight:800;color:var(--fg);}
 .srow-tag{font-size:9.5px;font-weight:700;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:rgb(128 128 128/.12);white-space:nowrap;}
 .srow-btn{width:30px;height:30px;border-radius:9px;border:none;background:var(--btn);color:var(--mut);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .srow-btn:hover{color:var(--fg);}
@@ -313,9 +321,9 @@ svg{display:block;}
               </div>
             </div>
             <span class="pp-srvlabel"><span data-i18n="servers">سرور</span> · <span dir="ltr">{{ ikev2_details|length }}</span></span>
-            <div class="srv-grid">
+            <div class="srv-frame">
               {% for d in ikev2_details %}
-              <div class="srow" dir="ltr"><span class="srow-2l"><span class="nm">{{ d.remark }}</span><span class="ad" dir="ltr">{{ d.server }}</span></span><span class="srow-tag" style="color:oklch(0.8 0.1 300);">ikev2</span><button class="srow-btn" title="Copy" onclick="copyText('{{ d.server }}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button></div>
+              <div class="srv-row" dir="ltr"><button class="srow-btn" title="Copy" onclick="copyText('{{ d.server }}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button><span class="srv-proto">IKEV2</span><span class="srv-addr">{{ d.server }}</span><span class="srv-country" data-remark="{{ d.remark }}">{{ d.remark }}</span></div>
               {% endfor %}
             </div>
           </div>
@@ -334,9 +342,9 @@ svg{display:block;}
               </div>
             </div>
             <span class="pp-srvlabel"><span data-i18n="servers">سرور</span> · <span dir="ltr">{{ l2tp_details|length }}</span></span>
-            <div class="srv-grid">
+            <div class="srv-frame">
               {% for d in l2tp_details %}
-              <div class="srow" dir="ltr"><span class="srow-2l"><span class="nm">{{ d.remark }}</span><span class="ad" dir="ltr">{{ d.server }}</span></span><span class="srow-tag" style="color:oklch(0.82 0.12 165);">l2tp</span><button class="srow-btn" title="Copy" onclick="copyText('{{ d.server }}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button></div>
+              <div class="srv-row" dir="ltr"><button class="srow-btn" title="Copy" onclick="copyText('{{ d.server }}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button><span class="srv-proto">L2TP</span><span class="srv-addr">{{ d.server }}</span><span class="srv-country" data-remark="{{ d.remark }}">{{ d.remark }}</span></div>
               {% endfor %}
             </div>
           </div>
@@ -437,7 +445,7 @@ function copyProtoAll(btn){
     if(l && v){ out.push(l.textContent.trim() + ': ' + (v.getAttribute('data-val') || v.textContent.trim())); }
   });
   var srv = [];
-  panel.querySelectorAll('.srow').forEach(function(r){ var a = r.querySelector('.ad') || r.querySelector('.srow-name'); if(a) srv.push(a.textContent.trim()); });
+  panel.querySelectorAll('.srv-row, .srow').forEach(function(r){ var a = r.querySelector('.srv-addr') || r.querySelector('.ad') || r.querySelector('.srow-name'); if(a) srv.push(a.textContent.trim()); });
   if(srv.length) out.push('Servers: ' + srv.join(', '));
   copyText(out.join('\n'));
 }
@@ -449,6 +457,20 @@ function copyProtoAll(btn){
   applyTheme(localStorage.getItem('sub_theme') || 'dark');
   applyLang(localStorage.getItem('sub_lang') || 'fa');
   document.querySelectorAll('.js-name').forEach(function(el){ try{ el.textContent = decodeURIComponent(el.textContent); }catch(e){} });
+  document.querySelectorAll('.srv-country').forEach(function(el){
+    var r = el.getAttribute('data-remark') || el.textContent || '';
+    var cps = Array.from(r), code = '', name = r;
+    if(cps.length >= 2){
+      var a = cps[0].codePointAt(0), b = cps[1].codePointAt(0);
+      if(a>=0x1F1E6 && a<=0x1F1FF && b>=0x1F1E6 && b<=0x1F1FF){
+        code = String.fromCharCode(a-0x1F1E6+65) + String.fromCharCode(b-0x1F1E6+65);
+        name = cps.slice(2).join('').trim();
+      }
+    }
+    el.textContent = '';
+    if(code){ var bd = document.createElement('span'); bd.className = 'srv-code'; bd.textContent = code; el.appendChild(bd); }
+    var nm = document.createElement('span'); nm.className = 'srv-cname'; nm.textContent = name || r; el.appendChild(nm);
+  });
 })();
 </script>
 
