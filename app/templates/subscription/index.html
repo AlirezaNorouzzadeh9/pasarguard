@@ -75,8 +75,8 @@ button{font-family:inherit;}
 
 .alert{display:flex;align-items:center;gap:10px;padding:13px 18px;border-radius:14px;border:1px solid;background:rgb(128 128 128/.06);font-size:13.5px;font-weight:700;}
 
-.tkt{display:grid;grid-template-columns:1.55fr 1fr;gap:20px;align-items:stretch;}
-.tkt-l{border-radius:24px;border:1px solid var(--line);background:var(--card-grad);overflow:hidden;display:flex;flex-direction:column;}
+.tkt{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:20px;align-items:stretch;}
+.tkt-l{border-radius:24px;border:1px solid var(--line);background:var(--card-grad);overflow:hidden;display:flex;flex-direction:column;min-width:0;}
 .tl-top{padding:28px 30px 24px;display:flex;flex-direction:column;gap:18px;}
 .tl-status{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;}
 .tl-dot{width:8px;height:8px;border-radius:50%;background:currentColor;animation:pulse 2s infinite;}
@@ -96,11 +96,11 @@ button{font-family:inherit;}
 .tl-tile .l{font-size:11px;color:var(--fnt);font-weight:600;}
 .tl-tile .v{font-size:17px;font-weight:800;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
-.tkt-r{border-radius:24px;border:1px solid var(--line);background:var(--soft);padding:24px;display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;}
+.tkt-r{border-radius:24px;border:1px solid var(--line);background:var(--soft);padding:24px;display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;min-width:0;}
 .qrbox{width:186px;height:186px;padding:12px;border-radius:20px;background:#fff;}
 .qrbox svg,.qrbox img,.qrbox canvas{width:100%;height:100%;}
 .qr-hint{font-size:12.5px;color:var(--mut);text-align:center;line-height:1.75;max-width:280px;}
-.suburl-row{display:flex;align-items:center;gap:8px;width:100%;padding:9px 9px 9px 14px;border-radius:14px;border:1px solid var(--line);background:rgb(0 0 0/.16);}
+.suburl-row{display:flex;align-items:center;gap:8px;width:100%;min-width:0;padding:9px 9px 9px 14px;border-radius:14px;border:1px solid var(--line);background:rgb(0 0 0/.16);}
 .suburl-row .u{flex:1;min-width:0;font-family:var(--mono);font-size:12px;color:oklch(0.7 0.06 245);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .btn-ac{padding:9px 16px;border-radius:10px;border:none;background:var(--ac);color:var(--ac-ink);font-size:12.5px;font-weight:800;cursor:pointer;white-space:nowrap;}
 .btn-out{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--fg);font-size:12.5px;font-weight:700;cursor:pointer;}
