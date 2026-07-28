@@ -22,7 +22,7 @@ from app.utils.openvpn import ensure_openvpn_ca
 _PASSWORD_ALPHABET = string.ascii_letters + string.digits
 
 
-def _random_password(length: int = 16) -> str:
+def _random_password(length: int = 8) -> str:
     return "".join(secrets.choice(_PASSWORD_ALPHABET) for _ in range(length))
 
 
