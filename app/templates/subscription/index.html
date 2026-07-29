@@ -145,6 +145,7 @@ svg{display:block;}
 .srow-name{flex:1;min-width:0;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .srow-tag{font-size:9.5px;font-weight:600;text-transform:uppercase;padding:3px 8px;border-radius:5px;background:var(--btn);white-space:nowrap;}
 .srow-c{font-size:13px;font-weight:600;flex-shrink:0;white-space:nowrap;}
+.srow-flag{width:26px;height:26px;border-radius:50%;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;font-family:"Twemoji Country Flags","Vazirmatn",sans-serif;font-size:30px;line-height:1;flex-shrink:0;box-shadow:0 0 0 1px rgb(128 128 128/.2);}
 .srow-addr{flex:1;min-width:0;font-family:var(--mono);font-size:11.5px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:start;}
 .srow-btn{width:29px;height:29px;border-radius:8px;border:none;background:var(--btn);color:var(--mut);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .srow-btn:hover{color:var(--fg);}
@@ -474,7 +475,65 @@ function revealCreds(btn){
   applyTheme(localStorage.getItem('sub_theme')||'dark');
   applyLang(localStorage.getItem('sub_lang')||'fa');
   document.querySelectorAll('.js-name').forEach(function(el){ try{ el.textContent=decodeURIComponent(el.textContent); }catch(e){} });
+  addServerFlags();
 })();
+
+// --- country flags for server rows -------------------------------------------
+// Names (and a few 2-letter codes) -> ISO2, so we can show the real country flag
+// derived from each server's remark. Full names match anywhere in the text;
+// 2-letter codes match only as a standalone word to avoid false hits.
+var CC_NAMES = {
+  'iran':'IR','ایران':'IR','germany':'DE','deutschland':'DE','آلمان':'DE','آلمان':'DE',
+  'sweden':'SE','سوئد':'SE','finland':'FI','فنلاند':'FI','netherlands':'NL','holland':'NL','هلند':'NL',
+  'turkey':'TR','turkiye':'TR','türkiye':'TR','ترکیه':'TR','france':'FR','فرانسه':'FR',
+  'england':'GB','britain':'GB','kingdom':'GB','انگلیس':'GB','بریتانیا':'GB','america':'US','states':'US','آمریکا':'US',
+  'canada':'CA','کانادا':'CA','poland':'PL','لهستان':'PL','austria':'AT','اتریش':'AT','spain':'ES','اسپانیا':'ES',
+  'italy':'IT','ایتالیا':'IT','switzerland':'CH','سوئیس':'CH','belgium':'BE','بلژیک':'BE','denmark':'DK','دانمارک':'DK',
+  'norway':'NO','نروژ':'NO','ireland':'IE','ایرلند':'IE','portugal':'PT','پرتغال':'PT','romania':'RO','رومانی':'RO',
+  'russia':'RU','روسیه':'RU','ukraine':'UA','اوکراین':'UA','india':'IN','هند':'IN','japan':'JP','ژاپن':'JP',
+  'singapore':'SG','سنگاپور':'SG','emirates':'AE','dubai':'AE','امارات':'AE','qatar':'QA','قطر':'QA',
+  'armenia':'AM','ارمنستان':'AM','georgia':'GE','گرجستان':'GE','azerbaijan':'AZ','آذربایجان':'AZ',
+  'kazakhstan':'KZ','قزاقستان':'KZ','china':'CN','چین':'CN','korea':'KR','کره':'KR','australia':'AU','استرالیا':'AU',
+  'brazil':'BR','برزیل':'BR','mexico':'MX','مکزیک':'MX','cyprus':'CY','قبرس':'CY','greece':'GR','یونان':'GR',
+  'hungary':'HU','مجارستان':'HU','czech':'CZ','czechia':'CZ','چک':'CZ','bulgaria':'BG','بلغارستان':'BG',
+  'latvia':'LV','estonia':'EE','lithuania':'LT','moldova':'MD','serbia':'RS','croatia':'HR','slovakia':'SK','slovenia':'SI',
+  'luxembourg':'LU','iceland':'IS','malaysia':'MY','مالزی':'MY','indonesia':'ID','thailand':'TH','vietnam':'VN',
+  'hongkong':'HK','hong':'HK','taiwan':'TW','saudi':'SA','عربستان':'SA','oman':'OM','عمان':'OM','bahrain':'BH'
+};
+var CC_CODES = {
+  'ir':'IR','de':'DE','se':'SE','fi':'FI','nl':'NL','tr':'TR','fr':'FR','gb':'GB','uk':'GB','us':'US','usa':'US',
+  'ca':'CA','pl':'PL','at':'AT','es':'ES','it':'IT','ch':'CH','be':'BE','dk':'DK','no':'NO','ie':'IE','pt':'PT',
+  'ro':'RO','ru':'RU','ua':'UA','in':'IN','jp':'JP','sg':'SG','ae':'AE','qa':'QA','am':'AM','ge':'GE','az':'AZ',
+  'kz':'KZ','cn':'CN','kr':'KR','au':'AU','br':'BR','mx':'MX','cy':'CY','gr':'GR','hu':'HU','cz':'CZ','bg':'BG',
+  'lv':'LV','ee':'EE','lt':'LT','md':'MD','rs':'RS','hr':'HR','sk':'SK','si':'SI','lu':'LU','is':'IS','my':'MY',
+  'id':'ID','th':'TH','vn':'VN','hk':'HK','tw':'TW','sa':'SA','om':'OM','bh':'BH'
+};
+function detectCountry(text){
+  if(!text) return '';
+  var s=text.toLowerCase();
+  // full-name match (longest wins) — safe as substrings since names are long.
+  var best='', bestLen=0;
+  for(var name in CC_NAMES){ if(name.length>bestLen && s.indexOf(name)!==-1){ best=CC_NAMES[name]; bestLen=name.length; } }
+  if(best) return best;
+  // else look for a 2-3 letter code as a standalone token.
+  var tokens=s.split(/[^a-z]+/);
+  for(var i=0;i<tokens.length;i++){ var t=tokens[i]; if(t && CC_CODES[t]) return CC_CODES[t]; }
+  return '';
+}
+function flagEmoji(cc){
+  if(!cc||cc.length!==2) return '';
+  return String.fromCodePoint(0x1F1E6+cc.charCodeAt(0)-65, 0x1F1E6+cc.charCodeAt(1)-65);
+}
+function addServerFlags(){
+  document.querySelectorAll('.srow-c, .srow-name').forEach(function(el){
+    var row=el.closest('.srow'); if(!row) return;
+    if(row.querySelector('.srow-flag')) return;
+    var f=flagEmoji(detectCountry(el.textContent));
+    if(!f) return;
+    var sp=document.createElement('span'); sp.className='srow-flag'; sp.textContent=f;
+    row.appendChild(sp); // rightmost, matching the reference layout
+  });
+}
 </script>
 
 </body>
