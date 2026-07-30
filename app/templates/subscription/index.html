@@ -231,7 +231,7 @@ svg{display:block;}
   .pane[data-pane="account"] .ucard{order:2;margin:0;align-self:stretch;}
   .pane[data-pane="account"] .sec-title{order:3;grid-column:1/-1;}
   .pane[data-pane="account"] .acct-grid{order:4;grid-column:1/-1;}
-  .pane[data-pane="account"] .tkt-r{order:5;grid-column:1/-1;flex-direction:row;justify-content:flex-start;flex-wrap:wrap;}
+  .pane[data-pane="account"] .tkt-r{order:5;grid-column:1/-1;padding:14px;gap:10px;}
 }
 @media(max-width:420px){
   .acct-grid{grid-template-columns:1fr;}
@@ -306,9 +306,7 @@ svg{display:block;}
               </div>
             </div>
             <div class="tkt-r">
-              <div class="qrbox" id="subQrBig"></div>
-              <span class="qr-hint" data-i18n="scanHint">این QR را با اپلیکیشن خود اسکن کنید تا لینک اشتراک اضافه شود.</span>
-              <div class="suburl-row" id="subUrlRow" dir="ltr"><button class="btn-ac" id="revealSubBtn" onclick="revealSubUrl()" style="width:100%;" data-i18n="showLink">نمایش لینک اشتراک</button><span class="u" id="subUrl" style="display:none;"></span><button class="btn-ac" id="subCopyBtn" onclick="copyText(document.getElementById('subUrl').textContent)" style="display:none;" data-i18n="copy">کپی</button></div>
+              <div class="suburl-row" id="subUrlRow" dir="ltr"><button class="btn-ac" id="revealSubBtn" onclick="revealSubUrl()" style="width:100%;" data-i18n="showLink">نمایش لینک اشتراک</button><span class="u" id="subUrl" style="display:none;"></span><button class="srow-btn" id="subQrBtn" title="QR" aria-label="QR" onclick="showQR(document.getElementById('subUrl').textContent, event)" style="display:none;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 12v4a1 1 0 0 1-1 1h-4"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><rect x="7" y="7" width="5" height="5" rx="1"></rect></svg></button><button class="btn-ac" id="subCopyBtn" onclick="copyText(document.getElementById('subUrl').textContent)" style="display:none;" data-i18n="copy">کپی</button></div>
               <button class="btn-out" onclick="copyAllConfigs(this)" data-i18n="copyAllConfigs">کپی همه کانفیگ‌ها</button>
             </div>
           </div>
@@ -542,7 +540,7 @@ function showProto(key){
   document.querySelectorAll('.ppanel').forEach(function(p){ p.style.display = (p.getAttribute('data-panel')===key) ? '' : 'none'; });
   document.querySelectorAll('.ptab').forEach(function(t){ t.classList.toggle('active', t.getAttribute('data-tab')===key); });
 }
-function revealSubUrl(){ var b=document.getElementById('revealSubBtn'), u=document.getElementById('subUrl'), c=document.getElementById('subCopyBtn'); if(b) b.style.display='none'; if(u) u.style.display=''; if(c) c.style.display=''; }
+function revealSubUrl(){ var b=document.getElementById('revealSubBtn'); if(b) b.style.display='none'; ['subUrl','subQrBtn','subCopyBtn'].forEach(function(id){ var e=document.getElementById(id); if(e) e.style.display=''; }); }
 function showOS(os, btn){
   document.querySelectorAll('#osTabs button').forEach(function(b){ b.classList.toggle('active', b===btn); });
   document.querySelectorAll('.os-list').forEach(function(l){ l.style.display = (l.getAttribute('data-os')===os) ? '' : 'none'; });
@@ -562,7 +560,6 @@ function revealCreds(btn){
 (function(){
   var subUrl=(location.origin+location.pathname).replace(/\/+$/,'');
   var su=document.getElementById('subUrl'); if(su) su.textContent=subUrl;
-  var qb=document.getElementById('subQrBig'); if(qb){ try{ new QRCode(qb,{text:subUrl,width:158,height:158,correctLevel:QRCode.CorrectLevel.M}); }catch(e){} }
   applyTheme(localStorage.getItem('sub_theme')||'dark');
   applyLang(localStorage.getItem('sub_lang')||'fa');
   document.querySelectorAll('.js-name').forEach(function(el){ try{ el.textContent=decodeURIComponent(el.textContent); }catch(e){} });
