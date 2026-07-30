@@ -156,7 +156,7 @@ main{width:100%;max-width:1040px;margin:0 auto;padding:20px 16px 96px}
         <div class="hero">
           <!-- USAGE RING -->
           <div class="card-hover" style="display:flex;flex-direction:column;background:oklch(0.2 0.032 266 / .82);border:1px solid oklch(0.34 0.035 266);border-radius:24px;padding:22px 20px;backdrop-filter:blur(16px)">
-            <div class="row" style="justify-content:space-between;width:100%;margin-bottom:12px"><span style="font-size:13px;font-weight:700;color:oklch(0.85 0.02 265)" data-i18n="remVol">حجم باقی‌مانده</span><span class="pg-mono num-fa" style="font-size:11px;font-weight:600;color:oklch(0.7 0.16 268);background:oklch(0.6 0.18 268 / .15);padding:3px 9px;border-radius:12px;border:1px solid oklch(0.6 0.18 268 / .3)">{{ pct_used }}٪ <span data-i18n="usedShort">مصرف‌شده</span></span></div>
+            <div class="row" style="justify-content:space-between;width:100%;margin-bottom:12px"><span style="font-size:13px;font-weight:700;color:oklch(0.85 0.02 265)" data-i18n="remVol">حجم باقی‌مانده</span><span class="pg-mono num-fa" style="font-size:11px;font-weight:600;color:oklch(0.7 0.16 268);background:oklch(0.6 0.18 268 / .15);padding:3px 9px;border-radius:12px;border:1px solid oklch(0.6 0.18 268 / .3)">{{ pct_used }}% <span data-i18n="usedShort">مصرف‌شده</span></span></div>
             <div class="row" style="justify-content:center;position:relative;margin:10px 0">
               <svg width="200" height="200" viewBox="0 0 120 120" style="filter:drop-shadow(0 0 16px oklch(0.62 0.2 272 / .35))">
                 <defs><linearGradient id="pgua" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="oklch(0.74 0.18 255)"></stop><stop offset="100%" stop-color="oklch(0.58 0.22 295)"></stop></linearGradient></defs>
@@ -230,7 +230,7 @@ main{width:100%;max-width:1040px;margin:0 auto;padding:20px 16px 96px}
               <button class="rbtn" data-range="7d" onclick="setRange('7d',this)" style="padding:6px 15px;border-radius:9px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:transparent;color:oklch(0.72 0.02 265)" data-i18n="week">هفته</button>
             </div>
           </div>
-          <div class="ubars" id="chartBars"></div>
+          <div id="chartBars" style="min-height:130px"></div>
         </div>
 
         <!-- ACCOUNT DETAILS -->
@@ -427,7 +427,6 @@ function applyLang(lang){
   var ll=lang==='fa'?'EN':'فا';
   var a=document.getElementById('langLabel'),b=document.getElementById('langLabel2');if(a)a.textContent=ll;if(b)b.textContent=ll;
   localStorage.setItem('sub_lang',lang);
-  document.querySelectorAll('.num-fa').forEach(function(el){ if(el.getAttribute('data-raw')==null) el.setAttribute('data-raw',el.textContent); el.textContent = lang==='fa'?faDigits(el.getAttribute('data-raw')):el.getAttribute('data-raw'); });
   renderChart();
 }
 function toggleLang(){applyLang(_lang()==='fa'?'en':'fa');}
@@ -486,10 +485,30 @@ function renderChart(){
   var max=Math.max.apply(null,bars.map(function(b){return b.value;}))||1;
   var total=bars.reduce(function(s,b){return s+b.value;},0);
   var t=I18N[_lang()]||I18N.fa;var ct=document.getElementById('chartTotal');
-  if(ct){var lbl=_chartRange==='1d'?t.rangeDayLabel:t.rangeWeekLabel;var tv=_bytes(total);if(_lang()==='fa')tv=faDigits(tv);ct.textContent=tv+' · '+lbl;}
-  el.style.gap=_chartRange==='1d'?'3px':'10px';
-  var barC='linear-gradient(oklch(0.72 0.16 258),oklch(0.6 0.2 292))',mid='oklch(0.52 0.14 268)',dim='oklch(0.3 0.03 266)';
-  el.innerHTML=bars.map(function(b){var h=Math.max(4,Math.round(b.value/max*100));var c=h>60?barC:(h>25?mid:dim);var lb=_tick(b.time,_chartRange);if(_lang()==='fa')lb=faDigits(lb);return '<div class="ucol" title="'+_bytes(b.value)+'"><div class="ufill" style="height:'+h+'%;background:'+c+'"></div><span class="ulbl">'+lb+'</span></div>';}).join('');
+  if(ct){var lbl=_chartRange==='1d'?t.rangeDayLabel:t.rangeWeekLabel;ct.textContent=_bytes(total)+' · '+lbl;}
+  if(!bars.length){el.innerHTML='';return;}
+  // smooth gradient AREA chart
+  var W=300,H=100,PT=8,PB=6;
+  var n=bars.length;var step=n>1?W/(n-1):0;
+  var pxy=bars.map(function(b,i){var x=n>1?i*step:W/2;var y=H-PB-(b.value/max)*(H-PT-PB);return {x:x,y:y};});
+  function sm(p){ // smooth path via mid-point quadratics
+    if(p.length===1)return 'M0 '+p[0].y.toFixed(1)+' L'+W+' '+p[0].y.toFixed(1);
+    var d='M'+p[0].x.toFixed(1)+' '+p[0].y.toFixed(1);
+    for(var i=1;i<p.length;i++){var mx=(p[i-1].x+p[i].x)/2;d+=' Q'+p[i-1].x.toFixed(1)+' '+p[i-1].y.toFixed(1)+' '+mx.toFixed(1)+' '+((p[i-1].y+p[i].y)/2).toFixed(1);d+=' Q'+p[i].x.toFixed(1)+' '+p[i].y.toFixed(1)+' '+p[i].x.toFixed(1)+' '+p[i].y.toFixed(1);}
+    return d;
+  }
+  var line=sm(pxy);
+  var area=line+' L'+W+' '+H+' L0 '+H+' Z';
+  var grid='';[0.5].forEach(function(g){var gy=(PT+(H-PT-PB)*g).toFixed(1);grid+='<line x1="0" y1="'+gy+'" x2="'+W+'" y2="'+gy+'" stroke="oklch(0.32 0.03 266)" stroke-width="1" stroke-dasharray="3 5" vector-effect="non-scaling-stroke" opacity="0.5"></line>';});
+  var dots=pxy.map(function(p){return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="2.6" fill="oklch(0.16 0.02 266)" stroke="oklch(0.74 0.16 262)" stroke-width="1.6" vector-effect="non-scaling-stroke"></circle>';}).join('');
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" width="100%" height="128" style="display:block;overflow:visible">'
+    +'<defs><linearGradient id="pgArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="oklch(0.66 0.18 268)" stop-opacity="0.42"></stop><stop offset="100%" stop-color="oklch(0.66 0.18 268)" stop-opacity="0"></stop></linearGradient>'
+    +'<linearGradient id="pgLine" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="oklch(0.72 0.16 258)"></stop><stop offset="100%" stop-color="oklch(0.66 0.2 292)"></stop></linearGradient></defs>'
+    +grid+'<path d="'+area+'" fill="url(#pgArea)"></path>'
+    +'<path d="'+line+'" fill="none" stroke="url(#pgLine)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>'
+    +dots+'</svg>';
+  var axis='<div class="row" dir="ltr" style="justify-content:space-between;margin-top:9px">'+bars.map(function(b){return '<span class="pg-mono" style="font-size:9px;color:oklch(0.58 0.02 265);font-weight:600;flex:1;text-align:center;overflow:hidden">'+_tick(b.time,_chartRange)+'</span>';}).join('')+'</div>';
+  el.innerHTML=svg+axis;
 }
 function setRange(r,btn){_chartRange=r;document.querySelectorAll('.rbtn').forEach(function(b){var on=b===btn;b.style.background=on?'oklch(0.62 0.19 264)':'transparent';b.style.color=on?'#fff':'oklch(0.72 0.02 265)';});if(_usageRaw[r]){renderChart();}else loadUsage(r);}
 function loadUsage(range){var el=document.getElementById('chartBars');var period=range==='1d'?'hour':'day';var id=++_chartReq;fetch(subUrlValue()+'/usage?period='+period,{headers:{'Accept':'application/json'}}).then(function(r){return r.ok?r.json():null;}).then(function(j){if(id!==_chartReq&&range!==_chartRange)return;_usageRaw[range]=normalizeUsage(j);if(range===_chartRange)renderChart();}).catch(function(){});}
