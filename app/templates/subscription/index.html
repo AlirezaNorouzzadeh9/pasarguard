@@ -223,6 +223,15 @@ svg{display:block;}
 }
 @media(min-width:861px){
   .pane{display:flex!important;}
+  /* desktop account layout: [info | chart] · details · sub-link box */
+  .pane[data-pane="account"]{display:grid!important;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px;align-items:start;}
+  .pane[data-pane="account"]>.tkt{display:contents;}
+  .pane[data-pane="account"] .alert{order:0;grid-column:1/-1;}
+  .pane[data-pane="account"] .tkt-l{order:1;margin:0;}
+  .pane[data-pane="account"] .ucard{order:2;margin:0;align-self:stretch;}
+  .pane[data-pane="account"] .sec-title{order:3;grid-column:1/-1;}
+  .pane[data-pane="account"] .acct-grid{order:4;grid-column:1/-1;}
+  .pane[data-pane="account"] .tkt-r{order:5;grid-column:1/-1;flex-direction:row;justify-content:flex-start;flex-wrap:wrap;}
 }
 @media(max-width:420px){
   .acct-grid{grid-template-columns:1fr;}
