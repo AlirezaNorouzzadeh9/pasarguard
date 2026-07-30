@@ -514,7 +514,7 @@ function revealCreds(btn){
   applyLang(localStorage.getItem('sub_lang')||'fa');
   document.querySelectorAll('.js-name').forEach(function(el){ try{ el.textContent=decodeURIComponent(el.textContent); }catch(e){} });
   addServerFlags();
-  loadUsageChart();
+  setTimeout(loadUsageChart, 0); // defer so _usageState (declared below) is initialised
 })();
 
 // --- usage chart (ported from PGClockFusion) ---------------------------------
