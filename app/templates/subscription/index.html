@@ -328,7 +328,7 @@ svg{display:block;}
                 <div class="pp-head"><div class="pp-h-l"><span class="pp-title">OpenVPN</span><span class="pp-hint" data-i18n="ovHint">فایل ‎.ovpn را دانلود و در OpenVPN Connect باز کنید.</span></div></div>
                 <div class="srv-grid">
                   {% for cfg in openvpn_configs %}
-                  <div class="srow" dir="ltr"><span class="srow-name">{{ cfg.name }}</span><span class="srow-tag" style="color:oklch(0.82 0.12 75);">ovpn</span><button class="srow-btn" title="Copy URL" onclick="copyOvpnUrl()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button><a class="srow-btn dlmini" title="download" href="{{ cfg.data_url }}" download="{{ cfg.filename }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg></a></div>
+                  <div class="srow" dir="ltr"><span class="srow-name">{{ cfg.name }}</span><span class="srow-tag" style="color:oklch(0.82 0.12 75);">ovpn</span><a class="srow-btn dlmini" title="download" href="{{ cfg.data_url }}" download="{{ cfg.filename }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg></a></div>
                   {% endfor %}
                 </div>
               </div>
@@ -453,12 +453,6 @@ function showQR(text, ev){ if(ev) ev.stopPropagation(); var box=document.getElem
 function closeQR(){ document.getElementById('qrOverlay').style.display='none'; document.getElementById('qrPopup').style.display='none'; }
 // QR of a downloadable config (WireGuard/OpenVPN): decode the data: URL to the
 // raw config text so WireGuard/other apps can scan it directly.
-// OpenVPN Connect imports from a real http(s) URL (it rejects data: URLs), so
-// copy the panel's per-client openvpn endpoint, which returns the raw .ovpn.
-function copyOvpnUrl(){
-  var base=(location.origin+location.pathname).replace(/\/+$/,'');
-  copyText(base+'/openvpn');
-}
 function showFileQR(dataUrl, ev){
   if(!dataUrl){ return; }
   var text=dataUrl;
