@@ -179,6 +179,9 @@ svg{display:block;}
 .applink img{width:18px;height:18px;border-radius:5px;object-fit:cover;}
 .applink .dot{width:8px;height:8px;border-radius:50%;background:var(--ac);flex-shrink:0;}
 .applink .nm{flex:1;min-width:0;}
+.applink .tag{font-size:9px;font-weight:700;text-transform:uppercase;padding:3px 7px;border-radius:6px;background:var(--btn);color:var(--mut);white-space:nowrap;}
+.applink:hover{border-color:rgb(128 128 128/.28);}
+.apps-dev{margin-bottom:4px;}
 .foot{display:flex;justify-content:center;font-size:12px;color:var(--fnt);}
 
 @media(max-width:860px){
@@ -404,16 +407,50 @@ svg{display:block;}
           {% endif %}
         </section>
 
-        {% if apps %}
         <section class="pane" data-pane="apps">
           <div class="sec-title" data-i18n="quickApps">اپلیکیشن‌ها</div>
+          {% if apps %}
           <div class="apps-list">
             {% for app in apps %}{% set app_url = app.import_url %}{% if not app_url and app.download_links %}{% for l in app.download_links %}{% if l.language.value == 'en' and not app_url %}{% set app_url = l.url %}{% endif %}{% endfor %}{% endif %}
             <a class="applink" href="{{ app_url or '#' }}"{% if app_url %} target="_blank" rel="noopener"{% endif %}>{% if app.icon_url %}<img src="{{ app.icon_url }}" alt="">{% else %}<span class="dot"></span>{% endif %}<span class="nm">{{ app.name }}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--fnt)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg></a>
             {% endfor %}
           </div>
+          {% else %}
+          <div class="apps-dev" id="osTabs">
+            <button class="active" type="button" data-os="android" onclick="showOS('android',this)">Android</button>
+            <button type="button" data-os="ios" onclick="showOS('ios',this)">iOS</button>
+            <button type="button" data-os="windows" onclick="showOS('windows',this)">Windows</button>
+            <button type="button" data-os="mac" onclick="showOS('mac',this)">macOS</button>
+          </div>
+          {% set _ex %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.55;"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>{% endset %}
+          {% set _b='oklch(0.72 0.12 250)' %}{% set _t='oklch(0.75 0.12 190)' %}{% set _o='oklch(0.78 0.13 70)' %}{% set _p='oklch(0.7 0.14 300)' %}
+          <div class="apps-list os-list" data-os="android">
+            <a class="applink" href="https://github.com/2dust/v2rayNG/releases/latest" target="_blank" rel="noopener"><span class="dot" style="background:{{_b}}"></span><span class="nm">v2rayNG</span><span class="tag">Xray</span>{{ _ex }}</a>
+            <a class="applink" href="https://github.com/hiddify/hiddify-next/releases/latest" target="_blank" rel="noopener"><span class="dot" style="background:{{_b}}"></span><span class="nm">Hiddify</span><span class="tag">Xray</span>{{ _ex }}</a>
+            <a class="applink" href="https://play.google.com/store/apps/details?id=com.wireguard.android" target="_blank" rel="noopener"><span class="dot" style="background:{{_t}}"></span><span class="nm">WireGuard</span><span class="tag">WG</span>{{ _ex }}</a>
+            <a class="applink" href="https://play.google.com/store/apps/details?id=net.openvpn.openvpn" target="_blank" rel="noopener"><span class="dot" style="background:{{_o}}"></span><span class="nm">OpenVPN Connect</span><span class="tag">OVPN</span>{{ _ex }}</a>
+            <a class="applink" href="https://play.google.com/store/apps/details?id=org.strongswan.android" target="_blank" rel="noopener"><span class="dot" style="background:{{_p}}"></span><span class="nm">strongSwan</span><span class="tag">IKEv2</span>{{ _ex }}</a>
+          </div>
+          <div class="apps-list os-list" data-os="ios" style="display:none;">
+            <a class="applink" href="https://apps.apple.com/app/streisand/id6450534064" target="_blank" rel="noopener"><span class="dot" style="background:{{_b}}"></span><span class="nm">Streisand</span><span class="tag">Xray</span>{{ _ex }}</a>
+            <a class="applink" href="https://apps.apple.com/app/shadowrocket/id932747118" target="_blank" rel="noopener"><span class="dot" style="background:{{_b}}"></span><span class="nm">Shadowrocket</span><span class="tag">Xray</span>{{ _ex }}</a>
+            <a class="applink" href="https://apps.apple.com/app/wireguard/id1441195209" target="_blank" rel="noopener"><span class="dot" style="background:{{_t}}"></span><span class="nm">WireGuard</span><span class="tag">WG</span>{{ _ex }}</a>
+            <a class="applink" href="https://apps.apple.com/app/openvpn-connect/id590379981" target="_blank" rel="noopener"><span class="dot" style="background:{{_o}}"></span><span class="nm">OpenVPN Connect</span><span class="tag">OVPN</span>{{ _ex }}</a>
+          </div>
+          <div class="apps-list os-list" data-os="windows" style="display:none;">
+            <a class="applink" href="https://github.com/2dust/v2rayN/releases/latest" target="_blank" rel="noopener"><span class="dot" style="background:{{_b}}"></span><span class="nm">v2rayN</span><span class="tag">Xray</span>{{ _ex }}</a>
+            <a class="applink" href="https://github.com/hiddify/hiddify-next/releases/latest" target="_blank" rel="noopener"><span class="dot" style="background:{{_b}}"></span><span class="nm">Hiddify</span><span class="tag">Xray</span>{{ _ex }}</a>
+            <a class="applink" href="https://www.wireguard.com/install/" target="_blank" rel="noopener"><span class="dot" style="background:{{_t}}"></span><span class="nm">WireGuard</span><span class="tag">WG</span>{{ _ex }}</a>
+            <a class="applink" href="https://openvpn.net/client/" target="_blank" rel="noopener"><span class="dot" style="background:{{_o}}"></span><span class="nm">OpenVPN Connect</span><span class="tag">OVPN</span>{{ _ex }}</a>
+          </div>
+          <div class="apps-list os-list" data-os="mac" style="display:none;">
+            <a class="applink" href="https://apps.apple.com/app/v2box-v2ray-client/id6446814690" target="_blank" rel="noopener"><span class="dot" style="background:{{_b}}"></span><span class="nm">V2Box</span><span class="tag">Xray</span>{{ _ex }}</a>
+            <a class="applink" href="https://github.com/hiddify/hiddify-next/releases/latest" target="_blank" rel="noopener"><span class="dot" style="background:{{_b}}"></span><span class="nm">Hiddify</span><span class="tag">Xray</span>{{ _ex }}</a>
+            <a class="applink" href="https://apps.apple.com/app/wireguard/id1451685025" target="_blank" rel="noopener"><span class="dot" style="background:{{_t}}"></span><span class="nm">WireGuard</span><span class="tag">WG</span>{{ _ex }}</a>
+            <a class="applink" href="https://openvpn.net/client/" target="_blank" rel="noopener"><span class="dot" style="background:{{_o}}"></span><span class="nm">OpenVPN Connect</span><span class="tag">OVPN</span>{{ _ex }}</a>
+          </div>
+          {% endif %}
         </section>
-        {% endif %}
 
       </div>
 
@@ -423,7 +460,7 @@ svg{display:block;}
     <div class="mnav"><div class="mnav-in">
       <button class="mnav-b active" data-nav="account" onclick="goPane('account')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg><span data-i18n="navAccount">اطلاعات حساب</span></button>
       <button class="mnav-b" data-nav="servers" onclick="goPane('servers')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="8" x="3" y="3" rx="2"></rect><rect width="18" height="8" x="3" y="13" rx="2"></rect><path d="M7 7h.01M7 17h.01"></path></svg><span data-i18n="navServers">سرورها</span></button>
-      {% if apps %}<button class="mnav-b" data-nav="apps" onclick="goPane('apps')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1.5"></rect><rect width="7" height="7" x="14" y="3" rx="1.5"></rect><rect width="7" height="7" x="3" y="14" rx="1.5"></rect><rect width="7" height="7" x="14" y="14" rx="1.5"></rect></svg><span data-i18n="quickApps">اپلیکیشن‌ها</span></button>{% endif %}
+      <button class="mnav-b" data-nav="apps" onclick="goPane('apps')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1.5"></rect><rect width="7" height="7" x="14" y="3" rx="1.5"></rect><rect width="7" height="7" x="3" y="14" rx="1.5"></rect><rect width="7" height="7" x="14" y="14" rx="1.5"></rect></svg><span data-i18n="quickApps">اپلیکیشن‌ها</span></button>
     </div></div>
   </div>
 </div>
@@ -495,6 +532,10 @@ document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeQR()
 function showProto(key){
   document.querySelectorAll('.ppanel').forEach(function(p){ p.style.display = (p.getAttribute('data-panel')===key) ? '' : 'none'; });
   document.querySelectorAll('.ptab').forEach(function(t){ t.classList.toggle('active', t.getAttribute('data-tab')===key); });
+}
+function showOS(os, btn){
+  document.querySelectorAll('#osTabs button').forEach(function(b){ b.classList.toggle('active', b===btn); });
+  document.querySelectorAll('.os-list').forEach(function(l){ l.style.display = (l.getAttribute('data-os')===os) ? '' : 'none'; });
 }
 function goPane(name){
   document.querySelectorAll('.pane').forEach(function(p){ p.classList.toggle('active', p.getAttribute('data-pane')===name); });
