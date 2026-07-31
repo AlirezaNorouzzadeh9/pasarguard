@@ -49,7 +49,8 @@ main{width:100%;max-width:1040px;margin:0 auto;padding:20px 16px 96px}
 .mtab.active{color:oklch(0.98 0.01 265);background:oklch(0.28 0.04 266 / .8)}
 .desk-h1{display:none}
 /* layout grids (mobile-first) */
-.hero{display:grid;grid-template-columns:1fr;gap:18px;align-items:center}
+.hero{display:grid;grid-template-columns:1fr;gap:18px;align-items:stretch}
+.hero-tiles>div{display:flex;flex-direction:column;justify-content:center}
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .server-grid{display:grid;grid-template-columns:1fr;gap:10px}
 .apps-grid{display:grid;grid-template-columns:1fr;gap:11px}
@@ -62,11 +63,9 @@ main{width:100%;max-width:1040px;margin:0 auto;padding:20px 16px 96px}
 .pproto.active{display:block}
 .oslist{display:none}
 .oslist.active{display:grid}
-/* usage bars */
-.ubars{display:flex;align-items:flex-end;gap:3px;height:130px;padding-top:10px;direction:ltr}
-.ucol{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;gap:6px;min-width:0}
-.ufill{width:100%;border-radius:5px;animation:pggrow .5s ease}
-.ulbl{font-size:9px;color:oklch(0.6 0.02 265);font-weight:600;text-align:center;font-family:ui-monospace,monospace}
+/* usage chart */
+.cbar{cursor:pointer}
+.pgtip{position:fixed;pointer-events:none;background:oklch(0.24 0.03 266);border:1px solid oklch(0.4 0.04 266);border-radius:10px;padding:6px 10px;font-size:11px;font-weight:600;color:oklch(0.95 0.01 265);box-shadow:0 8px 24px oklch(0 0 0/.45);opacity:0;transition:opacity .12s;z-index:80;direction:ltr;font-family:ui-monospace,monospace}
 @media(min-width:900px){
   main{max-width:1040px;padding:24px 30px 30px}
   .hdr-desktop{display:flex}
@@ -166,7 +165,7 @@ main{width:100%;max-width:1040px;margin:0 auto;padding:20px 16px 96px}
           </div>
 
           <!-- RIGHT: STAT TILES (all account details) -->
-          <div class="hero-tiles" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:center">
+          <div class="hero-tiles" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:stretch;grid-auto-rows:1fr">
             <div class="card-hover" style="background:oklch(0.2 0.032 266 / .82);border:1px solid oklch(0.34 0.035 266);border-radius:18px;padding:15px 12px;text-align:center">
               <div class="row" style="justify-content:center;color:oklch(0.85 0.14 74);margin-bottom:7px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>
               <div dir="ltr" style="font-size:17px;font-weight:800;color:oklch(0.95 0.01 265)">{% if days_left is not none %}<span class="pg-mono">{{ days_left if days_left >= 0 else 0 }}</span> <span style="font-size:11px;font-weight:600;color:oklch(0.72 0.02 265)" data-i18n="daysWord">روز</span>{% else %}∞{% endif %}</div>
@@ -472,28 +471,34 @@ function renderChart(){
   var t=I18N[_lang()]||I18N.fa;var ct=document.getElementById('chartTotal');
   if(ct){var lbl=_chartRange==='1d'?t.rangeDayLabel:t.rangeWeekLabel;ct.textContent=_bytes(total)+' · '+lbl;}
   if(!bars.length){el.innerHTML='';return;}
-  // smooth gradient AREA chart
-  var W=300,H=100,PT=8,PB=6;
-  var n=bars.length;var step=n>1?W/(n-1):0;
-  var pxy=bars.map(function(b,i){var x=n>1?i*step:W/2;var y=H-PB-(b.value/max)*(H-PT-PB);return {x:x,y:y};});
-  function sm(p){ // smooth path via mid-point quadratics
-    if(p.length===1)return 'M0 '+p[0].y.toFixed(1)+' L'+W+' '+p[0].y.toFixed(1);
-    var d='M'+p[0].x.toFixed(1)+' '+p[0].y.toFixed(1);
-    for(var i=1;i<p.length;i++){var mx=(p[i-1].x+p[i].x)/2;d+=' Q'+p[i-1].x.toFixed(1)+' '+p[i-1].y.toFixed(1)+' '+mx.toFixed(1)+' '+((p[i-1].y+p[i].y)/2).toFixed(1);d+=' Q'+p[i].x.toFixed(1)+' '+p[i].y.toFixed(1)+' '+p[i].x.toFixed(1)+' '+p[i].y.toFixed(1);}
-    return d;
-  }
-  var line=sm(pxy);
-  var area=line+' L'+W+' '+H+' L0 '+H+' Z';
+  // rounded gradient BAR chart
+  var W=300,H=100,PT=8,PB=4;
+  var n=bars.length,gap=W/n,bw=gap*0.62;
   var grid='';[0.5].forEach(function(g){var gy=(PT+(H-PT-PB)*g).toFixed(1);grid+='<line x1="0" y1="'+gy+'" x2="'+W+'" y2="'+gy+'" stroke="oklch(0.32 0.03 266)" stroke-width="1" stroke-dasharray="3 5" vector-effect="non-scaling-stroke" opacity="0.5"></line>';});
-  var dots=pxy.map(function(p){return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="2.6" fill="oklch(0.16 0.02 266)" stroke="oklch(0.74 0.16 262)" stroke-width="1.6" vector-effect="non-scaling-stroke"></circle>';}).join('');
+  var rects=bars.map(function(b,i){
+    var h=b.value>0?Math.max((b.value/max)*(H-PT-PB),2):1;
+    var x=i*gap+(gap-bw)/2,y=H-PB-h;
+    return '<rect class="cbar" data-i="'+i+'" x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="4" fill="url(#pgBar)"></rect>';
+  }).join('');
   var svg='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" width="100%" height="128" style="display:block;overflow:visible">'
-    +'<defs><linearGradient id="pgArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="oklch(0.66 0.18 268)" stop-opacity="0.42"></stop><stop offset="100%" stop-color="oklch(0.66 0.18 268)" stop-opacity="0"></stop></linearGradient>'
-    +'<linearGradient id="pgLine" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="oklch(0.72 0.16 258)"></stop><stop offset="100%" stop-color="oklch(0.66 0.2 292)"></stop></linearGradient></defs>'
-    +grid+'<path d="'+area+'" fill="url(#pgArea)"></path>'
-    +'<path d="'+line+'" fill="none" stroke="url(#pgLine)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>'
-    +dots+'</svg>';
+    +'<defs><linearGradient id="pgBar" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="oklch(0.66 0.2 292)"></stop><stop offset="100%" stop-color="oklch(0.5 0.16 264)"></stop></linearGradient></defs>'
+    +grid+rects+'</svg>';
   var axis='<div class="row" dir="ltr" style="justify-content:space-between;margin-top:9px">'+bars.map(function(b){return '<span class="pg-mono" style="font-size:9px;color:oklch(0.58 0.02 265);font-weight:600;flex:1;text-align:center;overflow:hidden">'+_tick(b.time,_chartRange)+'</span>';}).join('')+'</div>';
   el.innerHTML=svg+axis;
+  bindChartTip(el,bars);
+}
+function bindChartTip(el,bars){
+  var tip=document.getElementById('pgChartTip');
+  if(!tip){tip=document.createElement('div');tip.id='pgChartTip';tip.className='pgtip';document.body.appendChild(tip);}
+  el.onmousemove=function(e){
+    var t=e.target&&e.target.closest?e.target.closest('.cbar'):null;
+    if(t){var b=bars[+t.getAttribute('data-i')];if(!b){tip.style.opacity=0;return;}
+      var lbl=_tick(b.time,_chartRange);if(_chartRange==='1d'&&lbl)lbl+=':00';
+      tip.textContent=lbl+' — '+_bytes(b.value);tip.style.opacity=1;
+      tip.style.left=Math.min(e.clientX+14,window.innerWidth-130)+'px';tip.style.top=(e.clientY-36)+'px';
+    } else tip.style.opacity=0;
+  };
+  el.onmouseleave=function(){tip.style.opacity=0;};
 }
 function setRange(r,btn){_chartRange=r;document.querySelectorAll('.rbtn').forEach(function(b){var on=b===btn;b.style.background=on?'oklch(0.62 0.19 264)':'transparent';b.style.color=on?'#fff':'oklch(0.72 0.02 265)';});if(_usageRaw[r]){renderChart();}else loadUsage(r);}
 function loadUsage(range){var el=document.getElementById('chartBars');var period=range==='1d'?'hour':'day';var id=++_chartReq;fetch(subUrlValue()+'/usage?period='+period,{headers:{'Accept':'application/json'}}).then(function(r){return r.ok?r.json():null;}).then(function(j){if(id!==_chartReq&&range!==_chartRange)return;_usageRaw[range]=normalizeUsage(j);if(range===_chartRange)renderChart();}).catch(function(){});}
