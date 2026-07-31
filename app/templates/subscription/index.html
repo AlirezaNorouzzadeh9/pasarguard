@@ -260,7 +260,7 @@ main{width:100%;max-width:1040px;margin:0 auto;padding:20px 16px 96px}
           {% if ikev2_details %}{% set _ = protos.append(('ike','IKEv2','iOS · Windows', ikev2_details|length, 'oklch(0.72 0.15 300)')) %}{% endif %}
           {% if l2tp_details %}{% set _ = protos.append(('l2tp','L2TP','Android · Win', l2tp_details|length, 'oklch(0.78 0.14 165)')) %}{% endif %}
           {% for id,name,sub,cnt,dot in protos %}
-          <button class="ptab" data-ptab="{{ id }}" onclick="showProto('{{ id }}')" style="display:flex;align-items:center;gap:9px;padding:9px 13px;border-radius:13px;cursor:pointer;flex-shrink:0;background:oklch(0.19 0.028 266 / .6);border:1px solid oklch(0.32 0.03 266);color:oklch(0.92 0.01 265)" data-dot="{{ dot }}"><span style="width:9px;height:9px;border-radius:50%;background:{{ dot }};flex-shrink:0"></span><span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.25"><span style="font-size:13px;font-weight:700">{{ name }}</span><span class="pg-mono" style="font-size:9.5px;color:oklch(0.64 0.02 265)">{{ sub }}</span></span><span class="pg-mono num-fa" style="font-size:11px;color:oklch(0.66 0.02 265);margin-inline-start:2px">{{ cnt }}</span></button>
+          <button class="ptab" data-ptab="{{ id }}" onclick="showProto('{{ id }}')" style="display:flex;align-items:center;gap:9px;padding:10px 16px;border-radius:13px;cursor:pointer;flex-shrink:0;background:oklch(0.19 0.028 266 / .6);border:1px solid oklch(0.32 0.03 266);color:oklch(0.92 0.01 265)" data-dot="{{ dot }}"><span style="width:9px;height:9px;border-radius:50%;background:{{ dot }};flex-shrink:0"></span><span style="font-size:13.5px;font-weight:700">{{ name }}</span></button>
           {% endfor %}
         </div>
 
