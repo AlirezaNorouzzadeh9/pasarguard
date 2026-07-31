@@ -39,7 +39,7 @@ main{width:100%;max-width:1040px;margin:0 auto;padding:20px 16px 96px}
 .nav-btn{display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:12px;border:1px solid transparent;cursor:pointer;font-size:13.5px;font-weight:600;transition:all .2s cubic-bezier(.4,0,.2,1);background:transparent;color:oklch(0.72 0.02 265)}
 .nav-btn:hover{color:oklch(0.95 0.01 265);background:oklch(0.26 0.03 266 / .5)}
 .nav-btn.active{background:linear-gradient(135deg,oklch(0.62 0.19 264 / .25),oklch(0.52 0.18 292 / .25));border-color:oklch(0.58 0.18 268 / .6);color:oklch(0.98 0.01 265);box-shadow:0 4px 16px -4px oklch(0.6 0.2 270 / .35)}
-.lang-btn{display:flex;align-items:center;gap:6px;border:1px solid oklch(0.32 0.03 266);background:oklch(0.2 0.028 266 / .7);border-radius:12px;padding:7px 12px;color:oklch(0.88 0.01 265);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s ease}
+.lang-btn{display:flex;align-items:center;gap:8px;border:1px solid oklch(0.32 0.03 266);background:oklch(0.2 0.028 266 / .7);border-radius:12px;padding:9px 16px;color:oklch(0.88 0.01 265);font-size:13.5px;font-weight:600;cursor:pointer;transition:all .2s ease}
 .lang-btn:hover{border-color:oklch(0.48 0.04 266);background:oklch(0.26 0.03 266)}
 /* header desktop / mobile */
 .hdr-desktop{display:none}
@@ -127,7 +127,7 @@ main{width:100%;max-width:1040px;margin:0 auto;padding:20px 16px 96px}
           <button onclick="goTab('servers')" class="nav-btn tabbtn" data-tabbtn="servers"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="8" x="3" y="3" rx="2"></rect><rect width="18" height="8" x="3" y="13" rx="2"></rect><path d="M7 7h.01M7 17h.01"></path></svg><span data-i18n="servers">سرورها</span></button>
           <button onclick="goTab('apps')" class="nav-btn tabbtn" data-tabbtn="apps"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1.5"></rect><rect width="7" height="7" x="14" y="3" rx="1.5"></rect><rect width="7" height="7" x="3" y="14" rx="1.5"></rect><rect width="7" height="7" x="14" y="14" rx="1.5"></rect></svg><span data-i18n="apps">اپلیکیشن‌ها</span></button>
         </nav>
-        <button onclick="toggleLang()" class="lang-btn pg-mono"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"></path></svg><span id="langLabel">EN</span></button>
+        <button onclick="toggleLang()" class="lang-btn pg-mono"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"></path></svg><span id="langLabel">EN</span></button>
       </header>
 
       <!-- MOBILE TOP BAR -->
