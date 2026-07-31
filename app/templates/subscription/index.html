@@ -399,8 +399,6 @@ var I18N={
  en:{account:'Account',servers:'Servers',apps:'Apps',plan:'Subscription',st_active:'Active',st_on_hold:'On hold',st_limited:'Limited',st_expired:'Expired',st_disabled:'Disabled',gbLeft:'GB remaining',unlimited:'Unlimited',usedShort:'used',timeLeft:'Time remaining',daysWord:'days',expiresOn:'Expires',devices:'Devices',usedGb:'Used',lastSeen:'Last seen',never:'Never',copyLink:'Copy link',copied:'Copied!',usageChart:'Usage',day:'Day',week:'Week',acctDetails:'Account details',remVol:'Remaining',totalVol:'Total volume',createdAt:'Created',copyAll:'Copy all',credsSame:'Same for every server of this protocol',reveal:'Reveal',hide:'Hide',getApp:'Get',appsNote:'Install the app, then paste your subscription link into it.',close:'Close',subLinkTitle:'Your subscription link',xrayHint:'For v2rayNG, Hiddify & Streisand — copy the subscription or a single config.',wgHint:'Download the config and import it into the official WireGuard app.',ovHint:'Download the .ovpn file and open it in OpenVPN Connect.',ikeHint:'Create an IKEv2 VPN in device settings. Username & password are the same for all servers.',l2tpHint:'Create an L2TP/IPsec VPN. Username, password & secret are the same for all servers.',usageTotal:'Traffic in range',rangeDayLabel:'last 24 hours',rangeWeekLabel:'last 7 days'}
 };
 function _lang(){return localStorage.getItem('sub_lang')||'fa';}
-var FA_DIGITS={'0':'۰','1':'۱','2':'۲','3':'۳','4':'۴','5':'۵','6':'۶','7':'۷','8':'۸','9':'۹'};
-function faDigits(s){return String(s).replace(/[0-9]/g,function(d){return FA_DIGITS[d];});}
 function applyLang(lang){
   var t=I18N[lang]||I18N.fa;
   document.querySelectorAll('[data-i18n]').forEach(function(el){var k=el.getAttribute('data-i18n');if(k&&t[k]!=null)el.textContent=t[k];});
