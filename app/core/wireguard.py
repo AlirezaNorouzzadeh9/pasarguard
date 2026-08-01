@@ -16,6 +16,72 @@ from app.utils.crypto import get_wireguard_public_key, validate_wireguard_key
 _WIREGUARD_PROTOCOLS = frozenset((ProxyProtocol.wireguard,))
 _WIREGUARD_INTERFACE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 
+# AmneziaWG obfuscation knobs. Plain WireGuard is trivially fingerprintable —
+# fixed handshake size, fixed header bytes — so DPI blocks it with one rule.
+# These pad the messages and randomise the headers to remove that signature.
+# Every value must match on the client, so they are validated here rather than
+# discovered later as a tunnel that connects and never passes a packet.
+_AMNEZIA_INT_FIELDS = ("jc", "jmin", "jmax", "s1", "s2", "h1", "h2", "h3", "h4")
+_AMNEZIA_HEADER_FIELDS = ("h1", "h2", "h3", "h4")
+
+
+def validate_amnezia(raw) -> dict:
+    """Normalise and check the AmneziaWG block; {} means plain WireGuard."""
+    if raw in (None, "", {}):
+        return {}
+    if not isinstance(raw, dict):
+        raise ValueError("amnezia must be an object")
+
+    values: dict[str, int] = {}
+    for field in _AMNEZIA_INT_FIELDS:
+        value = raw.get(field)
+        if value in (None, ""):
+            continue
+        if isinstance(value, bool) or not isinstance(value, (int, str)):
+            raise ValueError(f"amnezia.{field} must be an integer")
+        try:
+            value = int(value)
+        except (TypeError, ValueError):
+            raise ValueError(f"amnezia.{field} must be an integer")
+        if value < 0:
+            raise ValueError(f"amnezia.{field} must not be negative")
+        values[field] = value
+
+    if not any(values.get(f) for f in _AMNEZIA_INT_FIELDS):
+        return {}
+
+    jc, jmin, jmax = values.get("jc", 0), values.get("jmin", 0), values.get("jmax", 0)
+    if jc > 128:
+        raise ValueError("amnezia.jc must be between 0 and 128")
+    if jc:
+        if not jmax:
+            raise ValueError("amnezia.jmax is required when jc is set")
+        if jmin > jmax:
+            raise ValueError("amnezia.jmin must not exceed amnezia.jmax")
+        if jmax > 1280:
+            raise ValueError("amnezia.jmax must not exceed 1280")
+
+    s1, s2 = values.get("s1", 0), values.get("s2", 0)
+    if s1 > 1132 or s2 > 1188:
+        raise ValueError("amnezia.s1/s2 are too large (max 1132/1188)")
+    # A handshake initiation padded by s1 must not end up the same size as the
+    # response, or the peers cannot tell the two message types apart.
+    if s1 and s2 and s1 + 56 == s2:
+        raise ValueError("amnezia.s1 + 56 must not equal amnezia.s2")
+
+    headers = {f: values[f] for f in _AMNEZIA_HEADER_FIELDS if values.get(f)}
+    if headers:
+        if len(headers) != len(_AMNEZIA_HEADER_FIELDS):
+            raise ValueError("amnezia.h1-h4 must all be set together")
+        for field, value in headers.items():
+            # 1-4 are the real WireGuard message types.
+            if value < 5:
+                raise ValueError(f"amnezia.{field} must be 5 or greater")
+        if len(set(headers.values())) != len(headers):
+            raise ValueError("amnezia.h1-h4 must all differ")
+
+    return values
+
 
 class WireGuardConfig(dict):
     def __init__(
@@ -103,6 +169,10 @@ class WireGuardConfig(dict):
             )
         self["egress_interface"] = egress
 
+        self["amnezia"] = validate_amnezia(self.get("amnezia"))
+        if not self["amnezia"]:
+            self.pop("amnezia", None)
+
     def _resolve_inbounds(self):
         interface_name = self["interface_name"]
         metadata = {
@@ -117,6 +187,9 @@ class WireGuardConfig(dict):
             "public_key": self.get("public_key", ""),
             "private_key": self.get("private_key", ""),
             "pre_shared_key": self.get("pre_shared_key", ""),
+            # Empty for a plain WireGuard core; the subscription renderer uses
+            # it to decide whether clients need the AmneziaWG parameters.
+            "amnezia": dict(self.get("amnezia") or {}),
         }
         self._inbounds = [interface_name]
         self._inbounds_by_tag = {interface_name: metadata}

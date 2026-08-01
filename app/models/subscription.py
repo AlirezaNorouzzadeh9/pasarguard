@@ -269,6 +269,10 @@ class SubscriptionInboundData(BaseModel):
     wireguard_mtu: int | None = Field(default=None)
     wireguard_reserved: str | None = Field(default=None)
     wireguard_dns: list[str] | None = Field(default=None)
+    # AmneziaWG obfuscation parameters, empty for a plain WireGuard core. They
+    # have to reach the client verbatim: a peer whose values differ from the
+    # server's never completes a handshake.
+    wireguard_amnezia: dict[str, int] = Field(default_factory=dict)
 
     # OpenVPN specific
     openvpn_ca_cert: str = Field("")

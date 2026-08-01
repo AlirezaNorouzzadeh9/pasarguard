@@ -6,10 +6,27 @@ from app.models.subscription import SubscriptionInboundData
 from .base import BaseSubscription
 
 
+# Rendered in this order with this casing because that is what the Amnezia
+# clients write themselves, and users compare files.
+_AMNEZIA_KEYS = ("jc", "jmin", "jmax", "s1", "s2", "h1", "h2", "h3", "h4")
+_AMNEZIA_LABELS = {"jc": "Jc", "jmin": "Jmin", "jmax": "Jmax", "s1": "S1", "s2": "S2"}
+
+
 class WireGuardConfiguration(BaseSubscription):
     def __init__(self):
         self.proxy_remarks = []
         self.configs: list[tuple[str, str]] = []
+
+    @staticmethod
+    def _amnezia_lines(inbound: SubscriptionInboundData) -> dict[str, str]:
+        params = getattr(inbound, "wireguard_amnezia", None) or {}
+        lines: dict[str, str] = {}
+        for key in _AMNEZIA_KEYS:
+            value = params.get(key)
+            if not value:
+                continue
+            lines[_AMNEZIA_LABELS.get(key, key.upper())] = str(value)
+        return lines
 
     def _render_config(self, config_dict: dict[str, dict[str, str]]) -> str:
         """Render a structured dictionary to WireGuard .conf format."""
@@ -52,6 +69,13 @@ class WireGuardConfiguration(BaseSubscription):
                 config_data["Interface"]["DNS"] = dns_servers.replace(",", ", ")
             else:
                 config_data["Interface"]["DNS"] = ", ".join(dns_servers)
+
+        # AmneziaWG obfuscation. These belong to the interface and must match
+        # the server exactly, or the client connects to nothing. Written in the
+        # canonical Jc/Jmin/... casing the Amnezia clients expect, and placed
+        # before Peer so the file reads like the ones those apps generate.
+        for key, value in self._amnezia_lines(inbound).items():
+            config_data["Interface"][key] = value
 
         # Optional Peer settings
         if preshared_key := payload.get("presharedkey"):
