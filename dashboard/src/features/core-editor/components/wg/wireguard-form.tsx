@@ -356,8 +356,109 @@ export function WireGuardCoreForm({ className }: { className?: string }) {
               })}
             </p>
           </FormItem>
+
+          <ClientDefaults draft={draft} updateWgDraft={updateWgDraft} t={t} />
         </div>
       </form>
     </Form>
+  )
+}
+
+// Settings that end up in the peer's own .conf rather than on the node. They
+// belong on the core because that is where a sane default should live — a host
+// can still override any of them.
+//
+// DNS in particular is not cosmetic: with the usual full-tunnel AllowedIPs, a
+// config without DNS resolves nothing, so only apps that carry hardcoded server
+// IPs (Telegram) keep working and the VPN looks half-broken.
+function ClientDefaults({
+  draft,
+  updateWgDraft,
+  t,
+}: {
+  draft: any
+  updateWgDraft: (fn: (d: any) => any) => void
+  t: any
+}) {
+  const extra = (draft.extra ?? {}) as Record<string, unknown>
+  const dns = Array.isArray(extra.dns) ? (extra.dns as string[]).join(', ') : String(extra.dns ?? '')
+
+  const setExtra = (key: string, value: unknown) =>
+    updateWgDraft(d => {
+      const next = { ...(d.extra ?? {}) }
+      if (value === '' || value === null || (Array.isArray(value) && value.length === 0)) delete next[key]
+      else next[key] = value
+      return { ...d, extra: next }
+    })
+
+  return (
+    <div className="sm:col-span-2 rounded-md border p-3 space-y-3">
+      <div>
+        <p className="text-sm font-medium">
+          {t('coreEditor.wg.clientDefaults', { defaultValue: 'Client config defaults' })}
+        </p>
+        <p className="text-muted-foreground text-[11px]">
+          {t('coreEditor.wg.clientDefaultsHint', {
+            defaultValue:
+              "Written into every generated peer config. A host can override them. Without DNS a full-tunnel config resolves nothing — only apps with hardcoded IPs keep working.",
+          })}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <FormItem className="sm:col-span-1">
+          <FormLabel className="text-xs">{t('coreEditor.wg.fields.dns', { defaultValue: 'DNS' })}</FormLabel>
+          <FormControl>
+            <Input
+              dir="ltr"
+              className="text-xs"
+              placeholder="8.8.8.8, 8.8.4.4"
+              value={dns}
+              onChange={e => {
+                const list = e.target.value
+                  .split(',')
+                  .map(s => s.trim())
+                  .filter(Boolean)
+                setExtra('dns', list)
+              }}
+            />
+          </FormControl>
+        </FormItem>
+
+        <FormItem>
+          <FormLabel className="text-xs">
+            {t('coreEditor.wg.fields.keepalive', { defaultValue: 'PersistentKeepalive (s)' })}
+          </FormLabel>
+          <FormControl>
+            <Input
+              dir="ltr"
+              type="number"
+              min={0}
+              max={120}
+              className="text-xs"
+              placeholder="25"
+              value={String(extra.keepalive ?? '')}
+              onChange={e => setExtra('keepalive', e.target.value === '' ? '' : Number(e.target.value))}
+            />
+          </FormControl>
+        </FormItem>
+
+        <FormItem>
+          <FormLabel className="text-xs">{t('coreEditor.wg.fields.mtu', { defaultValue: 'MTU' })}</FormLabel>
+          <FormControl>
+            <Input
+              dir="ltr"
+              type="number"
+              min={576}
+              max={1500}
+              className="text-xs"
+              placeholder="1280"
+              value={String(extra.mtu ?? '')}
+              onChange={e => setExtra('mtu', e.target.value === '' ? '' : Number(e.target.value))}
+            />
+          </FormControl>
+        </FormItem>
+      </div>
+    </div>
   )
 }

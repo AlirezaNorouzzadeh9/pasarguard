@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 from copy import deepcopy
-from ipaddress import ip_interface
+from ipaddress import ip_address, ip_interface
 from pathlib import PosixPath
 from typing import Union
 
@@ -15,6 +15,61 @@ from app.utils.crypto import get_wireguard_public_key, validate_wireguard_key
 
 _WIREGUARD_PROTOCOLS = frozenset((ProxyProtocol.wireguard,))
 _WIREGUARD_INTERFACE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+
+
+def _validate_dns(raw) -> list[str]:
+    """Normalise the core's default DNS servers for generated client configs."""
+    if raw in (None, "", []):
+        return []
+    if isinstance(raw, str):
+        raw = [part for part in re.split(r"[,\s]+", raw) if part]
+    if not isinstance(raw, list):
+        raise ValueError("dns must be a list of IP addresses")
+
+    servers: list[str] = []
+    for entry in raw:
+        if not isinstance(entry, str) or not entry.strip():
+            raise ValueError("dns entries must be non-empty strings")
+        entry = entry.strip()
+        try:
+            ip_address(entry)
+        except ValueError:
+            raise ValueError(f"dns entry {entry!r} is not a valid IP address")
+        if entry not in servers:
+            servers.append(entry)
+    return servers
+
+
+def _validate_keepalive(raw) -> int:
+    """PersistentKeepalive in seconds; 0/absent means the client decides."""
+    if raw in (None, "", 0, "0"):
+        return 0
+    if isinstance(raw, bool) or not isinstance(raw, (int, str)):
+        raise ValueError("keepalive must be an integer number of seconds")
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        raise ValueError("keepalive must be an integer number of seconds")
+    # Above ~2 minutes most NAT mappings have already expired, which defeats
+    # the point of sending keepalives at all.
+    if value < 0 or value > 120:
+        raise ValueError("keepalive must be between 0 and 120 seconds")
+    return value
+
+
+def _validate_mtu(raw) -> int:
+    """Default MTU for generated client configs; 0/absent leaves it out."""
+    if raw in (None, "", 0, "0"):
+        return 0
+    if isinstance(raw, bool) or not isinstance(raw, (int, str)):
+        raise ValueError("mtu must be an integer")
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        raise ValueError("mtu must be an integer")
+    if value and (value < 576 or value > 1500):
+        raise ValueError("mtu must be between 576 and 1500")
+    return value
 
 
 class WireGuardConfig(dict):
@@ -103,6 +158,18 @@ class WireGuardConfig(dict):
             )
         self["egress_interface"] = egress
 
+        # Client-side defaults written into every generated .conf. A host may
+        # override them; without either, a config has no DNS, and with a
+        # full-tunnel AllowedIPs that means nothing resolves — only apps with
+        # hardcoded server IPs keep working, which reads as "the VPN is broken
+        # except Telegram".
+        self["dns"] = _validate_dns(self.get("dns"))
+        self["keepalive"] = _validate_keepalive(self.get("keepalive"))
+        self["mtu"] = _validate_mtu(self.get("mtu"))
+        for key in ("dns", "keepalive", "mtu"):
+            if not self[key]:
+                self.pop(key, None)
+
     def _resolve_inbounds(self):
         interface_name = self["interface_name"]
         metadata = {
@@ -117,6 +184,10 @@ class WireGuardConfig(dict):
             "public_key": self.get("public_key", ""),
             "private_key": self.get("private_key", ""),
             "pre_shared_key": self.get("pre_shared_key", ""),
+            # Client-side defaults; a host override wins over these.
+            "dns": list(self.get("dns") or []),
+            "keepalive": self.get("keepalive") or 0,
+            "mtu": self.get("mtu") or 0,
         }
         self._inbounds = [interface_name]
         self._inbounds_by_tag = {interface_name: metadata}

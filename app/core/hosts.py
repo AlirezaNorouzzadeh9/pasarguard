@@ -109,13 +109,21 @@ async def _prepare_subscription_inbound_data(
             else list(default_allowed)
         )
 
-        keepalive = None
+        # The core carries the defaults for the client-side settings; a host may
+        # override them. Without either, a generated .conf has no DNS at all —
+        # with a full-tunnel AllowedIPs that means nothing resolves, and only
+        # apps with hardcoded server IPs (Telegram) appear to work.
         if wg_over.keepalive_seconds is not None:
             keepalive = wg_over.keepalive_seconds if wg_over.keepalive_seconds > 0 else None
+        else:
+            core_keepalive = inbound_config.get("keepalive")
+            keepalive = core_keepalive if core_keepalive else None
 
         reserved = wg_over.reserved.strip() if wg_over.reserved else None
 
-        dns = list(wg_over.dns) if wg_over.dns else None
+        dns = list(wg_over.dns) if wg_over.dns else (list(inbound_config.get("dns") or []) or None)
+
+        mtu = wg_over.mtu if wg_over.mtu else (inbound_config.get("mtu") or None)
 
         return SubscriptionInboundData(
             remark=host.remark,
@@ -132,7 +140,7 @@ async def _prepare_subscription_inbound_data(
             wireguard_local_address=inbound_config.get("address", []) or [],
             wireguard_allowed_ips=allowed_ips,
             wireguard_keepalive=keepalive,
-            wireguard_mtu=wg_over.mtu,
+            wireguard_mtu=mtu,
             wireguard_reserved=reserved,
             wireguard_dns=dns,
             fragment_settings=host.fragment_settings.model_dump() if host.fragment_settings else None,
