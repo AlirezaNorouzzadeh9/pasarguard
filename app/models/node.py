@@ -46,6 +46,9 @@ class Node(BaseModel):
     server_ca: str
     keep_alive: int
     core_config_id: int
+    # Cores this node runs alongside its primary one. Optional, so a node with a
+    # single core is described exactly as before.
+    additional_core_config_ids: list[int] | None = Field(default=None)
     api_key: str
     data_limit: int = Field(default=0)
     data_limit_reset_strategy: DataLimitResetStrategy = Field(default=DataLimitResetStrategy.no_reset)
@@ -176,6 +179,7 @@ class NodeModify(NodeCreate):
     connection_type: NodeConnectionType | None = Field(default=None)
     keep_alive: int | None = Field(default=None)
     core_config_id: int | None = Field(default=None)
+    additional_core_config_ids: list[int] | None = Field(default=None)
     api_key: str | None = Field(default=None)
     data_limit: int | None = None
     data_limit_reset_strategy: DataLimitResetStrategy | None = None
@@ -205,6 +209,7 @@ class NodeResponse(Node):
     id: int
     api_key: str | None
     core_config_id: int | None
+    additional_core_config_ids: list[int] | None = None
     xray_version: str | None
     node_version: str | None
     status: NodeStatus

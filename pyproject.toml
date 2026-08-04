@@ -43,6 +43,12 @@ dependencies = [
     "nats-py>=2.15.0",
 ]
 
+# Vendored copy of the published 0.8.1 bridge — identical wire contract, plus
+# add_backend(), which the panel needs to start more than one core on a node.
+# Lives in-repo so a fresh clone is self-contained.
+[tool.uv.sources]
+pasarguard-node-bridge = { path = "_vendor/node_bridge_py", editable = true }
+
 [tool.ruff]
 line-length = 120
 indent-width = 4

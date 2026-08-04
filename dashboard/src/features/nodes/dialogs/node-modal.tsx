@@ -1,6 +1,7 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { DecimalInput } from '@/components/common/decimal-input'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
@@ -120,6 +121,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
         keep_alive_unit: 'seconds',
         api_key: (node.api_key as string) || '',
         core_config_id: node.core_config_id ?? cores?.[0]?.id,
+        additional_core_config_ids: node.additional_core_config_ids ?? [],
         data_limit: dataLimitGB,
         data_limit_reset_strategy: node.data_limit_reset_strategy ?? DataLimitResetStrategy.no_reset,
         reset_time: node.reset_time ?? null,
@@ -176,6 +178,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
           keep_alive_unit: 'seconds',
           api_key: (nodeData.api_key as string) || '',
           core_config_id: nodeData.core_config_id ?? cores?.[0]?.id,
+          additional_core_config_ids: nodeData.additional_core_config_ids ?? [],
           data_limit: dataLimitGB,
           data_limit_reset_strategy: nodeData.data_limit_reset_strategy ?? DataLimitResetStrategy.no_reset,
           reset_time: nodeData.reset_time ?? null,
@@ -206,6 +209,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
               keep_alive_unit: 'seconds',
               api_key: (nodeData.api_key as string) || '',
               core_config_id: nodeData.core_config_id ?? cores?.[0]?.id,
+              additional_core_config_ids: nodeData.additional_core_config_ids ?? [],
               data_limit: dataLimitGB,
               data_limit_reset_strategy: nodeData.data_limit_reset_strategy ?? DataLimitResetStrategy.no_reset,
               reset_time: nodeData.reset_time ?? null,
@@ -237,6 +241,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
         keep_alive_unit: 'seconds',
         api_key: '',
         core_config_id: cores?.[0]?.id,
+        additional_core_config_ids: [],
         data_limit: 0,
         data_limit_reset_strategy: DataLimitResetStrategy.no_reset,
         reset_time: -1,
@@ -526,6 +531,45 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
                       </FormItem>
                     )}
                   />
+
+                  {/* Only WireGuard cores can run beside another core: every other
+                      core type is one process per node, so a second one would
+                      replace the first rather than run alongside it. */}
+                  {(() => {
+                    const primaryId = form.watch('core_config_id')
+                    const extraCores = cores?.filter((core: CoreSimple) => core.type === 'wg' && core.id !== primaryId) ?? []
+                    if (extraCores.length === 0) return null
+
+                    return (
+                      <FormField
+                        control={form.control}
+                        name="additional_core_config_ids"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t('nodeModal.additionalCores', { defaultValue: 'Additional WireGuard cores' })}</FormLabel>
+                            <div className="flex flex-col gap-2 rounded-md border p-3">
+                              {extraCores.map((core: CoreSimple) => {
+                                const selected = (field.value ?? []).includes(core.id)
+                                return (
+                                  <label key={core.id} className="flex cursor-pointer items-center gap-2 text-sm">
+                                    <Checkbox
+                                      checked={selected}
+                                      onCheckedChange={checked => {
+                                        const current = field.value ?? []
+                                        field.onChange(checked ? [...current, core.id] : current.filter(id => id !== core.id))
+                                      }}
+                                    />
+                                    <span>{core.name}</span>
+                                  </label>
+                                )
+                              })}
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )
+                  })()}
 
                   <FormField
                     control={form.control}

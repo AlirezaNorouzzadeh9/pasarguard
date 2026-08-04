@@ -606,6 +606,11 @@ class Node(Base, CreatedAtUTCMixin):
     api_key: Mapped[str | None] = mapped_column(String(36))
     node_version: Mapped[str | None] = mapped_column(String(32), nullable=True, init=False)
     core_config_id: Mapped[int | None] = fk_id_column("core_configs.id", ondelete="SET NULL", nullable=True)
+    # Extra cores this node runs alongside its primary one, as a list of
+    # core_configs.id. A node can serve several protocols at once — and several
+    # cores of the same protocol, such as two WireGuard interfaces with
+    # different exit subnets — which one core_config_id alone cannot express.
+    additional_core_config_ids: Mapped[list[int] | None] = mapped_column(PostgresJSONB, default=None)
     user_usages: Mapped[list[NodeUserUsage]] = relationship(
         back_populates="node", cascade="all, delete-orphan", init=False
     )

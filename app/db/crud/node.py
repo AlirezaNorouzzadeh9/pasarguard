@@ -447,6 +447,10 @@ async def modify_node(db: AsyncSession, db_node: Node, modify: NodeModify) -> No
     node_data = modify.model_dump(exclude_none=True)
     if "proxy_url" in modify.model_fields_set and modify.proxy_url is None:
         node_data["proxy_url"] = None
+    # exclude_none would otherwise make the extra-core list impossible to clear:
+    # sending null has to mean "no additional cores", not "leave as is".
+    if "additional_core_config_ids" in modify.model_fields_set and modify.additional_core_config_ids is None:
+        node_data["additional_core_config_ids"] = None
 
     for key, value in node_data.items():
         setattr(db_node, key, value)
