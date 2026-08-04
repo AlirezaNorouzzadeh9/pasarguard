@@ -172,3 +172,7 @@ deadlock-analysis.md
 # AI
 .AGENT
 graphify-out
+
+# Local agent workspace and archived AI transcripts — never publish these.
+.claude/
+chat-history/

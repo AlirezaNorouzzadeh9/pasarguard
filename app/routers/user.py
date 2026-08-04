@@ -12,7 +12,6 @@ from app.models.stats import (
 )
 from app.models.user import (
     BulkUser,
-    BulkUserSpeedLimit,
     BulkUsersActionResponse,
     BulkUsersCreateResponse,
     BulkUsersFromTemplate,
@@ -827,28 +826,6 @@ async def bulk_modify_users_datalimit(
     - **expire_before**: Optional UTC datetime to filter users whose expire date is on or before this date
     """
     return await user_operator.bulk_modify_datalimit(db, bulk_model)
-
-
-@router.post(
-    "s/bulk/speed_limit",
-    summary="Bulk set the per-direction speed limit (kbit/s) of users",
-    response_description="Success confirmation",
-)
-async def bulk_modify_users_speed_limit(
-    bulk_model: BulkUserSpeedLimit,
-    db: AsyncSession = Depends(get_db),
-    _: AdminDetails = Depends(require_scope_all("users", "update")),
-):
-    """
-    Bulk set users' speed limit (absolute value in kbit/s; 0 clears it).
-
-    Only the tunnel backends (OpenVPN, WireGuard, IKEv2) are shaped; Xray users
-    are unaffected.
-
-    - **speed_limit**: per-direction cap in kbit/s to set on every matched user
-    - **user_ids / admins / status / group_ids / expire_after / expire_before**: filters
-    """
-    return await user_operator.bulk_modify_speed_limit(db, bulk_model)
 
 
 @router.post(

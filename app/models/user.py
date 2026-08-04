@@ -31,10 +31,6 @@ class User(BaseModel):
     proxy_settings: ProxyTable = Field(default_factory=ProxyTable)
     expire: dt | int | None = Field(default=None)
     data_limit: int | None = Field(ge=0, default=None, description="data_limit can be 0 or greater")
-    ip_limit: int | None = Field(ge=0, default=None, description="max simultaneous devices/IPs; 0 = unlimited")
-    speed_limit: int | None = Field(
-        ge=0, default=None, description="per-direction speed cap in kbit/s; 0 = unlimited (tunnel backends only)"
-    )
     data_limit_reset_strategy: DataLimitResetStrategy | None = Field(default=None)
     note: str | None = Field(max_length=500, default=None)
     on_hold_expire_duration: int | None = Field(
@@ -441,13 +437,6 @@ class BulkUserFilter(BaseModel):
 
 class BulkUser(BulkUserFilter):
     amount: int
-
-
-class BulkUserSpeedLimit(BulkUserFilter):
-    # Absolute per-direction cap in kbit/s to set on every matched user; 0 clears
-    # the limit. This is a set, not an adjustment, so a whole group can be moved
-    # onto one speed.
-    speed_limit: int = Field(ge=0)
 
 
 class BulkUsersProxy(BulkUserFilter):

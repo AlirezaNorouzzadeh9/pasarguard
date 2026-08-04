@@ -222,11 +222,6 @@ class User(Base, CreatedAtUTCMixin):
     status: Mapped[UserStatus] = mapped_column(SQLEnum(UserStatus), default=UserStatus.active)
     used_traffic: Mapped[int] = mapped_column(BigInteger, default=0)
     data_limit: Mapped[Optional[int]] = mapped_column(BigInteger, default=None)
-    # Max simultaneous connections/devices (distinct source IPs); 0/None = unlimited.
-    ip_limit: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0", nullable=False)
-    # Per-direction throughput cap in kbit/s; 0 = unlimited. Enforced on the node
-    # with tc, and only for the tunnel backends (openvpn/wireguard/ikev2).
-    speed_limit: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0", nullable=False)
     data_limit_reset_strategy: Mapped[DataLimitResetStrategy] = mapped_column(
         SQLEnum(DataLimitResetStrategy),
         default=DataLimitResetStrategy.no_reset,
@@ -622,7 +617,7 @@ class Node(Base, CreatedAtUTCMixin):
     node_version: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, init=False)
     core_config_id: Mapped[Optional[int]] = fk_id_column("core_configs.id", ondelete="SET NULL", nullable=True)
     # Extra cores this node runs alongside its primary core_config (multi-backend,
-    # e.g. openvpn + ikev2 on one node). List of core_configs.id.
+    # e.g. openvpn + wireguard on one node). List of core_configs.id.
     additional_core_config_ids: Mapped[Optional[list[int]]] = mapped_column(PostgresJSONB, default=None)
     # Per-node listen-port overrides for openvpn/wireguard cores, so one core can
     # run on different ports across nodes. Map of core_configs.id (str) -> port.
@@ -844,8 +839,6 @@ class CoreType(str, Enum):
     mtproto = "mtproto"
     singbox = "singbox"
     openvpn = "openvpn"
-    ikev2 = "ikev2"
-    l2tp = "l2tp"
 
 
 class CoreConfig(Base, CreatedAtUTCMixin):

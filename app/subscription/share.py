@@ -15,12 +15,11 @@ from app.models.user import UsersResponseWithInbounds
 from app.settings import subscription_settings
 from app.subscription.client_templates import subscription_client_templates, subscription_xray_templates
 from app.utils.system import readable_size
-from config import ikev2_env_settings, openvpn_env_settings, wireguard_settings
+from config import openvpn_env_settings, wireguard_settings
 
 from . import (
     ClashConfiguration,
     ClashMetaConfiguration,
-    IKEv2Configuration,
     OpenVPNConfiguration,
     OutlineConfiguration,
     SingBoxConfiguration,
@@ -74,8 +73,6 @@ def _build_subscription_config(
         return WireGuardConfiguration()
     if config_format == "openvpn":
         return OpenVPNConfiguration()
-    if config_format == "ikev2":
-        return IKEv2Configuration()
     if config_format == "xray":
         return XrayConfiguration(
             xray_template_content=client_templates["XRAY_SUBSCRIPTION_TEMPLATE"],
@@ -155,60 +152,6 @@ async def generate_wireguard_configs(
     if not wireguard_settings.enabled:
         return []
     return await _generate_protocol_configs(user, WireGuardConfiguration(), randomize_order)
-
-
-async def generate_ikev2_details(
-    user: UsersResponseWithInbounds,
-    randomize_order: bool = False,
-) -> list[dict[str, str]]:
-    """Return per-host IKEv2 connection details (server/username/password) for the sub page.
-
-    The sub page shows credentials only; the `.mobileconfig` profiles stay behind
-    the `/ikev2` bundle endpoint.
-    """
-    if not ikev2_env_settings.enabled:
-        return []
-    conf = IKEv2Configuration()
-    sub_settings = await subscription_settings()
-    custom_variables = get_effective_custom_variables(user, sub_settings.custom_variables)
-    format_variables = setup_format_variables(user, sub_settings.custom_variables)
-    client_templates = await subscription_client_templates()
-    await process_inbounds_and_tags(
-        user,
-        format_variables,
-        conf,
-        client_templates,
-        randomize_order=randomize_order,
-        custom_variables=custom_variables,
-    )
-    return conf.details
-
-
-async def generate_l2tp_details(
-    user: UsersResponseWithInbounds,
-    randomize_order: bool = False,
-) -> list[dict[str, str]]:
-    """Return per-host L2TP/IPsec connection details (server/username/password/secret).
-
-    Shown inline on the sub page; the secret is the shared IPsec PSK. Credentials
-    reuse the user's IKEv2 proxy.
-    """
-    from .l2tp import L2TPConfiguration
-
-    conf = L2TPConfiguration()
-    sub_settings = await subscription_settings()
-    custom_variables = get_effective_custom_variables(user, sub_settings.custom_variables)
-    format_variables = setup_format_variables(user, sub_settings.custom_variables)
-    client_templates = await subscription_client_templates()
-    await process_inbounds_and_tags(
-        user,
-        format_variables,
-        conf,
-        client_templates,
-        randomize_order=randomize_order,
-        custom_variables=custom_variables,
-    )
-    return conf.details
 
 
 def format_time_left(seconds_left: int) -> str:
@@ -386,11 +329,7 @@ async def process_host(
     if inbound.inbound_tag not in inbounds:
         return
 
-    # Get user settings for this protocol. L2TP has no proxy of its own — it
-    # reuses the user's IKEv2 username/password (both are IPsec-family user/pass).
     settings = proxies.get(inbound.protocol)
-    if not settings and inbound.protocol == "l2tp":
-        settings = proxies.get("ikev2")
     if not settings:
         return
     settings = dict(settings)
@@ -558,8 +497,6 @@ async def process_inbounds_and_tags(
         if host_data.protocol == "wireguard" and not wireguard_settings.enabled:
             continue
         if host_data.protocol == "openvpn" and not openvpn_env_settings.enabled:
-            continue
-        if host_data.protocol == "ikev2" and not ikev2_env_settings.enabled:
             continue
 
         result = await process_host(host_data, format_variables, user.inbounds, proxy_settings, custom_variables)

@@ -144,60 +144,6 @@ def issue_server_cert(ca_cert_pem: str, ca_key_pem: str, cn: str) -> tuple[str, 
     return _pem_cert(cert), _pem_private_key(key)
 
 
-def issue_ikev2_server_cert(ca_cert_pem: str, ca_key_pem: str, identity: str) -> tuple[str, str]:
-    """Issue an IKEv2 server certificate for ``identity`` (an IP or hostname).
-
-    IKEv2 clients verify the server certificate's SubjectAltName against the
-    configured Remote ID, so the SAN must carry the identity. Adds the IPsec-IKE
-    EKU alongside serverAuth for strict clients (e.g. Windows/strongSwan).
-    """
-    import ipaddress as _ipaddress
-
-    ca_cert, ca_key = _load_ca(ca_cert_pem, ca_key_pem)
-    key = ec.generate_private_key(ec.SECP256R1())
-    now = _utcnow()
-
-    try:
-        san = x509.IPAddress(_ipaddress.ip_address(identity))
-    except ValueError:
-        san = x509.DNSName(identity)
-
-    # id-kp-ipsecIKE (RFC 4945): 1.3.6.1.5.5.7.3.17
-    ipsec_ike_eku = x509.ObjectIdentifier("1.3.6.1.5.5.7.3.17")
-
-    cert = (
-        x509.CertificateBuilder()
-        .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, identity)]))
-        .issuer_name(ca_cert.subject)
-        .public_key(key.public_key())
-        .serial_number(_random_serial())
-        .not_valid_before(now - datetime.timedelta(minutes=5))
-        .not_valid_after(now + datetime.timedelta(days=_SERVER_CERT_VALIDITY_DAYS))
-        .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
-        .add_extension(x509.SubjectAlternativeName([san]), critical=False)
-        .add_extension(
-            x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH, ipsec_ike_eku]),
-            critical=False,
-        )
-        .add_extension(
-            x509.KeyUsage(
-                digital_signature=True,
-                content_commitment=False,
-                key_encipherment=True,
-                data_encipherment=False,
-                key_agreement=False,
-                key_cert_sign=False,
-                crl_sign=False,
-                encipher_only=False,
-                decipher_only=False,
-            ),
-            critical=True,
-        )
-        .sign(ca_key, hashes.SHA256())
-    )
-    return _pem_cert(cert), _pem_private_key(key)
-
-
 def issue_client_cert(ca_cert_pem: str, ca_key_pem: str, cn: str, days: int = _DEFAULT_CLIENT_VALIDITY_DAYS) -> ClientCert:
     """Issue a client certificate (EKU clientAuth) with ``CN=cn``."""
     ca_cert, ca_key = _load_ca(ca_cert_pem, ca_key_pem)

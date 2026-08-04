@@ -184,7 +184,7 @@ class NodeWorkerService(BaseRpcService):
             else:
                 # Match by status only, then filter core membership in Python: the
                 # SQL core_id filter matches the primary core alone and misses
-                # additional cores (openvpn/wireguard/ikev2 usually run as extras).
+                # additional cores (openvpn/wireguard usually run as extras).
                 nodes, _ = await get_nodes(
                     db,
                     query=NodeListQuery(

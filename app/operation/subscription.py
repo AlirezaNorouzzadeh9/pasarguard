@@ -88,12 +88,6 @@ client_config = {
         "as_base64": False,
         "extension": ".ovpn",
     },
-    ConfigFormat.ikev2: {
-        "config_format": "ikev2",
-        "media_type": "application/zip",
-        "as_base64": False,
-        "extension": ".zip",
-    },
     ConfigFormat.xray: {
         "config_format": "xray",
         "media_type": "application/json",
@@ -310,7 +304,6 @@ class SubscriptionOperation(BaseOperation):
         Covers users who gained an OpenVPN inbound without going through the
         create/modify issuance paths (e.g. bulk-created users).
         """
-        from app.utils.ikev2 import prepare_ikev2_proxy_settings
         from app.utils.openvpn import prepare_openvpn_proxy_settings
 
         groups = db_user.__dict__.get("groups")
@@ -319,7 +312,6 @@ class SubscriptionOperation(BaseOperation):
 
         proxy_settings = ProxyTable.model_validate(db_user.proxy_settings)
         updated = await prepare_openvpn_proxy_settings(db, proxy_settings, groups, db_user.id)
-        updated = await prepare_ikev2_proxy_settings(db, updated, groups, db_user.id)
         new_settings = updated.dict()
         if new_settings != db_user.proxy_settings:
             db_user.proxy_settings = new_settings
@@ -484,7 +476,7 @@ class SubscriptionOperation(BaseOperation):
             format_variables = await self.get_format_variables(user)
             formatted_announce = self._format_announce(sub_settings, format_variables)
 
-            # File-based backends (OpenVPN / WireGuard / IKEv2) can each yield
+            # File-based backends (OpenVPN / WireGuard) can each yield
             # SEVERAL per-host config files. We surface one download card per file
             # (inline base64 data: URLs — no extra round-trip) plus, when there is
             # more than one, the existing bundle endpoint as a "download all".
@@ -493,22 +485,10 @@ class SubscriptionOperation(BaseOperation):
             from app.utils.openvpn import get_openvpn_tags_from_groups
             from config import openvpn_env_settings
 
-            # IKEv2 is delivered as per-host .mobileconfig files AND as inline
-            # connection details (server / username / password) for manual setup.
-            ikev2_url = None
-            ikev2_details: list[dict] = []
             from app.subscription.share import (
-                generate_ikev2_details,
-                generate_l2tp_details,
                 generate_openvpn_configs,
                 generate_wireguard_configs,
             )
-            from app.utils.ikev2 import get_ikev2_tags_from_groups
-            from app.utils.l2tp import get_l2tp_tags_from_groups
-            from config import ikev2_env_settings
-
-            # L2TP has no env gate of its own; it reuses the IKEv2 credentials.
-            l2tp_details: list[dict] = []
 
             # WireGuard is delivered as .conf files, same idea as OpenVPN.
             wireguard_url = None
@@ -529,23 +509,6 @@ class SubscriptionOperation(BaseOperation):
                         for remark, content in await generate_openvpn_configs(user, sub_settings.randomize_order)
                     ]
 
-            if ikev2_env_settings.enabled:
-                if groups is None:
-                    groups = db_user.__dict__.get("groups")
-                    if groups is None:
-                        groups = await db_user.awaitable_attrs.groups
-                if await get_ikev2_tags_from_groups(groups):
-                    base = (request_url or "").split("?")[0].rstrip("/")
-                    ikev2_url = f"{base}/ikev2" if base else None
-                    ikev2_details = await generate_ikev2_details(user, sub_settings.randomize_order)
-
-            if groups is None:
-                groups = db_user.__dict__.get("groups")
-                if groups is None:
-                    groups = await db_user.awaitable_attrs.groups
-            if await get_l2tp_tags_from_groups(groups):
-                l2tp_details = await generate_l2tp_details(user, sub_settings.randomize_order)
-
             if wireguard_settings.enabled:
                 if groups is None:
                     groups = db_user.__dict__.get("groups")
@@ -559,26 +522,6 @@ class SubscriptionOperation(BaseOperation):
                         for remark, content in await generate_wireguard_configs(user, sub_settings.randomize_order)
                     ]
 
-            # Best-effort live "connected devices" count — only for users that
-            # carry a device limit, and never allowed to block the page (a short
-            # timeout falls back to no live data if the nodes are slow).
-            online_count = 0
-            if user.ip_limit:
-                try:
-                    import asyncio as _asyncio
-
-                    from app.routers.node import node_operator as _node_op
-
-                    _ipall = await _asyncio.wait_for(
-                        _node_op.get_user_ip_list_all_nodes(db, db_user.id), timeout=2.0
-                    )
-                    _seen: set[str] = set()
-                    for _ipl in (_ipall.nodes or {}).values():
-                        if _ipl:
-                            _seen.update((_ipl.ips or {}).keys())
-                    online_count = len(_seen)
-                except Exception:
-                    online_count = 0
 
             return HTMLResponse(
                 render_template(
@@ -591,13 +534,9 @@ class SubscriptionOperation(BaseOperation):
                         format_variables,
                         is_hwid_enabled,
                         openvpn_url,
-                        ikev2_url,
-                        ikev2_details,
                         wireguard_url,
                         openvpn_configs,
                         wireguard_configs,
-                        l2tp_details,
-                        online_count,
                     ),
                 )
             )
@@ -690,7 +629,7 @@ class SubscriptionOperation(BaseOperation):
         if client_type == ConfigFormat.block or not getattr(sub_settings.manual_sub_request, client_type):
             await self.raise_error(message="Client not supported", code=406)
         db_user = await self.get_validated_sub(db, token=token, load_admin_role=True)
-        if client_type in (ConfigFormat.openvpn, ConfigFormat.ikev2):
+        if client_type == ConfigFormat.openvpn:
             await self._ensure_openvpn_cert_for_sub(db, db_user)
         user = await self.validated_user(db_user)
 
@@ -739,25 +678,17 @@ class SubscriptionOperation(BaseOperation):
         format_variables: dict,
         is_hwid_enabled: bool,
         openvpn_url: str | None = None,
-        ikev2_url: str | None = None,
-        ikev2_details: list[dict] | None = None,
         wireguard_url: str | None = None,
         openvpn_configs: list[dict] | None = None,
         wireguard_configs: list[dict] | None = None,
-        l2tp_details: list[dict] | None = None,
-        online_count: int = 0,
     ) -> dict[str, Any]:
         return {
             "user": SubscriptionUserResponse.model_validate(user),
-            "online_count": online_count,
             "links": links,
             "announce": formatted_announce,
             "announce_url": sub_settings.announce_url,
             "wireguard_url": wireguard_url,
             "openvpn_url": openvpn_url,
-            "ikev2_url": ikev2_url,
-            "ikev2_details": ikev2_details or [],
-            "l2tp_details": l2tp_details or [],
             "openvpn_configs": openvpn_configs or [],
             "wireguard_configs": wireguard_configs or [],
             "apps": self._make_apps_import_urls(

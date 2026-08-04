@@ -692,8 +692,7 @@ read_and_save_file() {
 # Listen ports are NOT asked here: OpenVPN and WireGuard get their ports from
 # the panel's core config (a node can run several cores, each on its own port),
 # so there is no single port to fix at install time. Open whatever ports your
-# cores use in the firewall yourself if one is active. IKEv2 is the exception —
-# it always uses the standard IPsec ports (500/4500), so those are handled.
+# cores use in the firewall yourself if one is active.
 # Treat only an explicit no as no, so pressing Enter accepts the default (yes).
 # Matching a bare "n" alone used to let a typed "no" through as a yes.
 answer_is_no() {
@@ -704,8 +703,6 @@ prompt_for_backends() {
     BACKEND_XRAY="${BACKEND_XRAY:-yes}"
     BACKEND_OPENVPN="${BACKEND_OPENVPN:-yes}"
     BACKEND_WIREGUARD="${BACKEND_WIREGUARD:-yes}"
-    BACKEND_IKEV2="${BACKEND_IKEV2:-yes}"
-    BACKEND_IKEV2_DOMAIN="${BACKEND_IKEV2_DOMAIN:-}"
 
     # -y keeps the run non-interactive: every backend stays enabled.
     if [ "$AUTO_CONFIRM" = true ]; then
@@ -729,27 +726,6 @@ prompt_for_backends() {
     read -p "Run WireGuard on this node? (Y/n): " -r answer
     answer_is_no "$answer" && BACKEND_WIREGUARD="no"
 
-    read -p "Run IKEv2/IPsec on this node? (Y/n): " -r answer
-    if answer_is_no "$answer"; then
-        BACKEND_IKEV2="no"
-    else
-        colorized_echo yellow "  IKEv2 needs a hostname pointing at this server: the node issues its own"
-        colorized_echo yellow "  Let's Encrypt certificate for it (port 80 must be reachable) and renews it"
-        colorized_echo yellow "  automatically, so clients connect with just that hostname + user/password."
-        while true; do
-            read -p "  IKEv2 domain for this node (e.g. p1.example.com, empty to skip): " -r answer
-            answer="${answer// /}"
-            if [ -z "$answer" ]; then
-                colorized_echo yellow "  No domain set — IKEv2 will use the certificate from the panel's core config."
-                break
-            fi
-            if is_domain "$answer"; then
-                BACKEND_IKEV2_DOMAIN="$answer"
-                break
-            fi
-            colorized_echo red "  Invalid domain format: $answer"
-        done
-    fi
     echo
 }
 
@@ -765,45 +741,20 @@ write_backend_env() {
     [ "${BACKEND_XRAY:-yes}" = "no" ] && echo "PG_NODE_DISABLE_XRAY = 1" >>"$env_file"
     [ "${BACKEND_OPENVPN:-yes}" = "no" ] && echo "PG_NODE_DISABLE_OPENVPN = 1" >>"$env_file"
     [ "${BACKEND_WIREGUARD:-yes}" = "no" ] && echo "PG_NODE_DISABLE_WIREGUARD = 1" >>"$env_file"
-    [ "${BACKEND_IKEV2:-yes}" = "no" ] && echo "PG_NODE_DISABLE_IKEV2 = 1" >>"$env_file"
-
-    if [ "${BACKEND_IKEV2:-yes}" != "no" ] && [ -n "${BACKEND_IKEV2_DOMAIN:-}" ]; then
-        echo "PG_NODE_IKEV2_DOMAIN = ${BACKEND_IKEV2_DOMAIN}" >>"$env_file"
-    fi
 
     open_backend_firewall_ports
     return 0
 }
 
-# Best-effort: open the ports we can know at install time on whichever firewall
-# is active. Only IKEv2 has fixed ports (the standard IPsec 500/4500, plus 80
-# for its HTTP-01 certificate challenge). OpenVPN/WireGuard ports come from the
-# panel cores and vary per node, so they're the operator's job — we just remind.
+# Best-effort reminder about the ports we cannot know at install time: the
+# OpenVPN/WireGuard ports come from the panel cores and vary per node, so they
+# are the operator's job.
 open_backend_firewall_ports() {
-    local ports=()
-    if [ "${BACKEND_IKEV2:-yes}" != "no" ]; then
-        ports+=("500/udp" "4500/udp")
-        [ -n "${BACKEND_IKEV2_DOMAIN:-}" ] && ports+=("80/tcp")
-    fi
-
     local fw=""
     if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -qi '^Status: active'; then
         fw="ufw"
     elif command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
         fw="firewalld"
-    fi
-
-    if [ -n "$fw" ] && [ ${#ports[@]} -gt 0 ]; then
-        colorized_echo blue "Opening IKEv2 ports in $fw"
-        local p=""
-        for p in "${ports[@]}"; do
-            if [ "$fw" = "ufw" ]; then
-                ufw allow "$p" >/dev/null 2>&1 || true
-            else
-                firewall-cmd --permanent --add-port="${p/\//-}" >/dev/null 2>&1 || true
-            fi
-        done
-        [ "$fw" = "firewalld" ] && firewall-cmd --reload >/dev/null 2>&1 || true
     fi
 
     # Remind about the ports we can't know here.
@@ -834,14 +785,6 @@ print_backend_summary() {
         colorized_echo green "  WireGuard: disabled"
     else
         colorized_echo green "  WireGuard: enabled — port(s) set in the panel's WireGuard core(s)"
-    fi
-    if [ "${BACKEND_IKEV2:-yes}" = "no" ]; then
-        colorized_echo green "  IKEv2:     disabled"
-    elif [ -n "${BACKEND_IKEV2_DOMAIN:-}" ]; then
-        colorized_echo green "  IKEv2:     enabled on ${BACKEND_IKEV2_DOMAIN} (own auto-renewing certificate)"
-        colorized_echo yellow "             Point ${BACKEND_IKEV2_DOMAIN} at this server and add it as the IKEv2 host in the panel."
-    else
-        colorized_echo green "  IKEv2:     enabled (using the certificate from the panel's core config)"
     fi
     colorized_echo blue "================================"
 }
@@ -1216,18 +1159,6 @@ install_command() {
         --no-wireguard | --no-wg)
             BACKEND_WIREGUARD="no"
             shift
-            ;;
-        --no-ikev2)
-            BACKEND_IKEV2="no"
-            shift
-            ;;
-        --ikev2-domain)
-            if ! is_domain "${2:-}"; then
-                colorized_echo red "Invalid domain for --ikev2-domain: ${2:-}"
-                exit 1
-            fi
-            BACKEND_IKEV2_DOMAIN="$2"
-            shift 2
             ;;
         --api-key)
             INSTALL_API_KEY="$2"

@@ -196,7 +196,6 @@ class ConfigFormat(str, Enum):
     xray = "xray"
     wireguard = "wireguard"
     openvpn = "openvpn"
-    ikev2 = "ikev2"
     sing_box = "sing_box"
     clash = "clash"
     clash_meta = "clash_meta"
@@ -216,7 +215,6 @@ class SubFormatEnable(BaseModel):
     xray: bool = Field(default=True)
     wireguard: bool = Field(default=True)
     openvpn: bool = Field(default=True)
-    ikev2: bool = Field(default=True)
     sing_box: bool = Field(default=True)
     clash: bool = Field(default=True)
     clash_meta: bool = Field(default=True)

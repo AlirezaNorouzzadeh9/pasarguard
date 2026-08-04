@@ -14,13 +14,11 @@ from app.db import AsyncSession
 from app.db.crud.admin import get_admin
 from app.db.crud.bulk import (
     count_bulk_datalimit_targets,
-    count_bulk_speed_limit_targets,
     count_bulk_expire_targets,
     count_bulk_proxy_targets,
     get_bulk_wireguard_peer_ip_users,
     reset_all_users_data_usage,
     update_users_datalimit,
-    set_users_speed_limit,
     update_users_expire,
     update_users_proxy_settings,
 )
@@ -69,7 +67,6 @@ from app.models.stats import (
 from app.models.user import (
     BulkOperationDryRunResponse,
     BulkUser,
-    BulkUserSpeedLimit,
     BulkUsersActionResponse,
     BulkUsersApplyTemplate,
     BulkUsersCreateResponse,
@@ -116,7 +113,6 @@ from app.utils.hwid import resolve_effective_hwid_settings
 from app.utils.jwt import create_subscription_token
 from app.utils.logger import get_logger
 from app.utils.system import readable_duration, readable_size
-from app.utils.ikev2 import prepare_ikev2_proxy_settings
 from app.utils.openvpn import prepare_openvpn_proxy_settings
 from app.utils.wireguard import (
     build_wireguard_peer_ip_allocator,
@@ -479,8 +475,8 @@ class UserOperation(BaseOperation):
     async def _issue_openvpn_cert_if_needed(
         self, db: AsyncSession, db_user: User, groups: list, *, force_reissue: bool = False
     ) -> None:
-        """Issue/renew the user's OpenVPN cert and IKEv2 credentials after the row
-        exists (both keyed by user id).
+        """Issue/renew the user's OpenVPN cert after the row exists (keyed by
+        user id).
 
         Persists ``proxy_settings`` in place when material is (re)issued so the
         subsequent node sync carries the new serial/credentials.
@@ -488,9 +484,6 @@ class UserOperation(BaseOperation):
         proxy_settings = ProxyTable.model_validate(db_user.proxy_settings)
         updated = await prepare_openvpn_proxy_settings(
             db, proxy_settings, groups, db_user.id, force_reissue=force_reissue
-        )
-        updated = await prepare_ikev2_proxy_settings(
-            db, updated, groups, db_user.id, force_reissue=force_reissue
         )
         new_settings = updated.dict()
         if new_settings != db_user.proxy_settings:
@@ -512,12 +505,9 @@ class UserOperation(BaseOperation):
             exclude_user_id=db_user.id,
             skip_peer_ip_validation=True,
         )
-        # Reissue the OpenVPN client cert (new serial) and rotate the IKEv2
-        # password so the previously distributed profiles are denied.
-        proxy_settings = await prepare_openvpn_proxy_settings(
-            db, proxy_settings, groups, db_user.id, force_reissue=True
-        )
-        return await prepare_ikev2_proxy_settings(
+        # Reissue the OpenVPN client cert (new serial) so the previously
+        # distributed profiles are denied.
+        return await prepare_openvpn_proxy_settings(
             db, proxy_settings, groups, db_user.id, force_reissue=True
         )
 
@@ -878,12 +868,9 @@ class UserOperation(BaseOperation):
             exclude_user_id=db_user.id,
             skip_peer_ip_validation=not peer_ips_changed,
         )
-        # Issue an OpenVPN cert / IKEv2 credentials if the (possibly new) groups
-        # grant such an inbound and the user has none yet (keyed by user id).
+        # Issue an OpenVPN cert if the (possibly new) groups grant such an
+        # inbound and the user has none yet (keyed by user id).
         prepared_proxy_settings = await prepare_openvpn_proxy_settings(
-            db, prepared_proxy_settings, effective_groups, db_user.id
-        )
-        prepared_proxy_settings = await prepare_ikev2_proxy_settings(
             db, prepared_proxy_settings, effective_groups, db_user.id
         )
         if modified_user.proxy_settings is not None or prepared_proxy_settings.dict() != current_proxy_settings_data:
@@ -1972,17 +1959,6 @@ class UserOperation(BaseOperation):
             n = await count_bulk_datalimit_targets(db, bulk_model)
             return BulkOperationDryRunResponse(affected_users=n)
         users, users_count = await update_users_datalimit(db, bulk_model)
-        await sync_users(users)
-
-        if self.operator_type in (OperatorType.API, OperatorType.WEB):
-            return {"detail": f"operation has been successfuly done on {users_count} users"}
-        return users_count
-
-    async def bulk_modify_speed_limit(self, db: AsyncSession, bulk_model: BulkUserSpeedLimit):
-        if bulk_model.dry_run:
-            n = await count_bulk_speed_limit_targets(db, bulk_model)
-            return BulkOperationDryRunResponse(affected_users=n)
-        users, users_count = await set_users_speed_limit(db, bulk_model)
         await sync_users(users)
 
         if self.operator_type in (OperatorType.API, OperatorType.WEB):

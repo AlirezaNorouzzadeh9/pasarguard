@@ -31,8 +31,6 @@ const PROTOCOL_LABELS: Record<string, string> = {
   xray: 'Xray',
   openvpn: 'OpenVPN',
   wg: 'WireGuard',
-  ikev2: 'IKEv2',
-  l2tp: 'L2TP',
 }
 
 interface UserAllIPsModalProps {
@@ -40,7 +38,6 @@ interface UserAllIPsModalProps {
   onOpenChange: (open: boolean) => void
   userId: number
   username: string
-  ipLimit?: number
 }
 
 interface NodeIPCardProps {
@@ -204,7 +201,7 @@ const EmptyState = React.memo(({ message }: { message: string }) => {
 
 EmptyState.displayName = 'EmptyState'
 
-export default function UserAllIPsModal({ isOpen, onOpenChange, userId, username, ipLimit = 0 }: UserAllIPsModalProps) {
+export default function UserAllIPsModal({ isOpen, onOpenChange, userId, username }: UserAllIPsModalProps) {
   const { t } = useTranslation()
   const dir = useDirDetection()
   const [refreshing, setRefreshing] = useState(false)
@@ -339,36 +336,21 @@ export default function UserAllIPsModal({ isOpen, onOpenChange, userId, username
     }
 
     const totalDevices = transformedData.reduce((sum, n) => sum + Object.entries(n.ips).filter(([, ts]) => isTsActive(ts)).length, 0)
-    const limit = ipLimit || 0
-    const over = limit > 0 && totalDevices > limit
-    const atCap = limit > 0 && totalDevices === limit
 
     return (
       <div className="space-y-3">
-        <div className={cn('flex items-center justify-between rounded-md border px-3 py-2', over ? 'border-destructive/40 bg-destructive/10' : 'bg-muted/40')}>
+        <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2">
           <span className="text-sm font-medium">{t('userAllIPs.totalDevices', { defaultValue: 'Active devices (all protocols)' })}</span>
-          <div className="flex items-center gap-2">
-            <span className={cn('text-lg font-semibold tabular-nums', over && 'text-destructive')} dir="ltr">
-              {limit > 0 ? `${totalDevices} / ${limit}` : totalDevices}
-            </span>
-            {over && (
-              <Badge variant="destructive" className="text-xs">
-                {t('userAllIPs.overLimit', { defaultValue: 'Over limit' })}
-              </Badge>
-            )}
-            {atCap && !over && (
-              <Badge variant="outline" className="text-xs">
-                {t('userAllIPs.atLimit', { defaultValue: 'At limit' })}
-              </Badge>
-            )}
-          </div>
+          <span className="text-lg font-semibold tabular-nums" dir="ltr">
+            {totalDevices}
+          </span>
         </div>
         {transformedData.map(({ nodeId, nodeName, ips, ipProtocol }) => (
           <NodeIPCard key={nodeId} nodeId={nodeId} nodeName={nodeName} ips={ips} ipProtocol={ipProtocol} />
         ))}
       </div>
     )
-  }, [isLoading, error, transformedData, t, ipLimit])
+  }, [isLoading, error, transformedData, t])
 
   const dialogTitle = useMemo(() => {
     return t('userAllIPs.title', {

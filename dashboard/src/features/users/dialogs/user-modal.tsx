@@ -1107,9 +1107,6 @@ function UserModal({ isDialogOpen, onOpenChange, form, editingUser, editingUserI
           ...preparedValues,
           data_limit: gbToBytes(normalizedDataLimitGb as any),
           hwid_limit: preparedValues.hwid_limit == null ? null : Number.isFinite(Number(preparedValues.hwid_limit)) ? Math.round(Number(preparedValues.hwid_limit)) : null,
-          ip_limit: preparedValues.ip_limit == null ? 0 : Math.max(0, Math.round(Number(preparedValues.ip_limit)) || 0),
-          // UI is Mbps; the API wants kbit/s.
-          speed_limit: preparedValues.speed_limit == null ? 0 : Math.max(0, Math.round((Number(preparedValues.speed_limit) || 0) * 1000)),
           data_limit_reset_strategy: canUseResetStrategy && hasDataLimit ? preparedValues.data_limit_reset_strategy : 'no_reset',
           expire: preparedValues.expire,
           ...(hasProxySettings ? { proxy_settings: cleanedProxySettings } : {}),
@@ -1210,7 +1207,7 @@ function UserModal({ isDialogOpen, onOpenChange, form, editingUser, editingUserI
         setActiveTab('groups')
         setSelectedTemplateId(null)
       } catch (error: any) {
-        const fields = ['username', 'data_limit', 'hwid_limit', 'ip_limit', 'speed_limit', 'expire', 'note', 'data_limit_reset_strategy', 'on_hold_expire_duration', 'on_hold_timeout', 'group_ids']
+        const fields = ['username', 'data_limit', 'hwid_limit', 'expire', 'note', 'data_limit_reset_strategy', 'on_hold_expire_duration', 'on_hold_timeout', 'group_ids']
         handleError({ error, fields, form, contextKey: 'users' })
       } finally {
         setLoading(false)
@@ -1811,71 +1808,6 @@ function UserModal({ isDialogOpen, onOpenChange, form, editingUser, editingUserI
                               <FormDescription className="text-xs">
                                 {t('userDialog.hwidLimitHint', {
                                   defaultValue: 'Empty = use default policy. 0 = unlimited and exempt from HWID, even when the HWID header is forced.',
-                                })}
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      )}
-                      {!selectedTemplateId && (
-                        <FormField
-                          control={form.control}
-                          name="ip_limit"
-                          render={({ field }) => (
-                            <FormItem className="relative w-full min-w-0">
-                              <FormLabel>{t('userDialog.ipLimit', { defaultValue: 'Device / IP Limit' })}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder={t('userDialog.ipLimitPlaceholder', { defaultValue: '0 = unlimited' })}
-                                  value={field.value ?? ''}
-                                  inputMode="numeric"
-                                  pattern="[0-9]*"
-                                  onBlur={field.onBlur}
-                                  onChange={event => {
-                                    const nextValue = event.target.value.trim()
-                                    if (!/^\d*$/.test(nextValue)) return
-                                    const value = nextValue === '' ? 0 : Number(nextValue)
-                                    field.onChange(value)
-                                    handleFieldChange('ip_limit', value)
-                                  }}
-                                />
-                              </FormControl>
-                              <FormDescription className="text-xs">
-                                {t('userDialog.ipLimitHint', {
-                                  defaultValue: 'Max simultaneous devices (distinct source IPs) across all protocols. 0 = unlimited.',
-                                })}
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      )}
-                      {!selectedTemplateId && (
-                        <FormField
-                          control={form.control}
-                          name="speed_limit"
-                          render={({ field }) => (
-                            <FormItem className="relative w-full min-w-0">
-                              <FormLabel>{t('userDialog.speedLimit', { defaultValue: 'Speed Limit (Mbps)' })}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder={t('userDialog.speedLimitPlaceholder', { defaultValue: '0 = unlimited' })}
-                                  value={field.value ?? ''}
-                                  inputMode="decimal"
-                                  onBlur={field.onBlur}
-                                  onChange={event => {
-                                    const nextValue = event.target.value.trim()
-                                    if (nextValue !== '' && !/^\d*\.?\d*$/.test(nextValue)) return
-                                    const value = nextValue === '' ? 0 : Number(nextValue)
-                                    field.onChange(value)
-                                    handleFieldChange('speed_limit', value)
-                                  }}
-                                />
-                              </FormControl>
-                              <FormDescription className="text-xs">
-                                {t('userDialog.speedLimitHint', {
-                                  defaultValue: 'Per-direction cap in Mbps for OpenVPN / WireGuard / IKEv2 (not Xray). 0 = unlimited.',
                                 })}
                               </FormDescription>
                               <FormMessage />
@@ -2745,7 +2677,7 @@ function UserModal({ isDialogOpen, onOpenChange, form, editingUser, editingUserI
       </AlertDialog>
 
       {canViewAllUserIps && currentUserId && currentUsername && (
-        <UserAllIPsModal isOpen={isUserAllIPsModalOpen} onOpenChange={setUserAllIPsModalOpen} userId={currentUserId} username={currentUsername} ipLimit={editingUserData?.ip_limit ?? 0} />
+        <UserAllIPsModal isOpen={isUserAllIPsModalOpen} onOpenChange={setUserAllIPsModalOpen} userId={currentUserId} username={currentUsername} />
       )}
       {currentUserId && <UsageModal open={isUsageModalOpen} onClose={() => setUsageModalOpen(false)} userId={currentUserId} />}
       {currentUserId && <UserHwidsModal isOpen={isHwidsModalOpen} onOpenChange={setHwidsModalOpen} userId={currentUserId} username={currentUsername} />}

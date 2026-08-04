@@ -199,8 +199,6 @@ const buildUserEditFormValues = (user: UserResponse): UseEditFormValues => ({
   status: user.status === 'active' || user.status === 'on_hold' || user.status === 'disabled' ? (user.status as UseEditFormValues['status']) : 'active',
   data_limit: user.data_limit ? bytesToFormGigabytes(Number(user.data_limit)) : 0,
   hwid_limit: user.hwid_limit ?? null,
-  ip_limit: user.ip_limit ?? 0,
-  speed_limit: user.speed_limit ? Number(user.speed_limit) / 1000 : 0,
   expire: normalizeDatePickerValueForEditForm(user.expire),
   note: user.note || '',
   data_limit_reset_strategy: user.data_limit_reset_strategy || undefined,
@@ -882,7 +880,7 @@ const ActionButtons: FC<ActionButtonsProps> = ({ user, isModalHost = true, rende
 
           <UserHwidsModal isOpen={isHwidsModalOpen} onOpenChange={setHwidsModalOpen} userId={user.id} username={user.username} />
 
-          {canReadAllUsers && <UserAllIPsModal isOpen={isUserAllIPsModalOpen} onOpenChange={setUserAllIPsModalOpen} userId={user.id} username={user.username} ipLimit={user.ip_limit ?? 0} />}
+          {canReadAllUsers && <UserAllIPsModal isOpen={isUserAllIPsModalOpen} onOpenChange={setUserAllIPsModalOpen} userId={user.id} username={user.username} />}
         </div>
       )}
 

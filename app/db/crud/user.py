@@ -883,15 +883,13 @@ async def create_user(
     """
     db_user = User(
         **new_user.model_dump(
-            exclude={"group_ids", "expire", "proxy_settings", "next_plan", "on_hold_timeout", "ip_limit", "speed_limit"}
+            exclude={"group_ids", "expire", "proxy_settings", "next_plan", "on_hold_timeout"}
         )
     )
     db_user.admin = admin
     db_user.groups = groups
     db_user.expire = new_user.expire or None
     db_user.on_hold_timeout = new_user.on_hold_timeout or None
-    db_user.ip_limit = new_user.ip_limit or 0
-    db_user.speed_limit = new_user.speed_limit or 0
 
     if new_user.hwid_limit is not None:
         db_user.hwid_limit = new_user.hwid_limit
@@ -923,7 +921,7 @@ async def create_users_bulk(
     for new_user in new_users:
         db_user = User(
             **new_user.model_dump(
-                exclude={"group_ids", "expire", "proxy_settings", "next_plan", "on_hold_timeout", "ip_limit", "speed_limit"}
+                exclude={"group_ids", "expire", "proxy_settings", "next_plan", "on_hold_timeout"}
             )
         )
         db_user.admin = admin
@@ -931,8 +929,6 @@ async def create_users_bulk(
         db_user.expire = new_user.expire or None
         db_user.on_hold_timeout = new_user.on_hold_timeout or None
         db_user.hwid_limit = new_user.hwid_limit if new_user.hwid_limit is not None else None
-        db_user.ip_limit = new_user.ip_limit or 0
-        db_user.speed_limit = new_user.speed_limit or 0
         db_user.proxy_settings = new_user.proxy_settings.dict()
         db_users.append(db_user)
 
@@ -1051,12 +1047,6 @@ async def modify_user(
                 remove_expiration_reminder = True
             else:
                 db_user.status = UserStatus.expired
-
-    if modify.ip_limit is not None:
-        db_user.ip_limit = modify.ip_limit or 0
-
-    if modify.speed_limit is not None:
-        db_user.speed_limit = modify.speed_limit or 0
 
     if modify.data_limit is not None:
         db_user.data_limit = modify.data_limit or None

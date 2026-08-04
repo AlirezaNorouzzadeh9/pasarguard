@@ -9,8 +9,6 @@ from nats.js.kv import KeyValue
 
 from app import on_shutdown, on_startup
 from app.core.abstract_core import AbstractCore
-from app.core.ikev2 import IKEv2Config
-from app.core.l2tp import L2TPConfig
 from app.core.openvpn import OpenVPNConfig
 from app.core.wireguard import WireGuardConfig
 from app.core.xray import XRayConfig
@@ -33,8 +31,6 @@ class CoreManager:
         CoreType.xray: XRayConfig,
         CoreType.wg: WireGuardConfig,
         CoreType.openvpn: OpenVPNConfig,
-        CoreType.ikev2: IKEv2Config,
-        CoreType.l2tp: L2TPConfig,
     }
 
     def __init__(self):

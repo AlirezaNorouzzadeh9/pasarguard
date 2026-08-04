@@ -14,7 +14,6 @@ import { cn } from '@/lib/utils'
 import {
   downloadTextFile,
   downloadUserSubscriptionOpenVPN,
-  downloadUserSubscriptionIKEv2,
   downloadUserSubscriptionWireguard,
   encodeSubscriptionContentToBase64,
   extractAddressFromConfigUrl,
@@ -188,24 +187,6 @@ const SubscriptionModal: FC<SubscriptionModalProps> = memo(({ open, subscribeUrl
     }
   }, [subscribeUrl, username, t])
 
-  const [isDownloadingIKEv2, setIsDownloadingIKEv2] = useState(false)
-  const handleDownloadIKEv2 = useCallback(async () => {
-    if (!subscribeUrl) return
-    setIsDownloadingIKEv2(true)
-    try {
-      const result = await downloadUserSubscriptionIKEv2(subscribeUrl, username, LINKS_FETCH_TIMEOUT_MS)
-      if (result === 'empty') {
-        toast.error(t('subscriptionModal.noIkev2', { defaultValue: 'This user has no IKEv2 config' }))
-        return
-      }
-      toast.success(t('usersTable.downloadStarted', { defaultValue: 'Download started' }))
-    } catch {
-      toast.error(t('downloadFailed', { defaultValue: 'Failed to download config' }))
-    } finally {
-      setIsDownloadingIKEv2(false)
-    }
-  }, [subscribeUrl, username, t])
-
   const [isDownloadingWireguard, setIsDownloadingWireguard] = useState(false)
   const handleDownloadWireguard = useCallback(async () => {
     if (!subscribeUrl) return
@@ -288,10 +269,6 @@ const SubscriptionModal: FC<SubscriptionModalProps> = memo(({ open, subscribeUrl
                   <Button variant="ghost" size="sm" onClick={handleDownloadOpenVPN} disabled={isDownloadingOpenVPN} className="h-7 px-2 text-xs" title="OpenVPN">
                     <ShieldCheck className={cn('h-3 w-3', isRTL ? 'ml-1' : 'mr-1')} />
                     <span className="hidden sm:inline">OpenVPN</span>
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={handleDownloadIKEv2} disabled={isDownloadingIKEv2} className="h-7 px-2 text-xs" title="IKEv2">
-                    <ShieldCheck className={cn('h-3 w-3', isRTL ? 'ml-1' : 'mr-1')} />
-                    <span className="hidden sm:inline">IKEv2</span>
                   </Button>
                   <Button variant="ghost" size="sm" onClick={handleDownloadWireguard} disabled={isDownloadingWireguard} className="h-7 px-2 text-xs" title="WireGuard">
                     <ShieldCheck className={cn('h-3 w-3', isRTL ? 'ml-1' : 'mr-1')} />

@@ -115,7 +115,7 @@ create_temp_file_in_dir() {
 }
 
 # Hostname check shared by the panel and node scripts. It lives here rather
-# than in one script because both prompt for domains (panel SSL, node IKEv2).
+# than in one script because both prompt for domains (panel SSL).
 is_domain() {
     [[ "$1" =~ ^([A-Za-z0-9](-*[A-Za-z0-9])*\.)+(xn--[a-z0-9]{2,}|[A-Za-z]{2,})$ ]]
 }

@@ -190,8 +190,6 @@ class JobSettings(EnvSettings):
     reset_user_data_usage_interval: int = Field(default=600, validation_alias="JOB_RESET_USER_DATA_USAGE_INTERVAL")
     reset_node_usage_interval: int = Field(default=60, validation_alias="JOB_RESET_NODE_USAGE_INTERVAL")
     check_node_limits_interval: int = Field(default=60, validation_alias="JOB_CHECK_NODE_LIMITS_INTERVAL")
-    wireguard_device_limit_interval: int = Field(default=25, validation_alias="JOB_WIREGUARD_DEVICE_LIMIT_INTERVAL")
-    wireguard_device_limit_cooldown: int = Field(default=120, validation_alias="JOB_WIREGUARD_DEVICE_LIMIT_COOLDOWN")
     cleanup_subscription_updates_interval: int = Field(
         default=600, validation_alias="JOB_CLEANUP_SUBSCRIPTION_UPDATES_INTERVAL"
     )
@@ -211,10 +209,6 @@ class OpenVPNEnvSettings(EnvSettings):
     enabled: bool = Field(default=True, validation_alias="OPENVPN_ENABLED")
 
 
-class IKEv2EnvSettings(EnvSettings):
-    enabled: bool = Field(default=True, validation_alias="IKEV2_ENABLED")
-
-
 database_settings = DatabaseSettings()
 server_settings = ServerSettings()
 dashboard_settings = DashboardSettings()
@@ -232,7 +226,6 @@ job_settings = JobSettings()
 feature_settings = FeatureSettings()
 wireguard_settings = WireGuardSettings()
 openvpn_env_settings = OpenVPNEnvSettings()
-ikev2_env_settings = IKEv2EnvSettings()
 
 if not database_settings.is_postgresql:
     usage_settings.enable_recording_nodes_stats = False

@@ -51,10 +51,7 @@ async def serialize_user(user: User, allowed_protocols: frozenset[ProxyProtocol]
         if inbounds is None:
             inbounds = await user.inbounds()
 
-    return _serialize_user_for_node(
-        user.id, user_settings, inbounds, allowed_protocols, ip_limit=getattr(user, "ip_limit", 0) or 0,
-        speed_limit=getattr(user, "speed_limit", 0) or 0,
-    )
+    return _serialize_user_for_node(user.id, user_settings, inbounds, allowed_protocols)
 
 
 def _serialize_user_for_node(
@@ -62,8 +59,6 @@ def _serialize_user_for_node(
     user_settings: dict,
     inbounds: list[str] = None,
     allowed_protocols: frozenset[ProxyProtocol] | None = None,
-    ip_limit: int = 0,
-    speed_limit: int = 0,
 ) -> ProtoUser:
     allowed_protocols = allowed_protocols or _ALL_PROXY_PROTOCOLS
 
@@ -88,17 +83,11 @@ def _serialize_user_for_node(
         openvpn_settings = user_settings.get("openvpn", {})
         proxy_kwargs["openvpn_serial"] = openvpn_settings.get("serial")
         proxy_kwargs["openvpn_fingerprint"] = openvpn_settings.get("fingerprint")
-    if ProxyProtocol.ikev2 in allowed_protocols:
-        ikev2_settings = user_settings.get("ikev2", {})
-        proxy_kwargs["ikev2_username"] = ikev2_settings.get("username")
-        proxy_kwargs["ikev2_password"] = ikev2_settings.get("password")
 
     return create_user(
         str(id),
         create_proxy(**proxy_kwargs),
         inbounds,
-        ip_limit=ip_limit or 0,
-        speed_limit=speed_limit or 0,
     )
 
 
@@ -121,8 +110,6 @@ async def core_users(
         select(
             User.id,
             User.proxy_settings,
-            User.ip_limit,
-            User.speed_limit,
             inbound_agg,
         )
         .outerjoin(users_groups_association, User.id == users_groups_association.c.user_id)
@@ -168,8 +155,6 @@ async def core_users(
                     row.proxy_settings,
                     inbound_tags,
                     allowed_protocols,
-                    ip_limit=getattr(row, "ip_limit", 0) or 0,
-                    speed_limit=getattr(row, "speed_limit", 0) or 0,
                 )
             )
     return bridge_users
@@ -197,8 +182,6 @@ async def serialize_users_for_node(
                 user.proxy_settings,
                 inbounds_list,
                 allowed_protocols,
-                ip_limit=getattr(user, "ip_limit", 0) or 0,
-                speed_limit=getattr(user, "speed_limit", 0) or 0,
             )
         )
 

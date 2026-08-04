@@ -13,8 +13,6 @@ import type { SectionHeaderAddPulse } from '@/features/core-editor/hooks/use-sec
 import { useXrayPersistValidationItems } from '@/features/core-editor/hooks/use-xray-persist-validation-items'
 import { WireGuardCoreEditor } from '@/features/core-editor/components/wg/wireguard-core-editor'
 import OpenVPNCoreEditorPage from '@/features/core-editor/components/openvpn/openvpn-core-editor-page'
-import IKEv2CoreEditorPage from '@/features/core-editor/components/ikev2/ikev2-core-editor-page'
-import L2TPCoreEditorPage from '@/features/core-editor/components/l2tp/l2tp-core-editor-page'
 import { XrayCoreEditor } from '@/features/core-editor/components/xray/xray-core-editor'
 import { profileToPersistedConfig } from '@/features/core-editor/kit/xray-adapter'
 import { getWireGuardPersistConfig } from '@/features/core-editor/kit/wireguard-adapter'
@@ -216,14 +214,12 @@ export default function CoreEditorPage() {
     }
   }, [reset])
 
-  // OpenVPN and IKEv2 use self-contained editors (below), not the xray/wg store.
+  // OpenVPN uses a self-contained editor (below), not the xray/wg store.
   const isOpenVPNCore = isNew ? searchParams.get('kind') === 'openvpn' : coreData?.type === 'openvpn'
-  const isIKEv2Core = isNew ? searchParams.get('kind') === 'ikev2' : coreData?.type === 'ikev2'
-  const isL2TPCore = isNew ? searchParams.get('kind') === 'l2tp' : coreData?.type === 'l2tp'
 
   useEffect(() => {
     if (isNew) {
-      if (['openvpn', 'ikev2', 'l2tp'].includes(searchParams.get('kind') ?? '')) return
+      if (searchParams.get('kind') === 'openvpn') return
       const k = (searchParams.get('kind') as CoreKind | null) === 'wg' ? 'wg' : 'xray'
       const currentName = useCoreEditorStore.getState().coreName
       initNew(k, currentName)
@@ -234,7 +230,7 @@ export default function CoreEditorPage() {
 
   useEffect(() => {
     if (isNew || !validId || !coreData || serverConfigJson === null) return
-    if (coreData.type === 'openvpn' || coreData.type === 'ikev2' || coreData.type === 'l2tp') return
+    if (coreData.type === 'openvpn') return
     const state = useCoreEditorStore.getState()
     if (state.coreId !== coreData.id) {
       initFromCore(coreData)
@@ -429,8 +425,8 @@ export default function CoreEditorPage() {
             <Select
               value={kind === 'wg' ? 'wg' : 'xray'}
               onValueChange={value => {
-                if (value === 'openvpn' || value === 'ikev2' || value === 'l2tp') {
-                  // OpenVPN/IKEv2/L2TP only support switching from the "new" flow.
+                if (value === 'openvpn') {
+                  // OpenVPN only supports switching from the "new" flow.
                   if (isNew) {
                     setSearchParams(
                       prev => {
@@ -466,8 +462,6 @@ export default function CoreEditorPage() {
                 <SelectItem value="xray">Xray</SelectItem>
                 <SelectItem value="wg">WireGuard</SelectItem>
                 <SelectItem value="openvpn">OpenVPN</SelectItem>
-                <SelectItem value="ikev2">IKEv2</SelectItem>
-                <SelectItem value="l2tp">L2TP</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -574,22 +568,6 @@ export default function CoreEditorPage() {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <OpenVPNCoreEditorPage />
-      </div>
-    )
-  }
-
-  if (isIKEv2Core) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <IKEv2CoreEditorPage />
-      </div>
-    )
-  }
-
-  if (isL2TPCore) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <L2TPCoreEditorPage />
       </div>
     )
   }

@@ -74,8 +74,6 @@ logger = get_logger("node-operation")
 _BACKEND_TYPE_BY_CORE = {
     CoreType.wg: service.BackendType.WIREGUARD,
     CoreType.openvpn: service.BackendType.OPENVPN,
-    CoreType.ikev2: service.BackendType.IKEV2,
-    CoreType.l2tp: service.BackendType.L2TP,
 }
 
 # Inverse: a node reports available_backends as BackendType enum values; map them
@@ -84,8 +82,6 @@ _CORE_STR_BY_BACKEND_TYPE = {
     int(service.BackendType.XRAY): CoreType.xray.value,
     int(service.BackendType.WIREGUARD): CoreType.wg.value,
     int(service.BackendType.OPENVPN): CoreType.openvpn.value,
-    int(service.BackendType.IKEV2): CoreType.ikev2.value,
-    int(service.BackendType.L2TP): CoreType.l2tp.value,
 }
 
 
@@ -397,7 +393,7 @@ class NodeOperation(BaseOperation):
             info = await pg_node.start(**start_kwargs)
             logger.info(f'Connected to "{db_node.name}" node v{info.node_version}, core run on v{info.core_version}')
 
-            # Bring up any extra cores on the same node (e.g. ikev2 alongside openvpn).
+            # Bring up any extra cores on the same node (e.g. wireguard alongside openvpn).
             for extra_core, extra_users, extra_port in additional or []:
                 if extra_core is None or extra_core.type == core.type:
                     continue
@@ -904,7 +900,7 @@ class NodeOperation(BaseOperation):
     def node_runs_core(node: Node, core_id: int) -> bool:
         """True if the node runs ``core_id`` as its primary or an additional core.
 
-        A node's VPN cores (openvpn/wireguard/ikev2) usually run as *additional*
+        A node's VPN cores (openvpn/wireguard) usually run as *additional*
         backends alongside a primary xray core. Filtering by ``core_config_id``
         alone (as the ``core_id`` SQL filter does) therefore misses them, which
         silently skipped "Restart Nodes" whenever an additional core was edited —

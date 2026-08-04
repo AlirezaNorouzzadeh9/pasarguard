@@ -29,8 +29,6 @@ from app.models.core import (
 )
 from app.operation import BaseOperation
 from app.utils.logger import get_logger
-from app.utils.ikev2 import ensure_ikev2_core_material
-from app.utils.l2tp import ensure_l2tp_core_material
 from app.utils.openvpn import ensure_openvpn_core_material
 
 logger = get_logger("core-operation")
@@ -63,10 +61,6 @@ class CoreOperation(BaseOperation):
         try:
             if new_core.type == CoreType.openvpn:
                 new_core.config = await ensure_openvpn_core_material(db, new_core.config)
-            elif new_core.type == CoreType.ikev2:
-                new_core.config = await ensure_ikev2_core_material(db, new_core.config)
-            elif new_core.type == CoreType.l2tp:
-                new_core.config = await ensure_l2tp_core_material(db, new_core.config)
             validated_core = core_manager.validate_core(
                 new_core.config,
                 new_core.exclude_inbound_tags,
@@ -111,10 +105,6 @@ class CoreOperation(BaseOperation):
         try:
             if modified_core.type == CoreType.openvpn:
                 modified_core.config = await ensure_openvpn_core_material(db, modified_core.config)
-            elif modified_core.type == CoreType.ikev2:
-                modified_core.config = await ensure_ikev2_core_material(db, modified_core.config)
-            elif modified_core.type == CoreType.l2tp:
-                modified_core.config = await ensure_l2tp_core_material(db, modified_core.config)
             validated_core = core_manager.validate_core(
                 modified_core.config,
                 modified_core.exclude_inbound_tags,
