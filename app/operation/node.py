@@ -74,6 +74,7 @@ logger = get_logger("node-operation")
 _BACKEND_TYPE_BY_CORE = {
     CoreType.wg: service.BackendType.WIREGUARD,
     CoreType.openvpn: service.BackendType.OPENVPN,
+    CoreType.singbox: service.BackendType.SINGBOX,
 }
 
 # Inverse: a node reports available_backends as BackendType enum values; map them
@@ -82,6 +83,7 @@ _CORE_STR_BY_BACKEND_TYPE = {
     int(service.BackendType.XRAY): CoreType.xray.value,
     int(service.BackendType.WIREGUARD): CoreType.wg.value,
     int(service.BackendType.OPENVPN): CoreType.openvpn.value,
+    int(service.BackendType.SINGBOX): CoreType.singbox.value,
 }
 
 

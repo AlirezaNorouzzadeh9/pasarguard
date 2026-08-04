@@ -14,6 +14,7 @@ class BackendType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OPENVPN: _ClassVar[BackendType]
     IKEV2: _ClassVar[BackendType]
     L2TP: _ClassVar[BackendType]
+    SINGBOX: _ClassVar[BackendType]
 
 class StatType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -28,6 +29,7 @@ WIREGUARD: BackendType
 OPENVPN: BackendType
 IKEV2: BackendType
 L2TP: BackendType
+SINGBOX: BackendType
 Outbounds: StatType
 Outbound: StatType
 Inbounds: StatType
@@ -58,7 +60,7 @@ class BaseInfoResponse(_message.Message):
     node_version: str
     available_backends: _containers.RepeatedScalarFieldContainer[BackendType]
     backend_versions: _containers.ScalarMap[str, str]
-    def __init__(self, started: bool = ..., core_version: _Optional[str] = ..., node_version: _Optional[str] = ..., available_backends: _Optional[_Iterable[_Union[BackendType, str]]] = ..., backend_versions: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    def __init__(self, started: _Optional[bool] = ..., core_version: _Optional[str] = ..., node_version: _Optional[str] = ..., available_backends: _Optional[_Iterable[_Union[BackendType, str]]] = ..., backend_versions: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class Backend(_message.Message):
     __slots__ = ("type", "config", "users", "keep_alive", "exclude_inbounds")
@@ -106,7 +108,7 @@ class StatRequest(_message.Message):
     name: str
     reset: bool
     type: StatType
-    def __init__(self, name: _Optional[str] = ..., reset: bool = ..., type: _Optional[_Union[StatType, str]] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., reset: _Optional[bool] = ..., type: _Optional[_Union[StatType, str]] = ...) -> None: ...
 
 class OnlineStatResponse(_message.Message):
     __slots__ = ("name", "value")
@@ -156,7 +158,7 @@ class Latency(_message.Message):
     last_seen_time: int
     last_try_time: int
     source: str
-    def __init__(self, name: _Optional[str] = ..., alive: bool = ..., delay: _Optional[int] = ..., link: _Optional[str] = ..., last_seen_time: _Optional[int] = ..., last_try_time: _Optional[int] = ..., source: _Optional[str] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., alive: _Optional[bool] = ..., delay: _Optional[int] = ..., link: _Optional[str] = ..., last_seen_time: _Optional[int] = ..., last_try_time: _Optional[int] = ..., source: _Optional[str] = ...) -> None: ...
 
 class LatencyRequest(_message.Message):
     __slots__ = ("name",)
@@ -318,4 +320,4 @@ class UsersChunk(_message.Message):
     users: _containers.RepeatedCompositeFieldContainer[User]
     index: int
     last: bool
-    def __init__(self, users: _Optional[_Iterable[_Union[User, _Mapping]]] = ..., index: _Optional[int] = ..., last: bool = ...) -> None: ...
+    def __init__(self, users: _Optional[_Iterable[_Union[User, _Mapping]]] = ..., index: _Optional[int] = ..., last: _Optional[bool] = ...) -> None: ...
