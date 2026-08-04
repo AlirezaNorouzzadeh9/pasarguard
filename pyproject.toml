@@ -53,7 +53,9 @@ pasarguard-node-bridge = { path = "_vendor/node_bridge_py", editable = true }
 line-length = 120
 indent-width = 4
 respect-gitignore = true
-exclude = ["app/db/migrations"]
+# _vendor is a third-party package carried verbatim; linting it to this
+# project's rules would only invite edits that make the next resync harder.
+exclude = ["app/db/migrations", "_vendor"]
 fix = true
 
 [tool.ruff.lint]
