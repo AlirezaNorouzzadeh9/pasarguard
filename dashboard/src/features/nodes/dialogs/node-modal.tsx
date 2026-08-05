@@ -532,12 +532,18 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
                     )}
                   />
 
-                  {/* Only WireGuard cores can run beside another core: every other
-                      core type is one process per node, so a second one would
-                      replace the first rather than run alongside it. */}
+                  {/* WireGuard and OpenVPN cores each run as their own process with
+                      their own ports, so a node can serve several at once. Xray is
+                      one process per node — a second would replace the first rather
+                      than run alongside it.
+
+                      Keep this list in step with _MULTI_INSTANCE_BACKENDS on the
+                      panel: a type missing here is not just hidden, it is dropped
+                      from the node the next time this form is saved. */}
                   {(() => {
                     const primaryId = form.watch('core_config_id')
-                    const extraCores = cores?.filter((core: CoreSimple) => core.type === 'wg' && core.id !== primaryId) ?? []
+                    const MULTI_INSTANCE_TYPES = ['wg', 'openvpn']
+                    const extraCores = cores?.filter((core: CoreSimple) => MULTI_INSTANCE_TYPES.includes(core.type ?? '') && core.id !== primaryId) ?? []
                     if (extraCores.length === 0) return null
 
                     return (
@@ -546,7 +552,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
                         name="additional_core_config_ids"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>{t('nodeModal.additionalCores', { defaultValue: 'Additional WireGuard cores' })}</FormLabel>
+                            <FormLabel>{t('nodeModal.additionalCores', { defaultValue: 'Additional cores' })}</FormLabel>
                             <div className="flex flex-col gap-2 rounded-md border p-3">
                               {extraCores.map((core: CoreSimple) => {
                                 const selected = (field.value ?? []).includes(core.id)
@@ -560,6 +566,9 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
                                       }}
                                     />
                                     <span>{core.name}</span>
+                                    <span className="text-muted-foreground bg-muted rounded px-1.5 py-0.5 font-mono text-[10px] uppercase">
+                                      {core.type === 'wg' ? 'WireGuard' : core.type}
+                                    </span>
                                   </label>
                                 )
                               })}
