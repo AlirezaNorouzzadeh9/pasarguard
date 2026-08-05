@@ -3151,6 +3151,12 @@
       "other": "Other",
       "sniLabel": "SNI",
       "sniDiscovered": "discovered from IP"
+    },
+    "openvpn": {
+      "listeners": "Extra listeners (optional)",
+      "addListener": "Add listener",
+      "portPlaceholder": "Port",
+      "listenersHint": "The node runs one OpenVPN server per entry, sharing this core's users and certificates, and splits the subnet between them. A single entry is ignored — the port above already covers that."
     }
   },
   "settings.cores.title": "Cores",

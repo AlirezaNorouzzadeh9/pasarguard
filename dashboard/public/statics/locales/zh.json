@@ -3107,6 +3107,12 @@
       "other": "其他",
       "sniLabel": "SNI",
       "sniDiscovered": "从 IP 发现"
+    },
+    "openvpn": {
+      "listeners": "额外监听（可选）",
+      "addListener": "添加监听",
+      "portPlaceholder": "端口",
+      "listenersHint": "节点为每条记录运行一个独立的 OpenVPN 服务器，共享此核心的用户和证书，并在它们之间划分子网。只有一条记录时会被忽略，因为上面的端口已经涵盖。"
     }
   },
   "settings.cores.title": "核心",

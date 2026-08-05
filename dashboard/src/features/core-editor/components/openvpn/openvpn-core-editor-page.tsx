@@ -12,9 +12,9 @@ import { cn } from '@/lib/utils'
 import { getGetCoreConfigQueryKey, useCreateCoreConfig, useGetCoreConfig, useModifyCoreConfig } from '@/service/api'
 import { $fetch } from '@/service/http'
 import { queryClient } from '@/utils/query-client'
-import { ArrowLeft, Download, RefreshCcw, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Download, Plus, RefreshCcw, ShieldCheck, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useFieldArray, useForm, type UseFormReturn } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
@@ -26,35 +26,100 @@ const CIPHERS = ['AES-256-GCM', 'AES-128-GCM', 'CHACHA20-POLY1305', 'AES-256-CBC
 const MATERIAL_KEYS = ['ca_cert', 'server_cert', 'server_key', 'tls_crypt_key'] as const
 
 // A single OpenVPN process binds one port/protocol, so serving both UDP and TCP
-// means one server per entry. Edited as "port proto" lines because it is a
-// short list and a table would dwarf it.
-const listenersToText = (value: unknown): string => {
-  if (!Array.isArray(value)) return ''
+// means one server per entry.
+type ListenerRow = { port: string; proto: 'udp' | 'tcp' }
+
+const listenersToRows = (value: unknown): ListenerRow[] => {
+  if (!Array.isArray(value)) return []
   return value
     .map(entry => {
       const row = entry as { port?: number; proto?: string }
-      return row?.port ? `${row.port} ${row.proto ?? 'udp'}`.trim() : ''
+      const proto = row?.proto === 'tcp' ? 'tcp' : 'udp'
+      return row?.port ? { port: String(row.port), proto } : null
     })
-    .filter(Boolean)
-    .join(String.fromCharCode(10))
+    .filter((row): row is ListenerRow => row !== null)
 }
 
-const parseListeners = (text: string): { port: number; proto: string }[] | undefined => {
-  const rows = text
-    .split(String.fromCharCode(10))
-    .map(line => line.trim())
-    .filter(Boolean)
-    .map(line => {
-      const [rawPort, rawProto] = line.split(/\s+/)
-      const port = Number(rawPort)
-      if (!Number.isInteger(port) || port < 1 || port > 65535) return null
-      const proto = (rawProto ?? 'udp').toLowerCase()
-      return proto === 'udp' || proto === 'tcp' ? { port, proto } : null
-    })
-    .filter((row): row is { port: number; proto: string } => row !== null)
-  // One entry is what port/proto already say, so send nothing and keep the
-  // classic single-listener config.
-  return rows.length > 1 ? rows : undefined
+const rowsToListeners = (rows: ListenerRow[] | undefined): { port: number; proto: string }[] | undefined => {
+  const parsed = (rows ?? [])
+    .map(row => ({ port: Number(row.port), proto: row.proto }))
+    .filter(row => Number.isInteger(row.port) && row.port >= 1 && row.port <= 65535)
+  // One entry says nothing the port/proto fields above do not already say, so
+  // send nothing and keep the classic single-listener config.
+  return parsed.length > 1 ? parsed : undefined
+}
+
+// Structured rather than free text: a typo or a swapped word in a "port proto"
+// line silently dropped the whole entry, and the operator only found out when
+// the port was not listening.
+const ListenersField = ({ form }: { form: UseFormReturn<OpenVPNFormValues> }) => {
+  const { t } = useTranslation()
+  const { fields, append, remove } = useFieldArray({ control: form.control, name: 'listeners' })
+
+  return (
+    <FormItem>
+      <FormLabel>{t('coreEditor.openvpn.listeners', { defaultValue: 'Extra listeners (optional)' })}</FormLabel>
+      <div className="flex flex-col gap-2">
+        {fields.map((row, index) => (
+          <div key={row.id} className="flex items-center gap-2" dir="ltr">
+            <FormField
+              control={form.control}
+              name={`listeners.${index}.port`}
+              render={({ field }) => (
+                <FormItem className="flex-1">
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={65535}
+                      dir="ltr"
+                      className="text-xs"
+                      placeholder={t('coreEditor.openvpn.portPlaceholder', { defaultValue: 'Port' })}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name={`listeners.${index}.proto`}
+              render={({ field }) => (
+                <FormItem className="w-28 shrink-0">
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="udp">UDP</SelectItem>
+                      <SelectItem value="tcp">TCP</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => remove(index)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+      </div>
+      <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => append({ port: '', proto: 'udp' })}>
+        <Plus className="mr-1 h-3.5 w-3.5" />
+        {t('coreEditor.openvpn.addListener', { defaultValue: 'Add listener' })}
+      </Button>
+      <p className="text-muted-foreground mt-2 text-[11px]">
+        {t('coreEditor.openvpn.listenersHint', {
+          defaultValue:
+            "The node runs one OpenVPN server per entry, sharing this core's users and certificates, and splits the subnet between them. A single entry is ignored — the port above already covers that.",
+        })}
+      </p>
+    </FormItem>
+  )
 }
 
 interface OpenVPNFormValues {
@@ -62,7 +127,7 @@ interface OpenVPNFormValues {
   port: string
   proto: 'udp' | 'tcp'
   server_subnet: string
-  listeners: string
+  listeners: ListenerRow[]
   cipher: string
   duplicate_cn: boolean
   keepalive: string
@@ -86,7 +151,7 @@ function defaultValues(): OpenVPNFormValues {
     port: '1194',
     proto: 'udp',
     server_subnet: '10.29.0.0/16',
-    listeners: '',
+    listeners: [],
     cipher: 'AES-256-GCM',
     duplicate_cn: true,
     keepalive: '10 60',
@@ -105,7 +170,7 @@ function configToFormValues(config: Record<string, unknown>): OpenVPNFormValues 
     port: String(config.port ?? d.port),
     proto: config.proto === 'tcp' ? 'tcp' : 'udp',
     server_subnet: String(config.server_subnet ?? d.server_subnet),
-    listeners: listenersToText(config.listeners),
+    listeners: listenersToRows(config.listeners),
     cipher: String(config.cipher ?? d.cipher),
     duplicate_cn: config.duplicate_cn !== false,
     keepalive: String(config.keepalive ?? d.keepalive),
@@ -183,7 +248,7 @@ export default function OpenVPNCoreEditorPage() {
     port: Number(v.port),
     proto: v.proto,
     server_subnet: v.server_subnet.trim(),
-    listeners: parseListeners(v.listeners),
+    listeners: rowsToListeners(v.listeners),
     cipher: v.cipher,
     data_ciphers: splitLines(v.data_ciphers),
     duplicate_cn: v.duplicate_cn,
@@ -466,31 +531,7 @@ export default function OpenVPNCoreEditorPage() {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="listeners"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{lbl('listeners', 'Extra listeners (optional)')}</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        dir="ltr"
-                        rows={3}
-                        className="font-mono text-xs"
-                        placeholder={['6062 udp', '1982 udp', '443 tcp'].join(String.fromCharCode(10))}
-                        {...field}
-                      />
-                    </FormControl>
-                    <p className="text-muted-foreground text-[11px]">
-                      {t('coreEditor.openvpn.listenersHint', {
-                        defaultValue:
-                          'One "port protocol" per line. The node runs one OpenVPN server per entry, sharing this core\'s users and certificates, and splits the subnet between them. Leave empty to serve only the port above.',
-                      })}
-                    </p>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <ListenersField form={form} />
               <FormField
                 control={form.control}
                 name="cipher"
