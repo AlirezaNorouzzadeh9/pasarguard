@@ -109,6 +109,33 @@ async def generate_subscription(
     return config
 
 
+async def generate_wireguard_configs(
+    user: UsersResponseWithInbounds,
+    randomize_order: bool = False,
+) -> list[tuple[str, str]]:
+    """Return each WireGuard host as (remark, .conf text).
+
+    generate_subscription renders the same configs into a single zip, which is
+    right for a client that imports a whole subscription. The page needs them
+    one by one instead, so each can be shown, copied, downloaded or turned into
+    a QR code on its own.
+    """
+    conf = WireGuardConfiguration()
+    sub_settings = await subscription_settings()
+    client_templates = await subscription_client_templates()
+
+    await process_inbounds_and_tags(
+        user,
+        setup_format_variables(user, sub_settings.custom_variables),
+        conf,
+        client_templates,
+        randomize_order=randomize_order,
+        custom_variables=get_effective_custom_variables(user, sub_settings.custom_variables),
+    )
+
+    return conf.configs
+
+
 def format_time_left(seconds_left: int) -> str:
     if not seconds_left or seconds_left <= 0:
         return "∞"

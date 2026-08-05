@@ -1,3 +1,4 @@
+import base64
 import re
 from json import dumps as json_dumps
 from typing import Any, ClassVar
@@ -23,6 +24,7 @@ from app.subscription.share import (
     apply_custom_format_variables,
     encode_title,
     generate_subscription,
+    generate_wireguard_configs,
     get_effective_custom_variables,
     setup_format_variables,
 )
@@ -32,6 +34,24 @@ from config import template_settings
 
 from . import BaseOperation
 from .user import UserOperation
+
+
+def _download_entry(name: str, content: str, ext: str, mime: str) -> dict[str, str]:
+    """Build one download card for the subscription page.
+
+    The file travels in a base64 data: URL rather than behind its own endpoint,
+    so the page can offer a download, a copy and a QR code without another
+    round trip — and without a second place that has to authorise the token.
+    """
+    b64 = base64.b64encode(content.encode()).decode()
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("_") or "config"
+    return {
+        "name": name,
+        "filename": f"{safe}{ext}",
+        "content": content,
+        "data_url": f"data:{mime};base64,{b64}",
+    }
+
 
 client_config = {
     ConfigFormat.clash_meta: {
@@ -431,11 +451,29 @@ class SubscriptionOperation(BaseOperation):
             format_variables = await self.get_format_variables(user)
             formatted_announce = self._format_announce(sub_settings, format_variables)
 
+            # WireGuard is not a link — every client wants a .conf file. The page
+            # shows one card per host, so they are generated individually rather
+            # than as the single zip the /wireguard endpoint returns. Users with
+            # no WireGuard inbound simply get an empty list and no section.
+            wireguard_configs = [
+                _download_entry(remark, content, ".conf", "text/plain")
+                for remark, content in await generate_wireguard_configs(user, sub_settings.randomize_order)
+            ]
+            base_url = (request_url or "").split("?")[0].rstrip("/")
+            wireguard_url = f"{base_url}/wireguard" if base_url and wireguard_configs else None
+
             return HTMLResponse(
                 render_template(
                     template,
                     self._build_subscription_body_payload(
-                        user, links, formatted_announce, sub_settings, format_variables, is_hwid_enabled
+                        user,
+                        links,
+                        formatted_announce,
+                        sub_settings,
+                        format_variables,
+                        is_hwid_enabled,
+                        wireguard_configs,
+                        wireguard_url,
                     ),
                 )
             )
@@ -567,12 +605,16 @@ class SubscriptionOperation(BaseOperation):
         sub_settings: SubSettings,
         format_variables: dict,
         is_hwid_enabled: bool,
+        wireguard_configs: list[dict] | None = None,
+        wireguard_url: str | None = None,
     ) -> dict[str, Any]:
         return {
             "user": SubscriptionUserResponse.model_validate(user),
             "links": links,
             "announce": formatted_announce,
             "announce_url": sub_settings.announce_url,
+            "wireguard_configs": wireguard_configs or [],
+            "wireguard_url": wireguard_url,
             "apps": self._make_apps_import_urls(
                 sub_settings.applications,
                 format_variables,
