@@ -616,6 +616,46 @@ export interface WireGuardSettings {
 
 export type WireGuardHostOverridesDns = string[] | null
 
+export type OpenVPNRemotePort = number | null
+
+export type OpenVPNRemoteProto = string | null
+
+/**
+ * One `remote` endpoint of an OpenVPN host.
+ *
+ * `port`/`proto` are optional: a missing value inherits the host defaults at
+ * render time.
+ */
+export interface OpenVPNRemote {
+  host: string
+  port?: OpenVPNRemotePort
+  proto?: OpenVPNRemoteProto
+}
+
+export type OpenVPNHostOverridesProto = string | null
+
+export type OpenVPNHostOverridesRemotes = OpenVPNRemote[] | null
+
+export type OpenVPNHostOverridesRedirectGateway = boolean | null
+
+export type OpenVPNHostOverridesDns = string[] | null
+
+export type OpenVPNHostOverridesMtu = number | null
+
+export type OpenVPNHostOverridesExtraClientDirectives = string[] | null
+
+/**
+ * Optional per-host values merged into OpenVPN (.ovpn) subscription output.
+ */
+export interface OpenVPNHostOverrides {
+  proto?: OpenVPNHostOverridesProto
+  remotes?: OpenVPNHostOverridesRemotes
+  redirect_gateway?: OpenVPNHostOverridesRedirectGateway
+  dns?: OpenVPNHostOverridesDns
+  mtu?: OpenVPNHostOverridesMtu
+  extra_client_directives?: OpenVPNHostOverridesExtraClientDirectives
+}
+
 export type WireGuardHostOverridesKeepaliveSeconds = number | null
 
 export type WireGuardHostOverridesReserved = string | null
@@ -2954,6 +2994,8 @@ export type CreateHostFinalMaskSettings = FinalMaskInput | null
 
 export type CreateHostSubscriptionTemplates = SubscriptionTemplates | null
 
+export type CreateHostOpenvpnOverrides = OpenVPNHostOverrides | null
+
 export type CreateHostWireguardOverrides = WireGuardHostOverrides | null
 
 export type CreateHostVerifyPeerCertByName = string[] | null
@@ -3005,6 +3047,7 @@ export interface CreateHost {
   pinned_peer_cert_sha256?: CreateHostPinnedPeerCertSha256
   verify_peer_cert_by_name?: CreateHostVerifyPeerCertByName
   wireguard_overrides?: CreateHostWireguardOverrides
+  openvpn_overrides?: CreateHostOpenvpnOverrides
   subscription_templates?: CreateHostSubscriptionTemplates
   final_mask_settings?: CreateHostFinalMaskSettings
 }
@@ -3443,6 +3486,8 @@ export type BaseHostFinalMaskSettings = FinalMaskOutput | null
 
 export type BaseHostSubscriptionTemplates = SubscriptionTemplates | null
 
+export type BaseHostOpenvpnOverrides = OpenVPNHostOverrides | null
+
 export type BaseHostWireguardOverrides = WireGuardHostOverrides | null
 
 export type BaseHostVerifyPeerCertByName = string[] | null
@@ -3514,6 +3559,7 @@ export interface BaseHost {
   pinned_peer_cert_sha256?: BaseHostPinnedPeerCertSha256
   verify_peer_cert_by_name?: BaseHostVerifyPeerCertByName
   wireguard_overrides?: BaseHostWireguardOverrides
+  openvpn_overrides?: BaseHostOpenvpnOverrides
   subscription_templates?: BaseHostSubscriptionTemplates
   final_mask_settings?: BaseHostFinalMaskSettings
 }

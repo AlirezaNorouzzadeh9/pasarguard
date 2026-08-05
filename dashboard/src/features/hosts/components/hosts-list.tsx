@@ -354,6 +354,20 @@ export default function HostsList({
             dns: host.wireguard_overrides.dns ?? [],
           }
         : undefined,
+      openvpn_overrides: host.openvpn_overrides
+        ? {
+            proto: (host.openvpn_overrides.proto as 'udp' | 'tcp' | '' | null) ?? '',
+            redirect_gateway: host.openvpn_overrides.redirect_gateway ?? undefined,
+            dns: host.openvpn_overrides.dns ?? [],
+            mtu: host.openvpn_overrides.mtu ?? undefined,
+            extra_client_directives: host.openvpn_overrides.extra_client_directives ?? [],
+            remotes: (host.openvpn_overrides.remotes ?? []).map(remote => ({
+              host: remote.host,
+              port: remote.port ?? undefined,
+              proto: (remote.proto as 'udp' | 'tcp' | '' | null) ?? '',
+            })),
+          }
+        : undefined,
     }
     form.reset(formData)
     setEditingHost(host)
@@ -396,6 +410,7 @@ export default function HostsList({
         transport_settings: host.transport_settings as any, // Type cast needed due to Output/Input mismatch
         http_headers: host.http_headers || {},
         wireguard_overrides: host.wireguard_overrides ?? undefined,
+        openvpn_overrides: host.openvpn_overrides ?? undefined,
         subscription_templates: host.subscription_templates ?? undefined,
         final_mask_settings: host.final_mask_settings ?? undefined,
       }
@@ -718,6 +733,7 @@ export default function HostsList({
             }
           : undefined,
         wireguard_overrides: host.wireguard_overrides ?? undefined,
+        openvpn_overrides: host.openvpn_overrides ?? undefined,
         http_headers: host.http_headers || {},
         final_mask_settings: host.final_mask_settings ?? undefined,
       }))
