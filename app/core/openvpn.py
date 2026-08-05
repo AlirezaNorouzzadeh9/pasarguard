@@ -118,16 +118,6 @@ class OpenVPNConfig(dict):
 
         self["listeners"] = self._validate_listeners(port, proto, server_subnet)
 
-        # Optional per-node egress: route this core's subnet out a specific
-        # interface on the node (e.g. an upstream wg-de tunnel). The node does
-        # the policy routing; here we just validate the interface name.
-        egress = str(self.get("egress_interface") or "").strip()
-        if egress and not re.fullmatch(r"[A-Za-z0-9._@-]{1,15}", egress):
-            raise ValueError(
-                "egress_interface must be a valid interface name (letters, digits, '.', '_', '-', '@'; max 15 chars)"
-            )
-        self["egress_interface"] = egress
-
         cipher = str(self.get("cipher") or "AES-256-GCM").strip()
         if cipher not in _ALLOWED_CIPHERS:
             raise ValueError(f"cipher must be one of: {', '.join(sorted(_ALLOWED_CIPHERS))}")
@@ -265,7 +255,6 @@ class OpenVPNConfig(dict):
             "ca_cert": self.get("ca_cert", ""),
             "tls_crypt_key": self.get("tls_crypt_key", ""),
             "server_subnet": self["server_subnet"],
-            "egress_interface": self.get("egress_interface", ""),
             "dns": list(self.get("dns", [])),
             # Every endpoint this core serves, so a host with no explicit
             # remotes can offer them all (UDP first, TCP as fallback).
