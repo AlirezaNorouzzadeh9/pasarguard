@@ -17,8 +17,13 @@ def _node(core_id=1, extra=None):
     return SimpleNamespace(id=7, name="de-1", core_config_id=core_id, additional_core_config_ids=extra)
 
 
-def _core(core_id, core_type=CoreType.wg):
-    return SimpleNamespace(id=core_id, name=f"core-{core_id}", type=core_type, to_str=lambda: "{}")
+def _core(core_type=CoreType.wg):
+    """Mirrors what the core manager hands back: a parsed config, with no id.
+
+    The id lives beside it in the triple, which is exactly the distinction that
+    broke the first deploy.
+    """
+    return SimpleNamespace(type=core_type, to_str=lambda: "{}")
 
 
 class _FakeNode:
@@ -58,7 +63,7 @@ async def test_every_extra_wireguard_core_is_started():
     pg_node = _FakeNode()
 
     problems = await NodeOperation._add_extra_cores(
-        pg_node, _node(), _core(1), [(_core(2), ["u1"]), (_core(3), ["u2"])]
+        pg_node, _node(), [(2, _core(), ["u1"]), (3, _core(), ["u2"])]
     )
 
     assert problems == ""
@@ -70,7 +75,7 @@ async def test_a_non_wireguard_extra_core_is_refused_not_silently_dropped():
     """A second xray would replace the first on the node, so it must be reported."""
     pg_node = _FakeNode()
 
-    problems = await NodeOperation._add_extra_cores(pg_node, _node(), _core(1), [(_core(2, CoreType.xray), [])])
+    problems = await NodeOperation._add_extra_cores(pg_node, _node(), [(2, _core(CoreType.xray), [])])
 
     assert pg_node.started == []
     assert "WireGuard" in problems
@@ -82,7 +87,7 @@ async def test_a_failing_extra_core_does_not_stop_the_others():
     pg_node = _FakeNode(fail_on={0})
 
     problems = await NodeOperation._add_extra_cores(
-        pg_node, _node(), _core(1), [(_core(2), ["u1"]), (_core(3), ["u2"])]
+        pg_node, _node(), [(2, _core(), ["u1"]), (3, _core(), ["u2"])]
     )
 
     assert "port already in use" in problems
@@ -90,9 +95,24 @@ async def test_a_failing_extra_core_does_not_stop_the_others():
 
 
 @pytest.mark.asyncio
-async def test_the_primary_core_is_never_started_twice():
+async def test_a_core_that_cannot_be_resolved_is_reported_not_ignored():
+    """A core the manager does not know about must not vanish silently."""
     pg_node = _FakeNode()
 
-    await NodeOperation._add_extra_cores(pg_node, _node(), _core(4), [(_core(4), []), (None, [])])
+    problems = await NodeOperation._add_extra_cores(pg_node, _node(), [(9, None, [])])
 
     assert pg_node.started == []
+    assert "core 9 not found" in problems
+
+
+@pytest.mark.asyncio
+async def test_an_unexpected_error_is_contained():
+    """The primary core is already serving; an extra one must not take it down."""
+
+    class Exploding:
+        async def add_backend(self, **_):
+            raise AttributeError("'WireGuardConfig' object has no attribute 'id'")
+
+    problems = await NodeOperation._add_extra_cores(Exploding(), _node(), [(3, _core(), [])])
+
+    assert "no attribute 'id'" in problems

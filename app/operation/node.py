@@ -274,8 +274,12 @@ class NodeOperation(BaseOperation):
         return cores_by_id, users_by_core
 
     @staticmethod
-    async def _add_extra_cores(pg_node, db_node: Node, primary_core, extra_cores: list[tuple] | None) -> str:
+    async def _add_extra_cores(pg_node, db_node: Node, extra_cores: list[tuple] | None) -> str:
         """Bring up the node's additional cores on top of the primary one.
+
+        Takes (core_id, core, users) triples. The id is carried alongside rather
+        than read off the core, because these are parsed config objects from the
+        core manager, not the database rows — they have no id.
 
         Returns a message naming the cores that failed, empty if all came up. A
         failed extra core does not fail the node: the primary is already serving
@@ -283,8 +287,12 @@ class NodeOperation(BaseOperation):
         """
         problems = []
 
-        for extra_core, extra_users in extra_cores or []:
-            if extra_core is None or extra_core.id == primary_core.id:
+        # _node_core_ids already drops the primary and any duplicates, so every
+        # id here is a distinct extra core.
+        for core_id, extra_core, extra_users in extra_cores or []:
+            if extra_core is None:
+                logger.warning(f'Extra core "{core_id}" for node "{db_node.name}" could not be resolved')
+                problems.append(f"core {core_id} not found")
                 continue
 
             # WireGuard cores are told apart on the node by interface name, so a
@@ -293,10 +301,10 @@ class NodeOperation(BaseOperation):
             # first instead of running beside it.
             if extra_core.type != CoreType.wg:
                 logger.warning(
-                    f'Skipping extra core "{extra_core.id}" on node "{db_node.name}": '
+                    f'Skipping extra core "{core_id}" on node "{db_node.name}": '
                     f"only WireGuard cores can run alongside another core of the same node"
                 )
-                problems.append(f"core {extra_core.id} skipped (only WireGuard supports multiple cores)")
+                problems.append(f"core {core_id} skipped (only WireGuard supports multiple cores)")
                 continue
 
             try:
@@ -305,10 +313,15 @@ class NodeOperation(BaseOperation):
                     backend_type=service.BackendType.WIREGUARD,
                     users=extra_users,
                 )
-                logger.info(f'Added WireGuard core "{extra_core.id}" to "{db_node.name}" node')
+                logger.info(f'Added WireGuard core "{core_id}" to "{db_node.name}" node')
             except NodeAPIError as e:
-                logger.error(f'Failed to add core "{extra_core.id}" to "{db_node.name}": {e.detail}')
-                problems.append(f"core {extra_core.id}: {e.detail}")
+                logger.error(f'Failed to add core "{core_id}" to "{db_node.name}": {e.detail}')
+                problems.append(f"core {core_id}: {e.detail}")
+            except Exception as e:
+                # The primary core is already serving users. Whatever went wrong
+                # with an extra one, it must not take the whole node down.
+                logger.error(f'Failed to add core "{core_id}" to "{db_node.name}": {e}')
+                problems.append(f"core {core_id}: {e}")
 
         return "; ".join(problems)[:1024]
 
@@ -350,7 +363,7 @@ class NodeOperation(BaseOperation):
             info = await pg_node.start(**start_kwargs)
             logger.info(f'Connected to "{db_node.name}" node v{info.node_version}, core run on v{info.core_version}')
 
-            failed = await NodeOperation._add_extra_cores(pg_node, db_node, core, extra_cores)
+            failed = await NodeOperation._add_extra_cores(pg_node, db_node, extra_cores)
 
             return {
                 "node_id": db_node.id,
@@ -692,7 +705,7 @@ class NodeOperation(BaseOperation):
                 node,
                 cores_by_id.get(core_id),
                 users_by_core.get(core_id, []),
-                [(cores_by_id.get(i), users_by_core.get(i, [])) for i in extra_ids],
+                [(i, cores_by_id.get(i), users_by_core.get(i, [])) for i in extra_ids],
             )
 
         results = await asyncio.gather(*[connect_single(node) for node in nodes])
@@ -749,7 +762,7 @@ class NodeOperation(BaseOperation):
         cores_by_id, users_by_core = await self._get_core_users_map(db, {core_id, *extra_ids})
         core = cores_by_id.get(core_id)
         users = users_by_core.get(core_id, [])
-        extra_cores = [(cores_by_id.get(i), users_by_core.get(i, [])) for i in extra_ids]
+        extra_cores = [(i, cores_by_id.get(i), users_by_core.get(i, [])) for i in extra_ids]
 
         # Update node manager
         try:
