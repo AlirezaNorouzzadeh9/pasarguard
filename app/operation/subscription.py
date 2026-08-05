@@ -15,6 +15,7 @@ from app.db.crud.hwid import (
 from app.db.crud.user import get_user_usages, user_sub_update
 from app.db.models import User
 from app.models.admin import AdminDetails
+from app.models.proxy import ProxyTable
 from app.models.settings import Application, ConfigFormat, HWIDSettings, SubRule, Subscription as SubSettings
 from app.models.stats import UserUsageStatsList
 from app.models.subscription import SubscriptionUsageQuery
@@ -31,6 +32,7 @@ from app.subscription.share import (
 )
 from app.templates import render_template
 from app.utils.hwid import resolve_effective_hwid_settings
+from app.utils.openvpn import prepare_openvpn_proxy_settings
 from config import template_settings
 
 from . import BaseOperation
@@ -302,6 +304,27 @@ class SubscriptionOperation(BaseOperation):
         # Only include headers that have values
         return {k: v for k, v in headers.items() if v}
 
+    @staticmethod
+    async def _ensure_openvpn_cert_for_sub(db: AsyncSession, db_user: User) -> None:
+        """Issue the user's OpenVPN certificate on first fetch, if it is missing.
+
+        Covers users who gained an OpenVPN inbound after they were created — the
+        issuance on create never ran for them, and without a certificate every
+        host is skipped and the subscription comes back empty.
+        """
+        groups = db_user.__dict__.get("groups")
+        if groups is None:
+            groups = await db_user.awaitable_attrs.groups
+
+        proxy_settings = ProxyTable.model_validate(db_user.proxy_settings)
+        updated = await prepare_openvpn_proxy_settings(db, proxy_settings, groups, db_user.id)
+        new_settings = updated.dict()
+        if new_settings != db_user.proxy_settings:
+            db_user.proxy_settings = new_settings
+            # expire_on_commit=False keeps attributes loaded; a refresh here would
+            # expire the eagerly-loaded groups and break later serialization.
+            await db.commit()
+
     async def fetch_config(self, user: UsersResponseWithInbounds, client_type: ConfigFormat) -> tuple[str | bytes, str]:
         # Get client configuration
         config = client_config.get(client_type, {})
@@ -439,6 +462,7 @@ class SubscriptionOperation(BaseOperation):
         is_browser_request = "text/html" in accept_header
         is_subscription_page_request = is_browser_request and not sub_settings.disable_sub_template
         if is_subscription_page_request:
+            await self._ensure_openvpn_cert_for_sub(db, db_user)
             is_hwid_enabled = await self.is_user_hwid_enabled(db_user)
             template = (
                 db_user.admin.sub_template
@@ -584,6 +608,8 @@ class SubscriptionOperation(BaseOperation):
         if client_type == ConfigFormat.block or not getattr(sub_settings.manual_sub_request, client_type):
             await self.raise_error(message="Client not supported", code=406)
         db_user = await self.get_validated_sub(db, token=token, load_admin_role=True)
+        if client_type == ConfigFormat.openvpn:
+            await self._ensure_openvpn_cert_for_sub(db, db_user)
         user = await self.validated_user(db_user)
 
         await self.validate_and_register_hwid(
