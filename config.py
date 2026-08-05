@@ -201,6 +201,17 @@ class FeatureSettings(EnvSettings):
     stop_nodes_on_shutdown: bool = Field(default=True, validation_alias="STOP_NODES_ON_SHUTDOWN")
 
 
+class OpenVPNEnvSettings(EnvSettings):
+    """Kill switch for OpenVPN, checked before any certificate is issued.
+
+    Turning it off stops the panel minting client certificates rather than just
+    hiding the protocol, so a deployment that will never serve OpenVPN does not
+    accumulate key material for every user.
+    """
+
+    enabled: bool = Field(default=True, validation_alias="OPENVPN_ENABLED")
+
+
 database_settings = DatabaseSettings()
 server_settings = ServerSettings()
 dashboard_settings = DashboardSettings()
@@ -216,6 +227,7 @@ auth_settings = AuthSettings()
 usage_settings = UsageSettings()
 job_settings = JobSettings()
 feature_settings = FeatureSettings()
+openvpn_env_settings = OpenVPNEnvSettings()
 
 if not database_settings.is_postgresql:
     usage_settings.enable_recording_nodes_stats = False
