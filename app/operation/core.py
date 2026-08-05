@@ -37,6 +37,7 @@ from app.models.reality_scan import RealityScanRequest, RealityScanResult
 from app.node.sync import sync_users
 from app.operation import BaseOperation
 from app.utils.logger import get_logger
+from app.utils.openvpn import ensure_openvpn_core_material
 from app.utils.reality_scan import RealityScanError, scan_reality_target
 
 logger = get_logger("core-operation")
@@ -92,6 +93,11 @@ class CoreOperation(BaseOperation):
         if new_core.type == CoreType.wg:
             await self._validate_wireguard_subnet(db, new_core.config, exclude_core_id=None)
         try:
+            if new_core.type == CoreType.openvpn:
+                # Fills in the CA, server certificate and tls-crypt key, minting
+                # them on first use. Without this an operator would have to run
+                # easy-rsa by hand before a core could start.
+                new_core.config = await ensure_openvpn_core_material(db, new_core.config)
             validated_core = core_manager.validate_core(
                 new_core.config,
                 new_core.exclude_inbound_tags,
@@ -134,6 +140,8 @@ class CoreOperation(BaseOperation):
         if modified_core.type == CoreType.wg:
             await self._validate_wireguard_subnet(db, modified_core.config, exclude_core_id=db_core.id)
         try:
+            if modified_core.type == CoreType.openvpn:
+                modified_core.config = await ensure_openvpn_core_material(db, modified_core.config)
             validated_core = core_manager.validate_core(
                 modified_core.config,
                 modified_core.exclude_inbound_tags,

@@ -111,6 +111,7 @@ from app.utils.helpers import fix_datetime_timezone
 from app.utils.hwid import resolve_effective_hwid_settings
 from app.utils.jwt import create_subscription_token
 from app.utils.logger import get_logger
+from app.utils.openvpn import prepare_openvpn_proxy_settings
 from app.utils.system import readable_duration, readable_size
 from app.utils.wireguard import ensure_unique_wireguard_public_key, prepare_wireguard_keys
 from config import subscription_env_settings, usage_settings
@@ -444,17 +445,41 @@ class UserOperation(BaseOperation):
         except ValueError as exc:
             await self.raise_error(message=str(exc), code=400, db=db)
 
+    async def _issue_openvpn_cert_if_needed(
+        self, db: AsyncSession, db_user: User, groups: list, *, force_reissue: bool = False
+    ) -> None:
+        """Issue or renew the user's OpenVPN cert once the row exists.
+
+        It cannot happen earlier: the certificate's common name is the user id,
+        which only exists after the insert. Persists proxy_settings in place so
+        the node sync that follows carries the new serial.
+        """
+        proxy_settings = ProxyTable.model_validate(db_user.proxy_settings)
+        updated = await prepare_openvpn_proxy_settings(
+            db, proxy_settings, groups, db_user.id, force_reissue=force_reissue
+        )
+        new_settings = updated.dict()
+        if new_settings != db_user.proxy_settings:
+            db_user.proxy_settings = new_settings
+            # No db.refresh(): the session uses expire_on_commit=False, and a
+            # refresh would expire eagerly-loaded relationships (groups/admin),
+            # causing MissingGreenlet during later response serialization.
+            await db.commit()
+
     async def _prepare_revoked_proxy_settings(self, db: AsyncSession, db_user: User) -> ProxyTable:
         groups = db_user.__dict__.get("groups")
         if groups is None:
             groups = await db_user.awaitable_attrs.groups
 
-        return await self._prepare_user_proxy_settings(
+        proxy_settings = await self._prepare_user_proxy_settings(
             db,
             groups,
             ProxyTable.model_validate(build_revoked_proxy_settings(db_user)),
             exclude_user_id=db_user.id,
         )
+        # Reissue the OpenVPN client cert with a fresh serial, so the profiles
+        # already distributed are denied by the node.
+        return await prepare_openvpn_proxy_settings(db, proxy_settings, groups, db_user.id, force_reissue=True)
 
     async def _get_validated_template_with_access(
         self, db: AsyncSession, template_id: int, admin: AdminDetails
@@ -684,6 +709,8 @@ class UserOperation(BaseOperation):
             await self.raise_error(message="User already exists", code=409, db=db)
         except ValueError as exc:  # WireGuard subnet exhausted
             await self.raise_error(message=str(exc), code=400, db=db)
+
+        await self._issue_openvpn_cert_if_needed(db, db_user, all_groups)
 
         user = await self.update_user(db_user)
 

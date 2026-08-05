@@ -23,6 +23,7 @@ from app.settings import hwid_settings, subscription_settings
 from app.subscription.share import (
     apply_custom_format_variables,
     encode_title,
+    generate_openvpn_configs,
     generate_subscription,
     generate_wireguard_configs,
     get_effective_custom_variables,
@@ -95,6 +96,14 @@ client_config = {
         "media_type": "application/zip",
         "as_base64": False,
         "extension": ".zip",
+    },
+    ConfigFormat.openvpn: {
+        "config_format": "openvpn",
+        # One host renders as a raw .ovpn the user can import directly; several
+        # come back zipped. Typed for the common single-host case.
+        "media_type": "text/plain",
+        "as_base64": False,
+        "extension": ".ovpn",
     },
     ConfigFormat.xray: {
         "config_format": "xray",
@@ -459,8 +468,15 @@ class SubscriptionOperation(BaseOperation):
                 _download_entry(remark, content, ".conf", "text/plain")
                 for remark, content in await generate_wireguard_configs(user, sub_settings.randomize_order)
             ]
+            # OpenVPN is the same story as WireGuard: a .ovpn is a file, not a
+            # URI, so each host becomes its own download card.
+            openvpn_configs = [
+                _download_entry(remark, content, ".ovpn", "application/x-openvpn-profile")
+                for remark, content in await generate_openvpn_configs(user, sub_settings.randomize_order)
+            ]
             base_url = (request_url or "").split("?")[0].rstrip("/")
             wireguard_url = f"{base_url}/wireguard" if base_url and wireguard_configs else None
+            openvpn_url = f"{base_url}/openvpn" if base_url and openvpn_configs else None
 
             return HTMLResponse(
                 render_template(
@@ -474,6 +490,8 @@ class SubscriptionOperation(BaseOperation):
                         is_hwid_enabled,
                         wireguard_configs,
                         wireguard_url,
+                        openvpn_configs,
+                        openvpn_url,
                     ),
                 )
             )
@@ -607,6 +625,8 @@ class SubscriptionOperation(BaseOperation):
         is_hwid_enabled: bool,
         wireguard_configs: list[dict] | None = None,
         wireguard_url: str | None = None,
+        openvpn_configs: list[dict] | None = None,
+        openvpn_url: str | None = None,
     ) -> dict[str, Any]:
         return {
             "user": SubscriptionUserResponse.model_validate(user),
@@ -615,6 +635,8 @@ class SubscriptionOperation(BaseOperation):
             "announce_url": sub_settings.announce_url,
             "wireguard_configs": wireguard_configs or [],
             "wireguard_url": wireguard_url,
+            "openvpn_configs": openvpn_configs or [],
+            "openvpn_url": openvpn_url,
             "apps": self._make_apps_import_urls(
                 sub_settings.applications,
                 format_variables,

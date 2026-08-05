@@ -19,6 +19,7 @@ from app.utils.system import readable_size
 from . import (
     ClashConfiguration,
     ClashMetaConfiguration,
+    OpenVPNConfiguration,
     OutlineConfiguration,
     SingBoxConfiguration,
     StandardLinks,
@@ -41,6 +42,7 @@ def _build_subscription_config(
     | ClashMetaConfiguration
     | OutlineConfiguration
     | WireGuardConfiguration
+    | OpenVPNConfiguration
     | None
 ):
     common_kwargs = {
@@ -69,6 +71,8 @@ def _build_subscription_config(
         return OutlineConfiguration()
     if config_format == "wireguard":
         return WireGuardConfiguration()
+    if config_format == "openvpn":
+        return OpenVPNConfiguration()
     if config_format == "xray":
         return XrayConfiguration(
             xray_template_content=client_templates["XRAY_SUBSCRIPTION_TEMPLATE"],
@@ -121,6 +125,32 @@ async def generate_wireguard_configs(
     a QR code on its own.
     """
     conf = WireGuardConfiguration()
+    sub_settings = await subscription_settings()
+    client_templates = await subscription_client_templates()
+
+    await process_inbounds_and_tags(
+        user,
+        setup_format_variables(user, sub_settings.custom_variables),
+        conf,
+        client_templates,
+        randomize_order=randomize_order,
+        custom_variables=get_effective_custom_variables(user, sub_settings.custom_variables),
+    )
+
+    return conf.configs
+
+
+async def generate_openvpn_configs(
+    user: UsersResponseWithInbounds,
+    randomize_order: bool = False,
+) -> list[tuple[str, str]]:
+    """Return each OpenVPN host as (remark, .ovpn text).
+
+    Same split as the WireGuard generator: the zip suits a client importing a
+    whole subscription, while the page needs each profile on its own so it can
+    be downloaded or shown as a QR code.
+    """
+    conf = OpenVPNConfiguration()
     sub_settings = await subscription_settings()
     client_templates = await subscription_client_templates()
 

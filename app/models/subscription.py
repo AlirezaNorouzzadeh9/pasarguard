@@ -9,7 +9,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, computed_field, field_validator
 
-from app.models.host import FinalMask
+from app.models.host import FinalMask, OpenVPNRemote
 from app.models.stats import Period
 
 from .validators import OptionalAwareDatetime
@@ -274,6 +274,35 @@ class SubscriptionInboundData(BaseModel):
     wireguard_mtu: int | None = Field(default=None)
     wireguard_reserved: str | None = Field(default=None)
     wireguard_dns: list[str] | None = Field(default=None)
+
+    # OpenVPN specific
+    openvpn_ca_cert: str = Field("")
+    openvpn_tls_crypt_key: str = Field("")
+    openvpn_cipher: str = Field("AES-256-GCM")
+    openvpn_data_ciphers: list[str] = Field(default_factory=list)
+    openvpn_auth: str = Field("SHA256")
+    openvpn_proto: str = Field("udp")
+    openvpn_dns: list[str] | None = Field(default=None)
+    openvpn_redirect_gateway: bool = Field(True)
+    openvpn_mtu: int | None = Field(default=None)
+    openvpn_extra_directives: list[str] | None = Field(default=None)
+    # All resolved remote endpoints for this host (failover). Structured
+    # entries; a missing port/proto inherits the host defaults at render time.
+    # Legacy "host [port] [proto]" strings are coerced by the validator.
+    openvpn_remotes: list[OpenVPNRemote] | None = Field(default=None)
+
+    @field_validator("openvpn_remotes", mode="before")
+    @classmethod
+    def validate_openvpn_remotes(cls, value):
+        if value in (None, "", []):
+            return None
+        if not isinstance(value, list):
+            raise ValueError("openvpn_remotes must be a list")  # noqa: TRY004 - pydantic renders ValueError as a 422; TypeError would escape as a 500
+        parsed = [OpenVPNRemote.parse(entry) for entry in value]
+        cleaned = [remote for remote in parsed if remote is not None]
+        return cleaned or None
+
+
 
     # Flow (from inbound, user can override)
     inbound_flow: str = Field("")

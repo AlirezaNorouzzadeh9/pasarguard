@@ -1,4 +1,4 @@
-"""A node may run more than one core — today, several WireGuard interfaces.
+"""A node may run more than one core — several WireGuard interfaces, or OpenVPN.
 
 These cover the panel side of that: which cores a node is asked to start, and
 what happens to the node when one of the extra ones refuses to come up.
@@ -71,14 +71,32 @@ async def test_every_extra_wireguard_core_is_started():
 
 
 @pytest.mark.asyncio
-async def test_a_non_wireguard_extra_core_is_refused_not_silently_dropped():
+async def test_an_xray_extra_core_is_refused_not_silently_dropped():
     """A second xray would replace the first on the node, so it must be reported."""
     pg_node = _FakeNode()
 
     problems = await NodeOperation._add_extra_cores(pg_node, _node(), [(2, _core(CoreType.xray), [])])
 
     assert pg_node.started == []
-    assert "WireGuard" in problems
+    assert "xray" in problems
+
+
+@pytest.mark.asyncio
+async def test_openvpn_runs_alongside_wireguard_with_its_own_backend_type():
+    """Both are their own processes, so a node can serve them at once."""
+    from PasarGuardNodeBridge.common import service_pb2 as service
+
+    pg_node = _FakeNode()
+
+    problems = await NodeOperation._add_extra_cores(
+        pg_node, _node(), [(2, _core(CoreType.wg), ["u1"]), (3, _core(CoreType.openvpn), ["u2"])]
+    )
+
+    assert problems == ""
+    assert [backend_type for _, backend_type, _ in pg_node.started] == [
+        service.BackendType.WIREGUARD,
+        service.BackendType.OPENVPN,
+    ]
 
 
 @pytest.mark.asyncio

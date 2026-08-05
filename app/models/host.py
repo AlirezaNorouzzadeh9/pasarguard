@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import Enum
 from ipaddress import ip_network
 from typing import Any
@@ -560,6 +562,109 @@ class WireGuardHostOverrides(BaseModel):
         return normalized or None
 
 
+class OpenVPNRemote(BaseModel):
+    """One `remote` endpoint of an OpenVPN host.
+
+    ``port``/``proto`` are optional: a missing value inherits the host defaults
+    at render time. Legacy string entries ("host [port] [proto]") are coerced
+    for backward compatibility with data stored before the structured form.
+    """
+
+    host: str = Field(min_length=1)
+    port: int | None = Field(default=None, ge=1, le=65535)
+    proto: str | None = Field(default=None)
+
+    @field_validator("host", mode="before")
+    @classmethod
+    def validate_host(cls, v):
+        v = str(v or "").strip()
+        if not v:
+            raise ValueError("remote host is required")
+        return v
+
+    @field_validator("proto", mode="before")
+    @classmethod
+    def validate_proto(cls, v):
+        if v in (None, ""):
+            return None
+        v = str(v).strip().lower()
+        if v not in ("udp", "tcp"):
+            raise ValueError("proto must be 'udp' or 'tcp'")
+        return v
+
+    @classmethod
+    def parse(cls, value: OpenVPNRemote | dict | str) -> OpenVPNRemote | None:
+        """Coerce a remote from structured or legacy string form ("host [port] [proto]")."""
+        if isinstance(value, OpenVPNRemote):
+            return value
+        if isinstance(value, dict):
+            return cls.model_validate(value)
+        parts = str(value or "").split()
+        if not parts:
+            return None
+        host, port, proto = parts[0], None, None
+        for token in parts[1:3]:
+            lowered = token.lower()
+            if lowered in ("udp", "tcp"):
+                proto = lowered
+            elif token.isdigit():
+                port = int(token)
+        return cls(host=host, port=port, proto=proto)
+
+
+class OpenVPNHostOverrides(BaseModel):
+    """Optional per-host values merged into OpenVPN (.ovpn) subscription output."""
+
+    proto: str | None = Field(default=None)
+    remotes: list[OpenVPNRemote] | None = Field(default=None)
+    redirect_gateway: bool | None = Field(default=None)
+    dns: list[str] | None = Field(default=None)
+    mtu: int | None = Field(default=None, ge=576, le=9000)
+    extra_client_directives: list[str] | None = Field(default=None)
+
+    @field_validator("proto", mode="before")
+    @classmethod
+    def validate_proto(cls, v):
+        if v in (None, ""):
+            return None
+        v = str(v).strip().lower()
+        if v not in ("udp", "tcp"):
+            raise ValueError("proto must be 'udp' or 'tcp'")
+        return v
+
+    @field_validator("remotes", mode="before")
+    @classmethod
+    def validate_remotes(cls, value):
+        if value in (None, "", []):
+            return None
+        if not isinstance(value, list):
+            raise ValueError("remotes must be a list")  # noqa: TRY004 - pydantic renders ValueError as a 422; TypeError would escape as a 500
+        parsed = [OpenVPNRemote.parse(entry) for entry in value]
+        cleaned = [remote for remote in parsed if remote is not None]
+        return cleaned or None
+
+    @field_validator("extra_client_directives", mode="before")
+    @classmethod
+    def validate_directives(cls, value):
+        if value in (None, "", []):
+            return None
+        if not isinstance(value, list):
+            raise ValueError("extra_client_directives must be a list of strings")  # noqa: TRY004 - pydantic renders ValueError as a 422; TypeError would escape as a 500
+        cleaned: list[str] = []
+        for line in value:
+            if not isinstance(line, str):
+                continue
+            line = line.strip()
+            if not line:
+                continue
+            # Guard against inline file blocks and script hooks in a client profile.
+            lowered = line.lower()
+            if line.startswith("<") or lowered.startswith(("script-security", "up ", "down ", "route-up")):
+                raise ValueError(f"directive '{line}' is not allowed")
+            cleaned.append(line)
+        return cleaned or None
+
+
 class SubscriptionTemplates(BaseModel):
     xray: int | None = Field(default=None, ge=1)
 
@@ -600,6 +705,7 @@ class BaseHost(BaseModel):
     pinned_peer_cert_sha256: str | None = Field(default=None)
     verify_peer_cert_by_name: set[str] | None = Field(default_factory=set)
     wireguard_overrides: WireGuardHostOverrides | None = None
+    openvpn_overrides: OpenVPNHostOverrides | None = None
     subscription_templates: SubscriptionTemplates | None = None
     final_mask_settings: FinalMask | None = None
 

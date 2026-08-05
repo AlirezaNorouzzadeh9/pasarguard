@@ -98,6 +98,21 @@ class WireGuardSettings(BaseModel):
         return self
 
 
+class OpenVPNSettings(BaseModel):
+    """Per-user OpenVPN client certificate material.
+
+    Issued lazily (post user-insert / on subscription render) because the CN is
+    ``str(user.id)`` which is unknown at proxy-settings preparation time. All
+    fields default to ``None`` so existing users validate without a backfill.
+    """
+
+    cert_pem: str | None = None
+    private_key_pem: str | None = None
+    serial: str | None = None  # decimal string, matches OpenVPN tls_serial_0
+    fingerprint: str | None = None  # sha256 hex of the DER cert
+    not_after: str | None = None  # ISO-8601 timestamp
+
+
 class ProxyTable(BaseModel):
     vmess: VMessSettings = Field(default_factory=VMessSettings)
     vless: VlessSettings = Field(default_factory=VlessSettings)
@@ -105,6 +120,7 @@ class ProxyTable(BaseModel):
     shadowsocks: ShadowsocksSettings = Field(default_factory=ShadowsocksSettings)
     wireguard: WireGuardSettings = Field(default_factory=WireGuardSettings)
     hysteria: HysteriaSettings = Field(default_factory=HysteriaSettings)
+    openvpn: OpenVPNSettings = Field(default_factory=OpenVPNSettings)
 
     def dict(self, *, no_obj=True, **kwargs):
         if no_obj:

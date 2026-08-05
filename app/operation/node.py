@@ -71,6 +71,15 @@ MAX_MESSAGE_LENGTH = 128
 logger = get_logger("node-operation")
 
 
+# Cores whose backend runs as its own process with its own ports, so several can
+# share a node. Xray is deliberately absent: one process serves all its inbounds,
+# and starting a second would replace the first rather than run beside it.
+_MULTI_INSTANCE_BACKENDS = {
+    CoreType.wg: service.BackendType.WIREGUARD,
+    CoreType.openvpn: service.BackendType.OPENVPN,
+}
+
+
 class NodeOperation(BaseOperation):
     def __init__(self, operator_type: OperatorType):
         super().__init__(operator_type)
@@ -197,17 +206,18 @@ class NodeOperation(BaseOperation):
     async def _validate_additional_cores(self, db: AsyncSession, core_ids: list[int] | None, primary_id: int | None):
         """Reject extra cores the node could not actually run.
 
-        Only WireGuard cores can run beside another core, so refusing anything
-        else here turns what would otherwise be a core silently missing after
-        connect into a clear error at the moment it is assigned.
+        Only cores whose backend is its own process can run beside another one,
+        so refusing anything else here turns what would otherwise be a core
+        silently missing after connect into a clear error at assignment time.
         """
+        allowed = ", ".join(sorted(core_type.value for core_type in _MULTI_INSTANCE_BACKENDS))
         for core_id in core_ids or []:
             if core_id == (primary_id or 1):
                 await self.raise_error(message="A core cannot be both the primary and an additional core", code=400)
             core = await self.get_validated_core_config(db, core_id)
-            if core.type != CoreType.wg:
+            if core.type not in _MULTI_INSTANCE_BACKENDS:
                 await self.raise_error(
-                    message=f'Core "{core.name}" is not a WireGuard core; only WireGuard cores can be added alongside',
+                    message=f'Core "{core.name}" is a "{core.type}" core; only {allowed} cores can be added alongside',
                     code=400,
                 )
 
@@ -295,25 +305,22 @@ class NodeOperation(BaseOperation):
                 problems.append(f"core {core_id} not found")
                 continue
 
-            # WireGuard cores are told apart on the node by interface name, so a
-            # node can run several. Every other core type is a single process
-            # serving all its inbounds — starting a second one would replace the
-            # first instead of running beside it.
-            if extra_core.type != CoreType.wg:
+            backend_type = _MULTI_INSTANCE_BACKENDS.get(extra_core.type)
+            if backend_type is None:
                 logger.warning(
                     f'Skipping extra core "{core_id}" on node "{db_node.name}": '
-                    f"only WireGuard cores can run alongside another core of the same node"
+                    f'a "{extra_core.type}" core cannot run alongside another core on the same node'
                 )
-                problems.append(f"core {core_id} skipped (only WireGuard supports multiple cores)")
+                problems.append(f"core {core_id} skipped ({extra_core.type} cannot be an additional core)")
                 continue
 
             try:
                 await pg_node.add_backend(
                     config=extra_core.to_str(),
-                    backend_type=service.BackendType.WIREGUARD,
+                    backend_type=backend_type,
                     users=extra_users,
                 )
-                logger.info(f'Added WireGuard core "{core_id}" to "{db_node.name}" node')
+                logger.info(f'Added {extra_core.type} core "{core_id}" to "{db_node.name}" node')
             except NodeAPIError as e:
                 logger.error(f'Failed to add core "{core_id}" to "{db_node.name}": {e.detail}')
                 problems.append(f"core {core_id}: {e.detail}")
@@ -348,7 +355,7 @@ class NodeOperation(BaseOperation):
 
         old_status = db_node.status
         logger.info(f'Connecting to "{db_node.name}" node')
-        type = service.BackendType.WIREGUARD if core.type == CoreType.wg else service.BackendType.XRAY
+        type = _MULTI_INSTANCE_BACKENDS.get(core.type, service.BackendType.XRAY)
 
         try:
             start_kwargs = {

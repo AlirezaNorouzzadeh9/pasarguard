@@ -13,7 +13,14 @@ from app.core.manager import core_manager
 from app.db import GetDB
 from app.db.crud.host import get_host_by_id, get_hosts, upsert_inbounds
 from app.db.models import ProxyHostSecurity
-from app.models.host import BaseHost, FinalMask, TransportSettings, WireGuardHostOverrides
+from app.models.host import (
+    BaseHost,
+    FinalMask,
+    OpenVPNHostOverrides,
+    OpenVPNRemote,
+    TransportSettings,
+    WireGuardHostOverrides,
+)
 from app.models.subscription import (
     GRPCTransportConfig,
     KCPTransportConfig,
@@ -44,6 +51,30 @@ def _string_list(value) -> list[str]:
         return [str(item) for item in value]
     except TypeError:
         return [str(value)]
+
+
+def _openvpn_remotes_for(host, ov_over, inbound_config: dict):
+    """Pick the endpoints an OpenVPN host advertises.
+
+    Explicit per-host remotes always win. Otherwise, when the core declares
+    several listeners (e.g. UDP and TCP served by one core), each becomes a
+    remote so the client fails over between them from a single config file. A
+    core with one listener returns None, leaving the classic single-remote
+    rendering built from the host address and port.
+    """
+    if ov_over.remotes:
+        return list(ov_over.remotes)
+
+    listeners = inbound_config.get("listeners") or []
+    if len(listeners) < 2:
+        return None
+
+    addresses = list(host.address) if host.address else ["{SERVER_IP}"]
+    return [
+        OpenVPNRemote(host=address, port=listener.get("port"), proto=listener.get("proto"))
+        for address in addresses
+        for listener in listeners
+    ]
 
 
 async def _prepare_subscription_inbound_data(
@@ -116,6 +147,43 @@ async def _prepare_subscription_inbound_data(
             noise_settings=host.noise_settings.model_dump() if host.noise_settings else None,
             finalmask=final_mask_settings,
             finalmask_link=finalmask_link,
+            priority=host.priority,
+            status=list(host.status) if host.status else None,
+            subscription_templates=host.subscription_templates.model_dump(exclude_none=True)
+            if host.subscription_templates
+            else None,
+        )
+
+    if protocol == "openvpn":
+        ov_over: OpenVPNHostOverrides | None = host.openvpn_overrides
+        if ov_over is None:
+            ov_over = OpenVPNHostOverrides()
+
+        return SubscriptionInboundData(
+            remark=host.remark,
+            inbound_tag=host.inbound_tag,
+            protocol=protocol,
+            address=list(host.address) if host.address else ["{SERVER_IP}"],
+            port=[host.port] if host.port else [inbound_config.get("listen_port")],
+            network=network,
+            tls_config=TLSConfig(),
+            transport_config=TCPTransportConfig(path="", host=[]),
+            mux_settings=None,
+            openvpn_ca_cert=inbound_config.get("ca_cert", ""),
+            openvpn_tls_crypt_key=inbound_config.get("tls_crypt_key", ""),
+            openvpn_cipher=inbound_config.get("cipher", "AES-256-GCM"),
+            openvpn_data_ciphers=inbound_config.get("data_ciphers", []) or [],
+            openvpn_auth=inbound_config.get("auth", "SHA256"),
+            openvpn_proto=ov_over.proto or inbound_config.get("network", "udp"),
+            openvpn_dns=list(ov_over.dns) if ov_over.dns else (inbound_config.get("dns") or None),
+            openvpn_redirect_gateway=(
+                ov_over.redirect_gateway if ov_over.redirect_gateway is not None else True
+            ),
+            openvpn_mtu=ov_over.mtu,
+            openvpn_extra_directives=(
+                list(ov_over.extra_client_directives) if ov_over.extra_client_directives else None
+            ),
+            openvpn_remotes=_openvpn_remotes_for(host, ov_over, inbound_config),
             priority=host.priority,
             status=list(host.status) if host.status else None,
             subscription_templates=host.subscription_templates.model_dump(exclude_none=True)
