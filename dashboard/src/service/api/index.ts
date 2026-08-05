@@ -3088,6 +3088,7 @@ export const CoreType = {
   wg: 'wg',
   mtproto: 'mtproto',
   singbox: 'singbox',
+  openvpn: 'openvpn',
 } as const
 
 export type CoreSimpleType = CoreType | null
