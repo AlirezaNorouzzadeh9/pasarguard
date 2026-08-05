@@ -887,6 +887,9 @@ class Settings(Base, IdMixin):
     subscription: Mapped[dict] = mapped_column(JSON())
     hwid: Mapped[dict] = mapped_column(JSON())
     general: Mapped[dict] = mapped_column(JSON())
+    # Panel-wide OpenVPN PKI. Empty until the first OpenVPN core is saved, so
+    # existing rows need no backfill.
+    openvpn: Mapped[dict] = mapped_column(JSON(), default_factory=dict, server_default="{}")
 
 
 class AdminRole(Base, CreatedAtUTCMixin):

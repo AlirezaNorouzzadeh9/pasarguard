@@ -29,5 +29,5 @@ def upgrade() -> None:
 def downgrade() -> None:
     # PostgreSQL cannot drop a value from an enum type. Removing it would mean
     # rebuilding the type and rewriting every column that uses it, which would
-    # destroy any core already stored as 'openvpn' — so this is left in place.
+    # destroy any core already stored as 'openvpn' — so it is left in place.
     pass
