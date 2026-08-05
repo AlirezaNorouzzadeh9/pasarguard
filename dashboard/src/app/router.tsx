@@ -28,6 +28,7 @@ const Nodes = lazyWithChunkRecovery(() => import('../pages/_dashboard.nodes'))
 const NodesPage = lazyWithChunkRecovery(() => import('../pages/_dashboard.nodes._index'))
 const NodeLogs = lazyWithChunkRecovery(() => import('../pages/_dashboard.nodes.logs'))
 const NodeWireGuard = lazyWithChunkRecovery(() => import('../pages/_dashboard.nodes.wireguard'))
+const NodeOpenVPN = lazyWithChunkRecovery(() => import('../pages/_dashboard.nodes.openvpn'))
 const Settings = lazyWithChunkRecovery(() => import('../pages/_dashboard.settings'))
 const CleanupSettings = lazyWithChunkRecovery(() => import('../pages/_dashboard.settings.cleanup'))
 const GeneralSettings = lazyWithChunkRecovery(() => import('../pages/_dashboard.settings.general'))
@@ -173,6 +174,14 @@ export const router = createHashRouter([
             element: (
               <Suspense fallback={<LoadingSpinner />}>
                 <NodeWireGuard />
+              </Suspense>
+            ),
+          },
+          {
+            path: '/nodes/openvpn',
+            element: (
+              <Suspense fallback={<LoadingSpinner />}>
+                <NodeOpenVPN />
               </Suspense>
             ),
           },
