@@ -108,6 +108,13 @@ jobs:
                   push: true
                   file: ./Dockerfile
                   tags: ${{ needs.meta.outputs.image }}:${{ needs.meta.outputs.sha }}-${{ matrix.arch }}
+                  # Without these an image on the registry cannot be traced back
+                  # to a commit, which makes "is this node on the new build yet?"
+                  # unanswerable during a staged rollout.
+                  labels: |
+                      org.opencontainers.image.revision=${{ github.sha }}
+                      org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+                      org.opencontainers.image.created=${{ github.event.repository.updated_at }}
                   cache-from: type=gha
                   cache-to: type=gha,mode=max
 
