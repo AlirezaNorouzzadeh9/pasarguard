@@ -153,7 +153,10 @@ services:
     env_file: .env
     network_mode: host
     volumes:
-      - $DATA_DIR:$DATA_DIR
+      # Host side is configurable, container side is not: the app resolves
+      # templates, certs and uploads under /var/lib/pasarguard regardless of
+      # where those files live on the host.
+      - $DATA_DIR:/var/lib/pasarguard
     depends_on:
       mariadb:
         condition: service_healthy
@@ -283,10 +286,14 @@ check_certs() {
         | grep -oE '"/[^"]+"' | tr -d '"' | sort -u || true)
     [ -z "$paths" ] && return 0
 
-    local p
+    local p host_p
     while IFS= read -r p; do
         [ -z "$p" ] && continue
-        [ -f "$p" ] || missing+=("$p")
+        # Paths in the config are container paths. They only differ from the
+        # host's when DATA_DIR has been moved, but checking the wrong one would
+        # report every certificate as missing.
+        host_p="${p/#\/var\/lib\/pasarguard/$DATA_DIR}"
+        [ -f "$host_p" ] || missing+=("$p")
     done <<< "$paths"
 
     if [ ${#missing[@]} -eq 0 ]; then
