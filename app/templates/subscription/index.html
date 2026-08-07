@@ -418,18 +418,29 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeQR();})
 function revealCreds(btn){var card=btn.closest('.pproto');if(!card)return;var shown=card.getAttribute('data-shown')==='1';card.querySelectorAll('.js-mask').forEach(function(v){v.textContent=shown?'••••••••':v.getAttribute('data-val');});card.setAttribute('data-shown',shown?'0':'1');var t=I18N[_lang()]||I18N.fa;var lbl=btn.querySelector('.tg-t');if(lbl)lbl.textContent=shown?t.reveal:t.hide;}
 
 /* server flags */
-var CC_NAMES={'iran':'IR','ایران':'IR','germany':'DE','آلمان':'DE','sweden':'SE','سوئد':'SE','finland':'FI','فنلاند':'FI','netherlands':'NL','holland':'NL','هلند':'NL','turkey':'TR','turkiye':'TR','ترکیه':'TR','france':'FR','فرانسه':'FR','england':'GB','britain':'GB','انگلیس':'GB','america':'US','states':'US','آمریکا':'US','canada':'CA','poland':'PL','austria':'AT','spain':'ES','italy':'IT','switzerland':'CH','belgium':'BE','denmark':'DK','norway':'NO','ireland':'IE','portugal':'PT','romania':'RO','russia':'RU','ukraine':'UA','india':'IN','japan':'JP','singapore':'SG','emirates':'AE','dubai':'AE','امارات':'AE','qatar':'QA','armenia':'AM','georgia':'GE','azerbaijan':'AZ','kazakhstan':'KZ','china':'CN','korea':'KR','australia':'AU','estonia':'EE','latvia':'LV','lithuania':'LT','czech':'CZ','czechia':'CZ','hungary':'HU','bulgaria':'BG','cyprus':'CY','greece':'GR','luxembourg':'LU','iceland':'IS','malaysia':'MY','singapore ':'SG','frankfurt':'DE','amsterdam':'NL','helsinki':'FI','paris':'FR','london':'GB','istanbul':'TR','ashburn':'US'};
+var CC_NAMES={'iran':'IR','ایران':'IR','germany':'DE','آلمان':'DE','sweden':'SE','سوئد':'SE','finland':'FI','فنلاند':'FI','netherlands':'NL','holland':'NL','هلند':'NL','turkey':'TR','turkiye':'TR','ترکیه':'TR','france':'FR','فرانسه':'FR','england':'GB','britain':'GB','انگلیس':'GB','america':'US','states':'US','آمریکا':'US','canada':'CA','poland':'PL','austria':'AT','spain':'ES','italy':'IT','switzerland':'CH','belgium':'BE','denmark':'DK','norway':'NO','albania':'AL','ireland':'IE','portugal':'PT','romania':'RO','russia':'RU','ukraine':'UA','india':'IN','japan':'JP','singapore':'SG','emirates':'AE','dubai':'AE','امارات':'AE','qatar':'QA','armenia':'AM','georgia':'GE','azerbaijan':'AZ','kazakhstan':'KZ','china':'CN','korea':'KR','australia':'AU','estonia':'EE','latvia':'LV','lithuania':'LT','czech':'CZ','czechia':'CZ','hungary':'HU','bulgaria':'BG','cyprus':'CY','greece':'GR','luxembourg':'LU','iceland':'IS','malaysia':'MY','singapore ':'SG','frankfurt':'DE','amsterdam':'NL','helsinki':'FI','paris':'FR','london':'GB','istanbul':'TR','ashburn':'US'};
 var CC_CODES={'ir':'IR','de':'DE','se':'SE','fi':'FI','nl':'NL','tr':'TR','fr':'FR','gb':'GB','uk':'GB','us':'US','usa':'US','ca':'CA','pl':'PL','at':'AT','es':'ES','it':'IT','ch':'CH','be':'BE','dk':'DK','no':'NO','ie':'IE','pt':'PT','ro':'RO','ru':'RU','ua':'UA','in':'IN','jp':'JP','sg':'SG','ae':'AE','qa':'QA','am':'AM','ge':'GE','az':'AZ','kz':'KZ','cn':'CN','kr':'KR','au':'AU','gr':'GR','hu':'HU','cz':'CZ','bg':'BG','cy':'CY'};
 function detectCountry(text){if(!text)return '';var s=text.toLowerCase();var best='',bl=0;for(var n in CC_NAMES){if(n.length>bl&&s.indexOf(n)!==-1){best=CC_NAMES[n];bl=n.length;}}if(best)return best;
     /* Drop data amounts before looking for two-letter codes: "10.0 GB" would
        otherwise match gb and put a British flag on the usage row. */
-    s=s.replace(/\d+(\.\d+)?\s*(gb|mb|tb|kb|b)\b/g,' ');
-    var toks=s.split(/[^a-z]+/);for(var i=0;i<toks.length;i++){if(toks[i]&&CC_CODES[toks[i]])return CC_CODES[toks[i]];}return '';}
+    var t=text.replace(/\d+(\.\d+)?\s*(gb|mb|tb|kb|b)\b/gi,' ');
+    /* A bare two-letter code is only trusted when written in capitals. Too many
+       country codes are also ordinary English words — "No" in "Albania No Ads"
+       is not Norway, while "UK" in "UK-Reality" really is a country. */
+    var toks=t.split(/[^A-Za-z]+/);
+    for(var i=0;i<toks.length;i++){var k=toks[i];
+      if(k&&k.length===2&&k===k.toUpperCase()&&CC_CODES[k.toLowerCase()])return CC_CODES[k.toLowerCase()];}
+    return '';}
 function flagEmoji(cc){if(!cc||cc.length!==2)return '';return String.fromCodePoint(0x1F1E6+cc.charCodeAt(0)-65,0x1F1E6+cc.charCodeAt(1)-65);}
 function addServerFlags(){document.querySelectorAll('.srow').forEach(function(row){var nm=row.querySelector('.srow-name');var fl=row.querySelector('.pg-flag');if(!nm||!fl||fl.textContent)return;var raw=nm.textContent;var RI=/[\u{1F1E6}-\u{1F1FF}]/gu;var clean=raw.replace(RI,'').replace(/^[\s\-–—|]+/,'').replace(/[\s\-–—|]+$/,'').trim();if(clean!==raw)nm.textContent=clean;
-    // prefer the country named in the text; fall back to a flag emoji already in the name
-    var cc=detectCountry(clean);
-    if(!cc){var found=raw.match(RI);if(found&&found.length>=2)cc=String.fromCharCode(65+(found[0].codePointAt(0)-0x1F1E6),65+(found[1].codePointAt(0)-0x1F1E6));}
+    /* A flag already in the name is what the operator chose deliberately, so it
+       wins; guessing from the words is only a fallback for names without one.
+       The old order had it backwards, which is how "🇦🇱 Albania No Ads" ended up
+       flying a Norwegian flag. */
+    var cc='';
+    var found=raw.match(RI);
+    if(found&&found.length>=2)cc=String.fromCharCode(65+(found[0].codePointAt(0)-0x1F1E6),65+(found[1].codePointAt(0)-0x1F1E6));
+    if(!cc)cc=detectCountry(clean);
     var f=flagEmoji(cc);if(f)fl.textContent=f;});}
 
 /* usage chart */
