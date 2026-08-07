@@ -494,7 +494,24 @@ function loadUsage(range){var period=range==='1d'?'hour':'day';fetch(subUrlValue
 (function(){
   var su=subUrlValue();var disp=su.replace(/^https?:\/\//,'');if(disp.length>46)disp=disp.slice(0,30)+'…'+disp.slice(-12);
   document.querySelectorAll('.js-suburl').forEach(function(sd){sd.textContent=disp;});
-  document.querySelectorAll('.js-name').forEach(function(el){try{el.textContent=decodeURIComponent(el.textContent);}catch(e){}});
+  document.querySelectorAll('.js-name').forEach(function(el){
+    /* vmess:// keeps its name in a base64 JSON body as "ps", not in a URI
+       fragment, so the template's fragment lookup finds nothing and falls back
+       to printing the scheme. Recover it here, before addServerFlags() reads
+       the name to work out the country. */
+    var row=el.closest('.srow');var link=row?row.getAttribute('data-xray'):'';
+    if(link&&link.slice(0,8)==='vmess://'){
+      try{
+        var b=link.slice(8).replace(/-/g,'+').replace(/_/g,'/');
+        while(b.length%4)b+='=';
+        var bin=atob(b);
+        var bytes=Uint8Array.from(bin,function(ch){return ch.charCodeAt(0);});
+        var ps=JSON.parse(new TextDecoder('utf-8').decode(bytes)).ps;
+        if(ps){el.textContent=ps;return;}
+      }catch(e){}
+    }
+    try{el.textContent=decodeURIComponent(el.textContent);}catch(e){}
+  });
   addServerFlags();
   var firstTab=document.querySelector('.ptab');var pf=firstTab?firstTab.getAttribute('data-ptab'):'xray';showProto(pf);
   showOS('android');
