@@ -305,12 +305,15 @@ class SubscriptionOperation(BaseOperation):
         return {k: v for k, v in headers.items() if v}
 
     @staticmethod
-    async def _ensure_openvpn_cert_for_sub(db: AsyncSession, db_user: User) -> None:
+    async def _ensure_openvpn_cert_for_sub(db: AsyncSession, db_user: User) -> bool:
         """Issue the user's OpenVPN certificate on first fetch, if it is missing.
 
         Covers users who gained an OpenVPN inbound after they were created — the
         issuance on create never ran for them, and without a certificate every
         host is skipped and the subscription comes back empty.
+
+        Returns whether a certificate was written, so the caller can tell that
+        any copy of the user taken before this call is now out of date.
         """
         groups = db_user.__dict__.get("groups")
         if groups is None:
@@ -319,11 +322,14 @@ class SubscriptionOperation(BaseOperation):
         proxy_settings = ProxyTable.model_validate(db_user.proxy_settings)
         updated = await prepare_openvpn_proxy_settings(db, proxy_settings, groups, db_user.id)
         new_settings = updated.dict()
-        if new_settings != db_user.proxy_settings:
-            db_user.proxy_settings = new_settings
-            # expire_on_commit=False keeps attributes loaded; a refresh here would
-            # expire the eagerly-loaded groups and break later serialization.
-            await db.commit()
+        if new_settings == db_user.proxy_settings:
+            return False
+
+        db_user.proxy_settings = new_settings
+        # expire_on_commit=False keeps attributes loaded; a refresh here would
+        # expire the eagerly-loaded groups and break later serialization.
+        await db.commit()
+        return True
 
     async def fetch_config(self, user: UsersResponseWithInbounds, client_type: ConfigFormat) -> tuple[str | bytes, str]:
         # Get client configuration
@@ -462,7 +468,13 @@ class SubscriptionOperation(BaseOperation):
         is_browser_request = "text/html" in accept_header
         is_subscription_page_request = is_browser_request and not sub_settings.disable_sub_template
         if is_subscription_page_request:
-            await self._ensure_openvpn_cert_for_sub(db, db_user)
+            if await self._ensure_openvpn_cert_for_sub(db, db_user):
+                # `user` was snapshotted above, before the certificate existed,
+                # and generate_openvpn_configs reads the certificate from it.
+                # Without re-taking it, the first page load after a user gains
+                # OpenVPN access renders with no OpenVPN section — and then the
+                # next load has one, because by then the certificate is stored.
+                user = await self.validated_user(db_user)
             is_hwid_enabled = await self.is_user_hwid_enabled(db_user)
             template = (
                 db_user.admin.sub_template
