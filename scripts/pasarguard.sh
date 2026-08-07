@@ -79,7 +79,7 @@ install_docker() {
 
 install_prereqs() {
     local missing=()
-    for c in curl unzip gzip; do command -v "$c" >/dev/null || missing+=("$c"); done
+    for c in curl unzip gzip openssl; do command -v "$c" >/dev/null || missing+=("$c"); done
     [ ${#missing[@]} -eq 0 ] && return
     info "installing ${missing[*]}"
     if command -v apt-get >/dev/null; then
@@ -167,11 +167,45 @@ networks:
 EOF
 }
 
+public_addr() {
+    curl -fsS4 --max-time 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}'
+}
+
+# The panel refuses to bind 0.0.0.0 without TLS — main.py rewrites the host to
+# localhost when no certificate is configured, on the grounds that serving the
+# dashboard and subscription links in plaintext is not safe. So an install with
+# no certificate produces a panel that is only reachable over an SSH tunnel.
+# A self-signed pair is generated here so the one-liner yields something that
+# actually works; swapping in a real certificate is two lines in .env.
+generate_self_signed() {
+    local addr="$1" san
+    [ -f "$DATA_DIR/certs/panel.crt" ] && return 0
+    if printf '%s' "$addr" | grep -qE '^[0-9]+(\.[0-9]+){3}$'; then
+        san="IP:$addr,DNS:localhost"
+    else
+        san="DNS:$addr,DNS:localhost"
+    fi
+    mkdir -p "$DATA_DIR/certs"
+    openssl req -x509 -newkey rsa:2048 -sha256 -days 3650 -nodes \
+        -keyout "$DATA_DIR/certs/panel.key" -out "$DATA_DIR/certs/panel.crt" \
+        -subj "/CN=$addr" -addext "subjectAltName=$san" >/dev/null 2>&1 \
+        || die "could not generate a certificate — is openssl installed?"
+    chmod 600 "$DATA_DIR/certs/panel.key"
+}
+
 write_env() {
     local app_pw="$1"
+    # Certificate paths are container paths, not host paths: the app reads them
+    # from inside the container, where DATA_DIR is always /var/lib/pasarguard.
     cat > "$ENV_FILE" <<EOF
 UVICORN_HOST = "0.0.0.0"
 UVICORN_PORT = $PANEL_PORT
+
+UVICORN_SSL_CERTFILE = "/var/lib/pasarguard/certs/panel.crt"
+UVICORN_SSL_KEYFILE = "/var/lib/pasarguard/certs/panel.key"
+# "private" tells the panel not to reject the certificate for being
+# self-signed. Change to "public" once a CA-issued certificate is in place.
+UVICORN_SSL_CA_TYPE = "private"
 
 SQLALCHEMY_DATABASE_URL = "mysql+asyncmy://$DB_USER:$app_pw@127.0.0.1:$DB_PORT/$DB_NAME"
 EOF
@@ -320,9 +354,13 @@ cmd_install() {
 
     mkdir -p "$APP_DIR" "$DATA_DIR" "$DB_DIR" "$BACKUP_DIR" "$DATA_DIR/certs"
 
-    local root_pw app_pw
+    local root_pw app_pw addr
     root_pw=$(openssl rand -hex 20)
     app_pw=$(openssl rand -hex 20)
+    addr=$(public_addr)
+
+    info "generating a self-signed certificate for $addr"
+    generate_self_signed "$addr"
 
     info "writing $COMPOSE_FILE and $ENV_FILE"
     write_compose "$root_pw" "$app_pw"
@@ -342,17 +380,19 @@ cmd_install() {
 
     install_self
 
-    local ip
-    ip=$(curl -fsS4 --max-time 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
     echo
     ok "installed"
     echo
-    echo "  panel        http://$ip:$PANEL_PORT"
-    echo "  phpMyAdmin   http://$ip:$PMA_PORT   (user: $DB_USER, db: $DB_NAME)"
+    echo "  panel        https://$addr:$PANEL_PORT"
+    echo "  phpMyAdmin   http://$addr:$PMA_PORT   (user: $DB_USER, db: $DB_NAME)"
     echo "  db password  grep MARIADB_PASSWORD $COMPOSE_FILE"
     echo
     echo "  create your first admin:"
     echo "      pasarguard cli admin create --sudo"
+    echo
+    warn "the certificate is self-signed, so the browser will warn once. To use a"
+    warn "real one, point UVICORN_SSL_CERTFILE/KEYFILE in $ENV_FILE at it and set"
+    warn "UVICORN_SSL_CA_TYPE to \"public\", then: pasarguard restart"
     echo
     warn "phpMyAdmin is reachable from the internet on port $PMA_PORT."
     warn "it is there so you can import a backup. Turn it off when you are done:"
