@@ -399,6 +399,20 @@ cmd_install() {
     warn "    pasarguard phpmyadmin off"
 }
 
+RESTORE_WORK=""
+RESTORE_PANEL_STOPPED=0
+RESTORE_DONE=0
+
+restore_cleanup() {
+    [ -n "$RESTORE_WORK" ] && rm -rf "$RESTORE_WORK"
+    if [ "$RESTORE_PANEL_STOPPED" = "1" ] && [ "$RESTORE_DONE" != "1" ]; then
+        echo
+        warn "restore did not finish — bringing the panel back up so the box is not"
+        warn "left dark. Check the database before trusting it, then re-run restore."
+        compose up -d pasarguard >/dev/null 2>&1 || true
+    fi
+}
+
 # Two supported routes, because they fail differently. This one streams the
 # file straight into mariadb, which has no timeout or memory ceiling — the two
 # things that break a 100MB+ import through phpMyAdmin.
@@ -413,8 +427,12 @@ cmd_restore() {
 
     local work sql
     work=$(mktemp -d)
-    # shellcheck disable=SC2064
-    trap "rm -rf '$work'" EXIT
+    RESTORE_WORK="$work"
+    # A restore stops the panel, imports for minutes, then starts it again. If
+    # the shell dies in between — a dropped SSH session is the usual way — the
+    # panel would stay down with no indication why. This brings it back on any
+    # exit path, including SIGHUP.
+    trap restore_cleanup EXIT INT TERM HUP
 
     case "$src" in
         *.zip)    info "extracting"; unzip -o -q "$src" -d "$work"
@@ -438,6 +456,7 @@ cmd_restore() {
 
     info "stopping panel so nothing writes during the import"
     compose stop pasarguard >/dev/null 2>&1 || true
+    RESTORE_PANEL_STOPPED=1
 
     if mysql_root -N -D "$DB_NAME" -e 'SELECT 1;' >/dev/null 2>&1; then
         local safety
@@ -460,6 +479,7 @@ cmd_restore() {
 
     echo
     info "starting panel — schema migrations run now"
+    RESTORE_DONE=1
     compose up -d pasarguard
     wait_for_panel
 
