@@ -187,6 +187,32 @@ is_port_in_use() {
     return 1
 }
 
+# Return the first free port at or after the given default.
+#
+# The database container runs on the host network, so its port must be free on
+# the host — and a server that already runs a database for another application
+# has the default taken. Upstream hardcodes it and the container then dies with
+# "Address already in use" only after the install has written its config, which
+# is a confusing place to fail.
+#
+# Only the port number moves. The database still binds 127.0.0.1, so nothing
+# becomes reachable that was not before.
+pick_free_db_port() {
+    local port="${1:-3306}"
+    local limit=$((port + 100))
+
+    while [ "$port" -lt "$limit" ]; do
+        if ! is_port_in_use "$port"; then
+            echo "$port"
+            return 0
+        fi
+        port=$((port + 1))
+    done
+
+    colorized_echo red "No free port found near ${1}. Free one and re-run." >&2
+    return 1
+}
+
 # Map the detected OS to its cron daemon package name, mirroring the OS matrix
 # in lib/system.sh: Debian/Ubuntu ship "cron"; the Red Hat family, Fedora,
 # Arch and openSUSE ship "cronie". Returns non-zero for an unrecognized OS.
@@ -1019,7 +1045,7 @@ install_pasarguard() {
         echo "DB_PASSWORD=\"${DB_PASSWORD}\"" >>"$ENV_FILE"
 
         if [[ "$database_type" == "postgresql" || "$database_type" == "timescaledb" ]]; then
-            DB_PORT="6432"
+            DB_PORT=$(pick_free_db_port 6432)
             prompt_for_pgadmin_password
             echo "" >>"$ENV_FILE"
             echo "# PGAdmin configuration" >>"$ENV_FILE"
@@ -1027,10 +1053,17 @@ install_pasarguard() {
             echo "PGADMIN_PASSWORD=\"${PGADMIN_PASSWORD}\"" >>"$ENV_FILE"
         else
             colorized_echo green "phpMyAdmin address: 0.0.0.0:8010"
-            DB_PORT="3306"
+            DB_PORT=$(pick_free_db_port 3306)
             MYSQL_ROOT_PASSWORD=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 20 || true)
             echo "MYSQL_ROOT_PASSWORD=\"$MYSQL_ROOT_PASSWORD\"" >>"$ENV_FILE"
         fi
+
+        # The database container joins the host network, so its port has to be
+        # free on the host. Upstream hardcodes the default and assumes a
+        # dedicated server; a box already running a database for something else
+        # would otherwise fail with "Address already in use" after the install
+        # has already written its config.
+        echo "DB_HOST_PORT=\"${DB_PORT}\"" >>"$ENV_FILE"
 
         if [[ "$database_type" =~ ^(postgresql|timescaledb)$ ]]; then
             if [ "$major_version" -lt 1 ]; then
