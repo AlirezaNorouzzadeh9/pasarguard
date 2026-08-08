@@ -1,0 +1,11 @@
+services:
+  node:
+    container_name: node
+    image: ghcr.io/alirezanorouzzadeh9/pasarguardnode:latest
+    restart: always
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    env_file: .env
+    volumes:
+      - /var/lib/pg-node:/var/lib/pg-node
