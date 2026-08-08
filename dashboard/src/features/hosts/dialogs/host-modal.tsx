@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CustomVariablesPopover, VariablesList, VariablesPopover } from '@/components/ui/variables-popover'
+import { toast } from 'sonner'
 import useDirDetection from '@/hooks/use-dir-detection'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
@@ -20,7 +21,7 @@ import { queryClient } from '@/utils/query-client'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Cable, ChevronsLeftRightEllipsis, Copy, Pencil, GlobeLock, Info, Loader2, Lock, Network, Plus, Route, Trash2, X, ListTodo } from 'lucide-react'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
-import { useFieldArray, UseFormReturn } from 'react-hook-form'
+import { FieldErrors, useFieldArray, UseFormReturn } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { hostFormDefaultValues, type HostFormValues } from '@/features/hosts/forms/host-form'
 import { LoaderButton } from '@/components/ui/loader-button'
@@ -1012,6 +1013,38 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
     }
   }, [form, isOpenVPNInbound, selectedInboundTag, editingHost])
 
+  // OpenVPN swaps the address input for the remotes editor, but the schema
+  // still requires a non-empty address — and validation runs before the submit
+  // handler that would have derived one. The result was a Save button that did
+  // nothing and said nothing, because the field that failed was not on screen.
+  // Mirroring the remote hosts into address as they are typed keeps the schema
+  // satisfied and the stored value correct.
+  const openvpnRemotes = form.watch('openvpn_overrides.remotes')
+  useEffect(() => {
+    if (!isOpenVPNInbound) {
+      return
+    }
+    const hosts = (openvpnRemotes || []).map(r => (r?.host || '').trim()).filter(Boolean)
+    const current = form.getValues('address') || []
+    if (hosts.length !== current.length || hosts.some((h, i) => h !== current[i])) {
+      form.setValue('address', hosts, { shouldDirty: true, shouldValidate: true })
+    }
+  }, [form, isOpenVPNInbound, openvpnRemotes])
+
+  // Validation failures are normally shown under the offending input, which
+  // silently does nothing when that input is not rendered for the selected
+  // inbound type. Naming the fields turns a dead button into something the
+  // operator can act on.
+  const handleInvalid = (errors: FieldErrors<HostFormValues>) => {
+    const names = Object.keys(errors)
+    toast.error(
+      t('hostsDialog.validationFailed', {
+        defaultValue: 'Cannot save: check {{fields}}',
+        fields: names.join(', ') || 'the form',
+      }),
+    )
+  }
+
   const handleSubmit = async (data: HostFormValues) => {
     setIsSubmitting(true)
     try {
@@ -1138,7 +1171,7 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
           <DialogDescription className="sr-only">Modify the host settings below</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(handleSubmit, handleInvalid)} className="space-y-4">
             <div className="-mr-4 max-h-[80dvh] space-y-4 overflow-y-auto px-2 pr-4 sm:max-h-[75dvh]">
               <FormField
                 control={form.control}
