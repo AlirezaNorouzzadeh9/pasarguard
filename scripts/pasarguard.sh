@@ -348,9 +348,22 @@ cmd_install() {
     install_prereqs
     install_docker
 
-    for p in "$PANEL_PORT" "$PMA_PORT" "$DB_PORT"; do
-        port_free "$p" || die "port $p is already in use"
-    done
+    # The database port is an internal detail: it is published on loopback and
+    # only the panel dials it. A box that already runs MariaDB for something
+    # else should not be a dead end, so step around the collision instead.
+    if ! port_free "$DB_PORT"; then
+        local taken="$DB_PORT"
+        while [ "$DB_PORT" -lt 3406 ] && ! port_free "$DB_PORT"; do
+            DB_PORT=$((DB_PORT + 1))
+        done
+        port_free "$DB_PORT" || die "no free port near $taken for the database"
+        warn "port $taken is in use, so the database will listen on $DB_PORT"
+    fi
+
+    # These two are how you actually reach the panel, so moving them quietly
+    # would be worse than stopping and saying which knob to turn.
+    port_free "$PANEL_PORT" || die "port $PANEL_PORT is in use — rerun with PANEL_PORT=<free port>"
+    port_free "$PMA_PORT" || die "port $PMA_PORT is in use — rerun with PMA_PORT=<free port>"
 
     mkdir -p "$APP_DIR" "$DATA_DIR" "$DB_DIR" "$BACKUP_DIR" "$DATA_DIR/certs"
 
