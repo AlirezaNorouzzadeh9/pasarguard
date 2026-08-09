@@ -79,6 +79,20 @@ _MULTI_INSTANCE_BACKENDS = {
     CoreType.openvpn: service.BackendType.OPENVPN,
 }
 
+# Node ids with a connect already running.
+#
+# A plain (non-additive) Start tells the node a panel has just connected, so it
+# resets and comes up running exactly the cores that connection brings. Two
+# connects racing for the same node therefore destroy each other: the second
+# one's Start tears down everything the first had just started, and on a node
+# with thousands of peers the sync takes long enough that this repeats forever.
+# The node log names it — "core control access was taken away from previous
+# client" — immediately after a successful Start.
+#
+# Skipping rather than queueing: a second connect would only redo the work the
+# first is already doing, and the wait would be spent tearing that work down.
+_CONNECTING_NODES: set[int] = set()
+
 
 class NodeOperation(BaseOperation):
     def __init__(self, operator_type: OperatorType):
@@ -761,6 +775,16 @@ class NodeOperation(BaseOperation):
         await node_nats_client.publish("connect_nodes_bulk", {"node_ids": [node.id for node in nodes]})
 
     async def _connect_single_node_local(self, db: AsyncSession, node_id: int) -> None:
+        if node_id in _CONNECTING_NODES:
+            logger.debug(f"Connect already in progress for node {node_id}, skipping this attempt")
+            return
+        _CONNECTING_NODES.add(node_id)
+        try:
+            await self._connect_single_node_local_impl(db, node_id)
+        finally:
+            _CONNECTING_NODES.discard(node_id)
+
+    async def _connect_single_node_local_impl(self, db: AsyncSession, node_id: int) -> None:
         db_node = await get_node_by_id(db, node_id, load_usage_logs=False)
         if db_node is None or db_node.status in (NodeStatus.disabled, NodeStatus.limited):
             return
