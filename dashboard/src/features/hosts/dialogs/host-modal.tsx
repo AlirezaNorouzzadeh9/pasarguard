@@ -1013,24 +1013,6 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
     }
   }, [form, isOpenVPNInbound, selectedInboundTag, editingHost])
 
-  // OpenVPN swaps the address input for the remotes editor, but the schema
-  // still requires a non-empty address — and validation runs before the submit
-  // handler that would have derived one. The result was a Save button that did
-  // nothing and said nothing, because the field that failed was not on screen.
-  // Mirroring the remote hosts into address as they are typed keeps the schema
-  // satisfied and the stored value correct.
-  const openvpnRemotes = form.watch('openvpn_overrides.remotes')
-  useEffect(() => {
-    if (!isOpenVPNInbound) {
-      return
-    }
-    const hosts = (openvpnRemotes || []).map(r => (r?.host || '').trim()).filter(Boolean)
-    const current = form.getValues('address') || []
-    if (hosts.length !== current.length || hosts.some((h, i) => h !== current[i])) {
-      form.setValue('address', hosts, { shouldDirty: true, shouldValidate: true })
-    }
-  }, [form, isOpenVPNInbound, openvpnRemotes])
-
   // Validation failures are normally shown under the offending input, which
   // silently does nothing when that input is not rendered for the selected
   // inbound type. Naming the fields turns a dead button into something the

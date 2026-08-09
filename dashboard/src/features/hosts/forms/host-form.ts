@@ -347,7 +347,11 @@ const transportSettingsSchema = z
 
 export const HostFormSchema = z.object({
   remark: z.string().min(1, 'Remark is required'),
-  address: z.array(z.string()).min(1, 'At least one address is required'),
+  // Whether this may be empty is decided in the superRefine below rather than
+  // here: an OpenVPN host has no address input at all — it supplies addresses
+  // through the remotes editor, and the submit handler derives this list from
+  // them. Requiring it here failed the form on a field that is not on screen.
+  address: z.array(z.string()),
   port: z.number().min(1, 'Port must be at least 1').max(65535, 'Port must be at most 65535').optional().or(z.literal('')),
   inbound_tag: z.string().min(1, 'Inbound tag is required'),
   status: z.array(z.string()).default([]),
@@ -498,6 +502,20 @@ export const HostFormSchema = z.object({
     })
     .optional(),
   final_mask_settings: z.custom<FinalMaskInput>().optional(),
+}).superRefine((data, ctx) => {
+  // A host needs somewhere to point, but OpenVPN says where through its
+  // remotes rather than the address list. Accept either, and attach the
+  // complaint to `address` so it lands on the input that exists for the other
+  // inbound types.
+  const hasAddress = (data.address ?? []).some(entry => (entry || '').trim())
+  const hasRemote = (data.openvpn_overrides?.remotes ?? []).some(row => (row?.host || '').trim())
+  if (!hasAddress && !hasRemote) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['address'],
+      message: 'At least one address is required',
+    })
+  }
 })
 
 export const hostFormDefaultValues: HostFormValues = {
