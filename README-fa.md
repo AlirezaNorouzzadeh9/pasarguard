@@ -1,243 +1,92 @@
+<h1 align="center">PasarGuard — فورک WireGuard و OpenVPN</h1>
+
 <p align="center">
-  <a href="https://github.com/PasarGuard/panel" target="_blank" rel="noopener noreferrer">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/PasarGuard/PasarGuard.github.io/raw/main/public/logos/PasarGuard-white-logo.png">
-      <img width="160" height="160" src="https://github.com/PasarGuard/PasarGuard.github.io/raw/main/public/logos/PasarGuard-black-logo.png">
-    </picture>
+  فورکی از <a href="https://github.com/PasarGuard/panel">PasarGuard/panel</a> که WireGuard و
+  OpenVPN را در کنار Xray اجرا می‌کند، چند هسته روی یک نود.
+</p>
+
+<p align="center">
+  <a href="https://github.com/AlirezaNorouzzadeh9/pasarguard/actions/workflows/build-fork.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/AlirezaNorouzzadeh9/pasarguard/build-fork.yml?style=flat-square&label=image" />
+  </a>
+  <a href="https://github.com/AlirezaNorouzzadeh9/pasarguard/pkgs/container/pasarguard">
+    <img src="https://img.shields.io/badge/ghcr.io-pasarguard-blue?style=flat-square&logo=docker" />
+  </a>
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/github/license/AlirezaNorouzzadeh9/pasarguard?style=flat-square" />
   </a>
 </p>
 
-<h1 align="center">🛡️ پاسارگارد</h1>
-
-<p align="center">
-    <strong>راه‌حل یکپارچه و مقاوم در برابر سانسور برای مدیریت پروکسی</strong>
-</p>
+<p align="center"><a href="./README.md">🇬🇧 English</a></p>
 
 ---
 
-<br/>
-<p align="center">
-    <a href="#">
-        <img src="https://img.shields.io/github/actions/workflow/status/PasarGuard/panel/build.yml?style=flat-square" />
-    </a>
-    <a href="https://hub.docker.com/r/PasarGuard/panel" target="_blank">
-        <img src="https://img.shields.io/docker/pulls/PasarGuard/panel?style=flat-square&logo=docker" />
-    </a>
-    <a href="#">
-        <img src="https://img.shields.io/github/license/PasarGuard/panel?style=flat-square" />
-    </a>
-    <a href="https://t.me/Pasar_Guard" target="_blank">
-        <img src="https://img.shields.io/badge/telegram-group-blue?style=flat-square&logo=telegram" />
-    </a>
-    <a href="#">
-        <img src="https://img.shields.io/badge/twitter-commiunity-blue?style=flat-square&logo=twitter" />
-    </a>
-    <a href="#">
-        <img src="https://img.shields.io/github/stars/PasarGuard/panel?style=social" />
-    </a>
-</p>
+## این فورک چه چیزی اضافه می‌کند
 
-<p align="center">
- <a href="./README.md">
- 🇺🇸 English
- </a>
- /
- <a href="./README-fa.md">
- 🇮🇷 فارسی
- </a>
-  /
-  <a href="./README-zh-cn.md">
- 🇨🇳 简体中文
- </a>
-   /
-  <a href="./README-ru.md">
- 🇷🇺 Русский
- </a>
-</p>
+آپ‌استریم روی هر نود یک هسته اجرا می‌کند و Xray می‌فهمد. این فورک همهٔ آن را نگه می‌دارد و اینها را اضافه می‌کند:
 
-<p align="center">
-  <a href="https://github.com/PasarGuard/panel" target="_blank" rel="noopener noreferrer" >
-    <img src="https://github.com/PasarGuard/PasarGuard.github.io/raw/main/public/logos/screenshot.png" alt="پاسارگارد اسکرین‌شات" width="600" height="auto">
-  </a>
-</p>
+**چند هسته روی یک نود.** یک نود می‌تواند هم‌زمان یک هستهٔ Xray و هر تعداد هستهٔ WireGuard و OpenVPN
+داشته باشد. Xray همچنان یک نمونه می‌گیرد — یک پروسه به همهٔ اینباندهایش سرویس می‌دهد — ولی WireGuard و
+OpenVPN بر اساس نمونه کلید می‌خورند، پس `wg-de` و `wg-us` روی یک ماشین کنار هم زندگی می‌کنند.
 
-## 📋 فهرست مطالب
+**هستهٔ OpenVPN، سرتاسری.** پنل نقش CA را بازی می‌کند: در اولین استفاده CA، گواهی سرور و کلید
+`tls-crypt` خودش را می‌سازد، و اولین باری که هر کاربر اشتراکش را می‌گیرد یک گواهی کلاینت اختصاصی
+برایش صادر می‌کند. احراز هویت با CN و سریال گواهی است، پس ابطال یک کاربر بقیه را به هم نمی‌ریزد.
+یک هسته می‌تواند UDP و TCP را روی یک پورت سرو کند؛ نود برای هر listener یک پروسهٔ OpenVPN بالا
+می‌آورد و سابنت را بینشان تقسیم می‌کند.
 
-> **ناوبری سریع** - به هر بخش زیر پرش کنید
+**صفحهٔ اشتراکی که فایل واقعی می‌دهد.** کاربر WireGuard یک `.conf` آمادهٔ همراه با QR می‌گیرد و
+کاربر OpenVPN یک `.ovpn` آماده. هر دو برای هر هاست جداگانه ساخته می‌شوند، پس کسی که سه لوکیشن
+WireGuard دارد سه فایل می‌گیرد.
 
--   [📖 بررسی اجمالی](#-بررسی-اجمالی)
-    -   [🤔 چرا از پاسارگارد استفاده کنیم؟](#-چرا-از-پاسارگارد-استفاده-کنیم)
-        -   [✨ ویژگی‌ها](#-ویژگیها)
--   [🚀 راهنمای نصب](#-راهنمای-نصب)
--   [📚 مستندات](#-مستندات)
--   [💖 حمایت مالی](#-حمایت-مالی)
+**نصب‌کنندهٔ اختصاصی.** فایل `scripts/pasarguard.sh` فورکی از
+[PasarGuard/scripts](https://github.com/PasarGuard/scripts) است که به همین مخزن و ایمیج آن اشاره
+می‌کند، به‌همراه اصلاحاتی برای سرورهایی که فقط مال پنل نیستند — پایین‌تر بخوانید.
 
----
-
-# 📖 بررسی اجمالی
-
-> **پاسارگارد چیست؟**
-
-پاسارگارد یک ابزار قدرتمند مدیریت پروکسی است که رابط کاربری بصری و کارآمدی برای مدیریت صدها حساب پروکسی ارائه می‌دهد. این ابزار با Python و React.js ساخته شده و عملکرد، مقیاس‌پذیری و سهولت استفاده را برای ساده‌سازی مدیریت پروکسی در مقیاس بزرگ ترکیب می‌کند. این ابزار هم از [Xray-core](https://github.com/XTLS/Xray-core) و هم از [WireGuard](https://www.wireguard.com/) برای حداکثر عملکرد پشتیبانی می‌کند.
-
----
-
-## 🤔 چرا از پاسارگارد استفاده کنیم؟
-
-> **ساده، قدرتمند، قابل اعتماد**
-
-پاسارگارد یک ابزار مدیریت پروکسی کاربرپسند، غنی از ویژگی و قابل اعتماد است. این ابزار به شما امکان ایجاد و مدیریت چندین پروکسی برای کاربران بدون نیاز به پیکربندی پیچیده را می‌دهد. با رابط کاربری وب داخلی آن، می‌توانید به راحتی فعالیت‌ها را نظارت کنید، تنظیمات را تغییر دهید و محدودیت‌های دسترسی کاربران را کنترل کنید — همه از یک داشبورد مناسب.
-
----
-
-### ✨ ویژگی‌ها
-
-<div align="right">
-
-**🌐 رابط کاربری وب و API**
-- داشبورد **Web UI** داخلی
-- بک‌اند کاملاً **REST API**
-- پشتیبانی از **Multi-Node** برای توزیع زیرساخت
-
-**🔐 پروتکل‌ها و امنیت**
-- پشتیبانی از **Vmess**، **VLESS**، **Trojan**، **Shadowsocks**، **WireGuard** و **Hysteria2**
-- پشتیبانی از **TLS** و **REALITY**
-- **چند پروتکل** برای یک کاربر
-
-**👥 مدیریت کاربران**
-- **چند کاربر** روی یک inbound
-- **چند inbound** روی **یک پورت** (پشتیبانی از fallbacks)
-- محدودیت‌های **ترافیک** و **تاریخ انقضا**
-- محدودیت ترافیک **دوره‌ای** (روزانه، هفتگی و غیره)
-- محدودیت **HWID/دستگاه** برای کنترل دسترسی مبتنی بر سخت‌افزار
-
-**🔗 اشتراک‌ها و اشتراک‌گذاری**
-- **لینک اشتراک** سازگار با **V2ray**، **Clash** و **ClashMeta**
-- تولیدکننده خودکار **لینک اشتراک** و **QRcode**
-- نظارت بر سیستم و **آمار ترافیک**
-
-**🛠️ ابزارها و سفارشی‌سازی**
-- پیکربندی قابل تنظیم xray
-- **ربات تلگرام** یکپارچه
-- **رابط خط فرمان (CLI)**
-- پشتیبانی از **چند زبان**
-- پشتیبانی از **چند ادمین** با **RBAC** برای دسترسی‌های دقیق و محدوده‌بندی‌شده
-
-</div>
-
----
-
-# 🚀 راهنمای نصب
-
-> **شروع سریع** - پاسارگارد را در چند دقیقه راه‌اندازی کنید
-
-### برای راه‌اندازی سریع، از دستورات زیر بر اساس دیتابیس مورد نظرتان استفاده کنید.
-
----
-
-**TimescaleDB (توصیه شده):**
-```bash
-sudo bash -c "$(curl -fsSL https://github.com/PasarGuard/scripts/raw/main/pasarguard.sh)" @ install --database timescaledb
-```
-
-**SQLite:**
-```bash
-sudo bash -c "$(curl -fsSL https://github.com/PasarGuard/scripts/raw/main/pasarguard.sh)" @ install
-```
-
-**MySQL:**
-```bash
-sudo bash -c "$(curl -fsSL https://github.com/PasarGuard/scripts/raw/main/pasarguard.sh)" @ install --database mysql
-```
-
-**MariaDB:**
-```bash
-sudo bash -c "$(curl -fsSL https://github.com/PasarGuard/scripts/raw/main/pasarguard.sh)" @ install --database mariadb
-```
-
-**PostgreSQL:**
-```bash
-sudo bash -c "$(curl -fsSL https://github.com/PasarGuard/scripts/raw/main/pasarguard.sh)" @ install --database postgresql
-```
-
-### 📋 پس از نصب:
-
-<div align="right">
-
-**📋 لاگ‌ها را مشاهده کنید** (برای توقف `Ctrl+C` را فشار دهید)
-
-**📁 فایل‌ها در مسیر** `/opt/pasarguard` قرار دارند
-
-**⚙️ فایل پیکربندی:** `/opt/pasarguard/.env` (برای جزئیات [پیکربندی](#-پیکربندی) را ببینید)
-
-**💾 فایل‌های داده:** `/var/lib/pasarguard`
-
-**🔒 مهم:** داشبورد برای امنیت نیاز به گواهی SSL دارد
-- دریافت گواهی SSL: [راهنما](https://PasarGuard.github.io/PasarGuard/fa/examples/issue-ssl-certificate)
-- دسترسی: `https://YOUR_DOMAIN:8000/dashboard/`
-
-**🔗 برای تست بدون دامنه:** از SSH port forwarding استفاده کنید (پایین را ببینید)
-
-</div>
-
----
+## نصب
 
 ```bash
-ssh -L 8000:localhost:8000 user@serverip
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/AlirezaNorouzzadeh9/pasarguard/main/scripts/pasarguard.sh)" @ install --database mariadb
 ```
 
-سپس دسترسی: `http://localhost:8000/dashboard/`
+`--database` مقادیر `mariadb`، `mysql`، `postgresql`، `timescaledb` و `sqlite` را می‌پذیرد. بعد از
+نصب، همان مجموعه‌دستورهای آپ‌استریم در دسترس است: `update`، `restart`، `status`، `logs`، `cli`،
+`tui`، `backup`، `restore`، `install-node`، `uninstall`.
 
-> ⚠️ **فقط برای تست** - با بستن ترمینال SSH دسترسی خود را از دست خواهید داد.
+ایمیج روی هر پوش به `main` منتشر می‌شود:
 
-### 🔧 مراحل بعدی:
-
-```bash
-# ایجاد کلید موقت یک‌بارمصرف برای راه‌اندازی حساب owner
-pasarguard cli generate-temp-key
-
-# از این کلید در صفحه ورود داشبورد برای ایجاد حساب owner استفاده کنید
-
-# دریافت راهنما
-pasarguard --help
+```
+ghcr.io/alirezanorouzzadeh9/pasarguard:latest
 ```
 
----
+## چیزهایی که بهتر است قبل از استقرار بدانید
 
-# 📚 مستندات
+**پنل بدون TLS روی اینترنت گوش نمی‌دهد.** اگر گواهی تنظیم نشده باشد فقط روی localhost بایند می‌شود
+و همین را در لاگ می‌گوید — سرو کردن لینک اشتراک روی HTTP ساده امن نیست. یا
+`UVICORN_SSL_CERTFILE` و `UVICORN_SSL_KEYFILE` را به یک گواهی وصل کنید یا یک reverse proxy جلویش
+بگذارید. برای گواهی self-signed حتماً `UVICORN_SSL_CA_TYPE` باید `private` باشد وگرنه پنل گواهی
+خودش را رد می‌کند.
 
-<div align="right">
+**کانتینر دیتابیس روی شبکهٔ هاست است.** روی سروری که از قبل MariaDB یا PostgreSQL برای چیز دیگری
+دارد، نصب‌کننده به اولین پورت آزاد بعدی می‌رود و آن را در `DB_HOST_PORT` ثبت می‌کند. فقط شمارهٔ پورت
+جابه‌جا می‌شود؛ دیتابیس همچنان به `127.0.0.1` بایند است.
 
-**📖 مستندات رسمی** - راهنماهای کامل در دسترس:
+**peerهای هر هستهٔ WireGuard از سابنت خودش می‌آیند.** بزرگ کردن سابنت امن است. جابه‌جا کردن یا کوچک
+کردنش کانفیگ‌هایی را که قبلاً داده‌اید بی‌اعتبار می‌کند، چون آدرس peerها از محدودهٔ قبلی گرفته شده بود.
 
-🇺🇸 **[English](https://PasarGuard.github.io/PasarGuard)**
+**کلید تکراری WireGuard کل هسته را می‌خواباند.** اگر دو کاربر یک کلید عمومی داشته باشند نود کل هسته
+را رد می‌کند — نه می‌تواند ترافیک‌شان را تفکیک کند نه محدودیت اعمال کند. پنل‌هایی که از قبل از
+پشتیبانی WireGuard مانده‌اند ممکن است کلید تکراری داشته باشند، چون آن موقع چک یکتایی اجرا نمی‌شد.
+قبل از فعال کردن هستهٔ WireGuard روی دادهٔ واقعی، تعداد کلیدهای یکتا را با تعداد کاربران مقایسه کنید.
 
-🇮🇷 **[فارسی](https://PasarGuard.github.io/PasarGuard)**
+**فایل‌های گواهی در بکاپ دیتابیس نیستند.** کانفیگ Xray که گواهی را با مسیر صدا می‌زند به وجود آن
+فایل‌ها نیاز دارد، وگرنه Xray کل هسته را رد می‌کند و همهٔ اینباندهایش ناپدید می‌شوند. موقع جابه‌جایی
+پنل، پوشهٔ `/var/lib/pasarguard/certs/` را هم ببرید.
 
-🇷🇺 **[Русский](https://PasarGuard.github.io/PasarGuard)**
+## آپ‌استریم
 
-</div>
+این یک فورک است نه جایگزین. هر چیزی که آپ‌استریم دربارهٔ کاربران، گروه‌ها، قالب‌ها، API و بات تلگرام
+مستند کرده اینجا هم صادق است — به [مستندات PasarGuard](https://docs.pasarguard.org) و
+[PasarGuard/panel](https://github.com/PasarGuard/panel) مراجعه کنید.
 
-> **مشارکت:** در بهبود مستندات در [GitHub](https://github.com/PasarGuard/PasarGuard.github.io) کمک کنید
-
----
-
-# 💖 حمایت مالی
-
-<div align="right">
-
-> **حمایت از توسعه پاسارگارد**
-
-اگر پاسارگارد به شما کمک می‌کند، از توسعه آن حمایت کنید:
-
-[![Donate](https://img.shields.io/badge/Donate-Support%20Us-green?style=for-the-badge)](http://donate.pasarguard.org)
-
-**از حمایت شما متشکریم!** 💖
-
-</div>
-
----
-
-<p align="center">
-  Made with ❤️ for Internet freedom
-</p>
+تحت لایسنس [AGPL-3.0](./LICENSE)، مثل آپ‌استریم.

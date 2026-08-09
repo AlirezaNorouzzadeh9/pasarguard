@@ -1,239 +1,96 @@
+<h1 align="center">PasarGuard — WireGuard &amp; OpenVPN fork</h1>
+
 <p align="center">
-  <a href="https://github.com/PasarGuard/panel" target="_blank" rel="noopener noreferrer">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/PasarGuard/PasarGuard.github.io/raw/main/public/logos/PasarGuard-white-logo.png">
-      <img width="160" height="160" src="https://github.com/PasarGuard/PasarGuard.github.io/raw/main/public/logos/PasarGuard-black-logo.png">
-    </picture>
+  A fork of <a href="https://github.com/PasarGuard/panel">PasarGuard/panel</a> that runs
+  WireGuard and OpenVPN alongside Xray, several cores per node.
+</p>
+
+<p align="center">
+  <a href="https://github.com/AlirezaNorouzzadeh9/pasarguard/actions/workflows/build-fork.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/AlirezaNorouzzadeh9/pasarguard/build-fork.yml?style=flat-square&label=image" />
+  </a>
+  <a href="https://github.com/AlirezaNorouzzadeh9/pasarguard/pkgs/container/pasarguard">
+    <img src="https://img.shields.io/badge/ghcr.io-pasarguard-blue?style=flat-square&logo=docker" />
+  </a>
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/github/license/AlirezaNorouzzadeh9/pasarguard?style=flat-square" />
   </a>
 </p>
 
-<h1 align="center">🛡️ PasarGuard</h1>
-
-<p align="center">
-    <strong>Unified & Censorship-Resistant Proxy Management Solution</strong>
-</p>
+<p align="center"><a href="./README-fa.md">🇮🇷 فارسی</a></p>
 
 ---
 
-<br/>
-<p align="center">
-    <a href="https://github.com/PasarGuard/panel/actions/workflows/build.yml" target="_blank">
-        <img src="https://img.shields.io/github/actions/workflow/status/PasarGuard/panel/build.yml?style=flat-square" />
-    </a>
-    <a href="https://hub.docker.com/r/PasarGuard/panel" target="_blank">
-        <img src="https://img.shields.io/docker/pulls/pasarguard/panel?style=flat-square&logo=docker" />
-    </a>
-    <a href="https://github.com/PasarGuard/panel/blob/main/LICENSE" target="_blank">
-        <img src="https://img.shields.io/github/license/PasarGuard/panel?style=flat-square" />
-    </a>
-    <a href="https://t.me/Pasar_Guard" target="_blank">
-        <img src="https://img.shields.io/badge/telegram-group-blue?style=flat-square&logo=telegram" />
-    </a>
-    <a href="https://github.com/PasarGuard/panel" target="_blank">
-        <img src="https://img.shields.io/github/stars/PasarGuard/panel?style=social" />
-    </a>
-</p>
+## What this fork adds
 
-<p align="center">
- <a href="./README-fa.md">
- 🇮🇷 فارسی
- </a>
-  /
-  <a href="./README-zh-cn.md">
- 🇨🇳 简体中文
- </a>
-   /
-  <a href="./README-ru.md">
- 🇷🇺 Русский
- </a>
-</p>
+Upstream runs one core per node and speaks Xray. This fork keeps all of that and adds:
 
-<p align="center">
-  <a href="https://github.com/PasarGuard/panel" target="_blank" rel="noopener noreferrer" >
-    <img src="https://github.com/PasarGuard/PasarGuard.github.io/raw/main/public/logos/screenshot.png" alt="PasarGuard screenshots" width="600" height="auto">
-  </a>
-</p>
+**Several cores on one node.** A node can run an Xray core plus any number of WireGuard and
+OpenVPN cores at the same time. Xray still gets one instance — a single process serves all its
+inbounds — but WireGuard and OpenVPN are keyed per instance, so `wg-de` and `wg-us` coexist on
+the same machine.
 
-## 📋 Table of Contents
+**An OpenVPN core, end to end.** The panel acts as the CA: it mints its own CA, server
+certificate and `tls-crypt` key on first use, and issues a per-user client certificate the first
+time that user fetches their subscription. Users authenticate by certificate CN and serial, so
+revoking one user does not disturb the rest. A core can serve UDP and TCP on the same port by
+declaring two listeners; the node runs one OpenVPN process per listener and splits the subnet
+between them.
 
-> **Quick Navigation** - Jump to any section below
+**A subscription page that hands out real files.** WireGuard peers download a ready `.conf`
+(with QR), OpenVPN users download a ready `.ovpn`. Both are generated per host, so a user with
+three WireGuard locations gets three files.
 
--   [📖 Overview](#-overview)
-    -   [🤔 Why using PasarGuard?](#-why-using-pasarguard)
-        -   [✨ Features](#-features)
--   [🚀 Installation guide](#-installation-guide)
--   [📚 Documentation](#-documentation)
--   [💖 Donation](#-donation)
+**An installer of its own.** `scripts/pasarguard.sh` is a fork of
+[PasarGuard/scripts](https://github.com/PasarGuard/scripts) pointing at this repository and its
+image, with fixes for servers that are not dedicated to the panel — see below.
 
----
-
-# 📖 Overview
-
-> **What is PasarGuard?**
-
-PasarGuard is a powerful proxy management tool that offers an intuitive and efficient interface for handling hundreds of proxy accounts. Built with Python and React.js it combines performance, scalability, and ease of use to simplify large-scale proxy management. It supports both [Xray-core](https://github.com/XTLS/Xray-core) and [WireGuard](https://www.wireguard.com/) for maximum performance.
-
----
-
-## 🤔 Why using PasarGuard?
-
-> **Simple, Powerful, Reliable**
-
-PasarGuard is a user-friendly, feature-rich, and reliable proxy management tool. It allows you to create and manage multiple proxies for your users without the need for complex configuration. With its built-in web interface, you can easily monitor activity, modify settings, and control user access limits — all from one convenient dashboard.
-
----
-
-### ✨ Features
-
-<div align="left">
-
-**🌐 Web Interface & API**
-- Built-in **Web UI** dashboard
-- Fully **REST API** backend
-- **Multi-Node** support for infrastructure distribution
-
-**🔐 Protocols & Security**
-- Supports **Vmess**, **VLESS**, **Trojan**, **Shadowsocks**, **WireGuard** and **Hysteria2**
-- **TLS** and **REALITY** support
-- **Multi-protocol** for a single user
-
-**👥 User Management**
-- **Multi-user** on a single inbound
-- **Multi-inbound** on a **single port** (fallbacks support)
-- **Traffic** and **expiry date** limitations
-- **Periodic** traffic limit (daily, weekly, etc.)
-- **HWID/device limits** for hardware-bound access control
-
-**🔗 Subscriptions & Sharing**
-- **Subscription link** compatible with **V2ray**, **Clash** and **ClashMeta**
-- Automated **Share link** and **QRcode** generator
-- System monitoring and **traffic statistics**
-
-**🛠️ Tools & Customization**
-- Customizable xray configuration
-- Integrated **Telegram Bot**
-- **Command Line Interface (CLI)**
-- **Multi-language** support
-- **Multi-admin** support with **RBAC** for granular permissions and scoped access
-
-</div>
-
----
-
-# 🚀 Installation guide
-
-> **Quick Start** - Get PasarGuard running in minutes
-
-### For a quick setup, use the following commands based on your preferred database.
-
----
-
-**TimescaleDB (Recommended):**
-```bash
-sudo bash -c "$(curl -fsSL https://github.com/PasarGuard/scripts/raw/main/pasarguard.sh)" @ install --database timescaledb
-```
-
-**SQLite:**
-```bash
-sudo bash -c "$(curl -fsSL https://github.com/PasarGuard/scripts/raw/main/pasarguard.sh)" @ install
-```
-
-**MySQL:**
-```bash
-sudo bash -c "$(curl -fsSL https://github.com/PasarGuard/scripts/raw/main/pasarguard.sh)" @ install --database mysql
-```
-
-**MariaDB:**
-```bash
-sudo bash -c "$(curl -fsSL https://github.com/PasarGuard/scripts/raw/main/pasarguard.sh)" @ install --database mariadb
-```
-
-**PostgreSQL:**
-```bash
-sudo bash -c "$(curl -fsSL https://github.com/PasarGuard/scripts/raw/main/pasarguard.sh)" @ install --database postgresql
-```
-
-### 📋 After installation:
-
-<div align="left">
-
-**📋 Watch the logs** (press `Ctrl+C` to stop)
-
-**📁 Files are located at** `/opt/pasarguard`
-
-**⚙️ Config file:** `/opt/pasarguard/.env` (see [Configuration](#-configuration) for details)
-
-**💾 Data files:** `/var/lib/pasarguard`
-
-**🔒 Important:** Dashboard requires SSL certificate for security
-- Get SSL certificate: [Guide](https://docs.pasarguard.org/en/examples/issue-ssl-certificate)
-- Access: `https://YOUR_DOMAIN:8000/dashboard/`
-
-**🔗 For testing without domain:** Use SSH port forwarding (see below)
-
-</div>
-
----
+## Install
 
 ```bash
-ssh -L 8000:localhost:8000 user@serverip
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/AlirezaNorouzzadeh9/pasarguard/main/scripts/pasarguard.sh)" @ install --database mariadb
 ```
 
-Then access: `http://localhost:8000/dashboard/`
+`--database` takes `mariadb`, `mysql`, `postgresql`, `timescaledb` or `sqlite`. The same command
+set as upstream is available afterwards: `update`, `restart`, `status`, `logs`, `cli`, `tui`,
+`backup`, `restore`, `install-node`, `uninstall`.
 
-> ⚠️ **Testing only** - You'll lose access when you close the SSH terminal.
+The image is published to GHCR on every push to `main`:
 
-### 🔧 Next Steps:
-
-```bash
-# Generate a one-time setup key for owner account setup
-pasarguard cli generate-temp-key
-
-# Use the key on the dashboard login page to create the owner account
-
-# Get help
-pasarguard --help
+```
+ghcr.io/alirezanorouzzadeh9/pasarguard:latest
 ```
 
+## Things worth knowing before you deploy
 
+**The panel will not listen publicly without TLS.** With no certificate configured it binds
+localhost only and says so in its log — plaintext subscription links are not safe to serve. Point
+`UVICORN_SSL_CERTFILE` / `UVICORN_SSL_KEYFILE` at a certificate, or put a reverse proxy in front.
+For a self-signed pair, `UVICORN_SSL_CA_TYPE` must be `private` or the panel rejects its own
+certificate.
 
-# 📚 Documentation
+**The database container joins the host network.** On a server already running MariaDB or
+PostgreSQL for something else, the installer steps to the next free port and records it as
+`DB_HOST_PORT`. Only the port moves; the database still binds `127.0.0.1`.
 
-<div align="left">
+**A WireGuard core's peers come from its own subnet.** Widening the subnet is safe. Moving or
+narrowing it invalidates configs already handed out, because peer addresses were allocated from
+the old range.
 
-**📖 Official Documentation** - Complete guides available in:
+**Duplicate WireGuard keys disable the whole core.** A node refuses a core when two users share a
+public key — it cannot attribute traffic or enforce limits on either. Panels that predate
+WireGuard support can carry duplicates from before the uniqueness check applied; check with
+`SELECT COUNT(*), COUNT(DISTINCT ...) FROM users` before enabling a WireGuard core on real data.
 
-🇺🇸 **[English](https://docs.pasarguard.org/en)**
+**Certificate files are not in database backups.** An Xray config that references certificates by
+path needs those files present, or Xray refuses to load the entire core and every inbound in it
+goes missing. Copy `/var/lib/pasarguard/certs/` across when you move a panel.
 
-🇮🇷 **[فارسی](https://docs.pasarguard.org/fa)**
+## Upstream
 
-🇷🇺 **[Русский](https://docs.pasarguard.org/ru)**
+This is a fork, not a replacement. Everything upstream documents about users, groups, templates,
+the API and the Telegram bot applies here — see
+[the PasarGuard docs](https://docs.pasarguard.org) and
+[PasarGuard/panel](https://github.com/PasarGuard/panel).
 
-🇨🇳 **[简体中文](https://docs.pasarguard.org/zh-cn)**
-
-</div>
-
-> **Contributing:** Help improve documentation on [GitHub](https://github.com/PasarGuard/PasarGuard.github.io)
-
----
-
-# 💖 Donation
-
-<div align="left">
-
-> **Support PasarGuard Development**
-
-If PasarGuard helps you, consider supporting its development:
-
-[![Donate](https://img.shields.io/badge/Donate-Support%20Us-green?style=for-the-badge)](https://donate.pasarguard.org)
-
-**Thank you for your support!** 💖
-
-</div>
-
----
-
-<p align="center">
-  Made with ❤️ for Internet freedom
-</p>
-
+Licensed under [AGPL-3.0](./LICENSE), same as upstream.
