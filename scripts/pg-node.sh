@@ -1118,6 +1118,26 @@ install_command() {
         install_yq
     fi
     detect_compose
+    # Ask the registry whether a tag exists.
+    #
+    # This fork publishes an image on every push to main instead of cutting a
+    # GitHub release per version, so an empty releases list is normal here and
+    # must not read as "that version does not exist". The registry holds what
+    # install actually pulls, which makes it the honest thing to ask.
+    image_tag_exists() {
+        local tag="$1"
+        local repo="alirezanorouzzadeh9/pasarguardnode"
+        local token
+        token=$(curl -fsS --max-time 15 \
+            "https://ghcr.io/token?scope=repository:${repo}:pull&service=ghcr.io" 2>/dev/null \
+            | jq -r '.token // empty')
+        [ -n "$token" ] || return 1
+        curl -fsS -o /dev/null --max-time 15 \
+            -H "Authorization: Bearer ${token}" \
+            -H "Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.oci.image.manifest.v1+json" \
+            "https://ghcr.io/v2/${repo}/manifests/${tag}" 2>/dev/null
+    }
+
     # Function to check if a version exists in the GitHub releases
     check_version_exists() {
         local version=$1
@@ -1126,7 +1146,8 @@ install_command() {
             latest_tag=$(curl -s ${repo_url}/latest | jq -r '.tag_name')
             # Check if there is any stable release of  node v1
             if [ "$latest_tag" == "null" ]; then
-                return 1
+                image_tag_exists "latest"
+                return $?
             fi
             return 0
         fi
@@ -1149,9 +1170,11 @@ install_command() {
         # Check if the repos contains the version tag
         if curl -s -o /dev/null -w "%{http_code}" "${repo_url}/tags/${version}" | grep -q "^200$"; then
             return 0
-        else
-            return 1
         fi
+        # No such release; the tag may still be a published image, which is what
+        # this fork actually versions by.
+        image_tag_exists "$version"
+        return $?
     }
     # Check if the version is valid and exists
     if [[ "$node_version" == "latest" || "$node_version" == "pre-release" || "$node_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
