@@ -254,8 +254,8 @@ install_node_script() {
     
     # Download script to temp file first
     colorized_echo cyan "  Downloading script from GitHub..."
-    if ! github_download_file "$(github_raw_url "$FETCH_REPO" "pg-node.sh")" "$TEMP_FILE"; then
-        colorized_echo red "✗ Failed to download script from $(github_raw_url "$FETCH_REPO" "pg-node.sh")"
+    if ! github_download_file "$(github_raw_url "$FETCH_REPO" "scripts/pg-node.sh")" "$TEMP_FILE"; then
+        colorized_echo red "✗ Failed to download script from $(github_raw_url "$FETCH_REPO" "scripts/pg-node.sh")"
         rm -f "$TEMP_FILE"
         exit 1
     fi
