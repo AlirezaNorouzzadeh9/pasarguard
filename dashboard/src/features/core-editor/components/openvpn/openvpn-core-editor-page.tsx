@@ -29,36 +29,58 @@ const MATERIAL_KEYS = ['ca_cert', 'server_cert', 'server_key', 'tls_crypt_key'] 
 // means one server per entry.
 type ListenerRow = { port: string; proto: 'udp' | 'tcp' }
 
-const listenersToRows = (value: unknown): ListenerRow[] => {
-  if (!Array.isArray(value)) return []
-  return value
-    .map(entry => {
-      const row = entry as { port?: number; proto?: string }
-      const proto = row?.proto === 'tcp' ? 'tcp' : 'udp'
-      return row?.port ? { port: String(row.port), proto } : null
-    })
-    .filter((row): row is ListenerRow => row !== null)
+// The list is the only place endpoints are edited. `port`/`proto` remain in the
+// stored config — the inbound metadata exposes `listen_port`, which a host falls
+// back to when it has no port of its own — but they are derived from the first
+// row rather than typed separately. Two fields describing the same thing, where
+// one silently overrode the other, is what made this screen confusing.
+export const configToListenerRows = (config: Record<string, unknown>): ListenerRow[] => {
+  const raw = config.listeners
+  if (Array.isArray(raw) && raw.length) {
+    const rows = raw
+      .map(entry => {
+        const row = entry as { port?: number; proto?: string }
+        const proto: 'udp' | 'tcp' = row?.proto === 'tcp' ? 'tcp' : 'udp'
+        return row?.port ? { port: String(row.port), proto } : null
+      })
+      .filter((row): row is ListenerRow => row !== null)
+    if (rows.length) return rows
+  }
+  // A config saved before this screen existed carries only port/proto.
+  if (config.port) {
+    return [{ port: String(config.port), proto: config.proto === 'tcp' ? 'tcp' : 'udp' }]
+  }
+  return []
 }
 
-const rowsToListeners = (rows: ListenerRow[] | undefined): { port: number; proto: string }[] | undefined => {
-  const parsed = (rows ?? [])
+export const parseRows = (rows: ListenerRow[] | undefined): { port: number; proto: 'udp' | 'tcp' }[] =>
+  (rows ?? [])
     .map(row => ({ port: Number(row.port), proto: row.proto }))
     .filter(row => Number.isInteger(row.port) && row.port >= 1 && row.port <= 65535)
-  // One entry says nothing the port/proto fields above do not already say, so
-  // send nothing and keep the classic single-listener config.
-  return parsed.length > 1 ? parsed : undefined
-}
 
 // Structured rather than free text: a typo or a swapped word in a "port proto"
 // line silently dropped the whole entry, and the operator only found out when
 // the port was not listening.
+// Mirrors the backend's split: each listener gets an equal slice of the server
+// subnet, and none may end up narrower than a /24. Checking it here means the
+// operator sees the limit while adding rows instead of when saving fails.
+export const subnetCapacity = (subnet: string, count: number): { perListener: number; tooSmall: boolean } | null => {
+  const prefix = Number((subnet || '').split('/')[1])
+  if (!Number.isInteger(prefix) || prefix < 0 || prefix > 32 || count < 1) return null
+  const extraBits = count > 1 ? 32 - Math.clz32(count - 1) : 0
+  const perListener = prefix + extraBits
+  return { perListener, tooSmall: perListener > 24 }
+}
+
 const ListenersField = ({ form }: { form: UseFormReturn<OpenVPNFormValues> }) => {
   const { t } = useTranslation()
   const { fields, append, remove } = useFieldArray({ control: form.control, name: 'listeners' })
+  const subnet = form.watch('server_subnet')
+  const capacity = subnetCapacity(subnet, fields.length)
 
   return (
     <FormItem>
-      <FormLabel>{t('coreEditor.openvpn.listeners', { defaultValue: 'Extra listeners (optional)' })}</FormLabel>
+      <FormLabel>{t('coreEditor.openvpn.listeners', { defaultValue: 'Listeners' })}</FormLabel>
       <div className="flex flex-col gap-2">
         {fields.map((row, index) => (
           <div key={row.id} className="flex items-center gap-2" dir="ltr">
@@ -102,7 +124,29 @@ const ListenersField = ({ form }: { form: UseFormReturn<OpenVPNFormValues> }) =>
                 </FormItem>
               )}
             />
-            <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => remove(index)}>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-9 w-9 shrink-0"
+              onClick={() =>
+                form.setValue(`listeners.${index}.port`, String(Math.floor(Math.random() * (65535 - 10000 + 1)) + 10000), {
+                  shouldDirty: true,
+                })
+              }
+              title={t('coreEditor.inbound.randomPort', { defaultValue: 'Generate random port' })}
+            >
+              <RefreshCcw className="h-3 w-3" />
+            </Button>
+            {/* A core with no endpoint cannot be saved, so the last row stays. */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              disabled={fields.length <= 1}
+              onClick={() => remove(index)}
+            >
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -115,17 +159,32 @@ const ListenersField = ({ form }: { form: UseFormReturn<OpenVPNFormValues> }) =>
       <p className="text-muted-foreground mt-2 text-[11px]">
         {t('coreEditor.openvpn.listenersHint', {
           defaultValue:
-            "The node runs one OpenVPN server per entry, sharing this core's users and certificates, and splits the subnet between them. A single entry is ignored — the port above already covers that.",
+            "The node runs one OpenVPN server per entry, all sharing this core's users and certificates, and splits the server subnet between them.",
         })}
       </p>
+      {capacity && (
+        <p className={cn('mt-1 text-[11px]', capacity.tooSmall ? 'text-destructive' : 'text-muted-foreground')}>
+          {capacity.tooSmall
+            ? t('coreEditor.openvpn.subnetTooSmall', {
+                defaultValue: '{{subnet}} is too small for {{count}} listeners — each would get a /{{prefix}}, and /24 is the floor. Use a wider subnet.',
+                subnet,
+                count: fields.length,
+                prefix: capacity.perListener,
+              })
+            : t('coreEditor.openvpn.subnetSplit', {
+                defaultValue: '{{count}} listener(s), each getting a /{{prefix}} out of {{subnet}}.',
+                subnet,
+                count: fields.length,
+                prefix: capacity.perListener,
+              })}
+        </p>
+      )}
     </FormItem>
   )
 }
 
 interface OpenVPNFormValues {
   inbound_tag: string
-  port: string
-  proto: 'udp' | 'tcp'
   server_subnet: string
   listeners: ListenerRow[]
   cipher: string
@@ -148,10 +207,10 @@ function splitLines(v: string): string[] {
 function defaultValues(): OpenVPNFormValues {
   return {
     inbound_tag: 'ovpn-main',
-    port: '1194',
-    proto: 'udp',
     server_subnet: '10.29.0.0/16',
-    listeners: [],
+    // Seeded with one row: a core with no endpoint cannot be saved, and an
+    // empty list gives no hint that one is expected.
+    listeners: [{ port: '1194', proto: 'udp' }],
     cipher: 'AES-256-GCM',
     duplicate_cn: true,
     keepalive: '10 60',
@@ -167,10 +226,8 @@ function configToFormValues(config: Record<string, unknown>): OpenVPNFormValues 
   const d = defaultValues()
   return {
     inbound_tag: String(config.inbound_tag ?? d.inbound_tag),
-    port: String(config.port ?? d.port),
-    proto: config.proto === 'tcp' ? 'tcp' : 'udp',
     server_subnet: String(config.server_subnet ?? d.server_subnet),
-    listeners: listenersToRows(config.listeners),
+    listeners: configToListenerRows(config),
     cipher: String(config.cipher ?? d.cipher),
     duplicate_cn: config.duplicate_cn !== false,
     keepalive: String(config.keepalive ?? d.keepalive),
@@ -243,22 +300,29 @@ export default function OpenVPNCoreEditorPage() {
   const createMutation = useCreateCoreConfig()
   const modifyMutation = useModifyCoreConfig()
 
-  const buildConfig = (v: OpenVPNFormValues): Record<string, unknown> => ({
-    inbound_tag: v.inbound_tag.trim(),
-    port: Number(v.port),
-    proto: v.proto,
-    server_subnet: v.server_subnet.trim(),
-    listeners: rowsToListeners(v.listeners),
-    cipher: v.cipher,
-    data_ciphers: splitLines(v.data_ciphers),
-    duplicate_cn: v.duplicate_cn,
-    keepalive: v.keepalive.trim(),
-    max_clients: Number(v.max_clients),
-    dns: splitLines(v.dns),
-    push: splitLines(v.push),
-    extra_server_directives: splitLines(v.extra_server_directives),
-    ...preservedMaterial,
-  })
+  const buildConfig = (v: OpenVPNFormValues): Record<string, unknown> => {
+    const rows = parseRows(v.listeners)
+    // The backend still requires port/proto, and treats `listeners` as
+    // authoritative whenever it is present. Sending the first row as both keeps
+    // the two in agreement instead of letting them drift apart.
+    const first = rows[0]
+    return {
+      inbound_tag: v.inbound_tag.trim(),
+      port: first ? first.port : 0,
+      proto: first ? first.proto : 'udp',
+      server_subnet: v.server_subnet.trim(),
+      listeners: rows.length ? rows : undefined,
+      cipher: v.cipher,
+      data_ciphers: splitLines(v.data_ciphers),
+      duplicate_cn: v.duplicate_cn,
+      keepalive: v.keepalive.trim(),
+      max_clients: Number(v.max_clients),
+      dns: splitLines(v.dns),
+      push: splitLines(v.push),
+      extra_server_directives: splitLines(v.extra_server_directives),
+      ...preservedMaterial,
+    }
+  }
 
   // Advanced mode edits the raw config JSON (minus PKI material, which is
   // preserved on save) — the same pattern as the Xray core editor.
@@ -468,52 +532,6 @@ export default function OpenVPNCoreEditorPage() {
                     <FormControl>
                       <Input dir="ltr" className="text-xs" placeholder="ovpn-main" {...field} />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="port"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{lbl('port', 'Port')}</FormLabel>
-                    <FormControl>
-                      <div dir="ltr" className={cn('flex items-center gap-2', dir === 'rtl' ? 'flex-row-reverse' : 'flex-row')}>
-                        <Input type="text" inputMode="numeric" className="text-xs" placeholder="1194" {...field} />
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="h-9 w-9 shrink-0"
-                          onClick={() => form.setValue('port', String(Math.floor(Math.random() * (65535 - 10000 + 1)) + 10000), { shouldDirty: true })}
-                          title={t('coreEditor.inbound.randomPort', { defaultValue: 'Generate random port' })}
-                        >
-                          <RefreshCcw className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="proto"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{lbl('proto', 'Protocol')}</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger className="h-10">
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="udp">UDP</SelectItem>
-                        <SelectItem value="tcp">TCP</SelectItem>
-                      </SelectContent>
-                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

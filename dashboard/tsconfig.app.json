@@ -24,5 +24,9 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  /* Tests run under `bun test`, which supplies the bun:test module at runtime.
+     They are not part of the app build, and including them here only makes the
+     app type-check fail on an import it will never see. */
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }
