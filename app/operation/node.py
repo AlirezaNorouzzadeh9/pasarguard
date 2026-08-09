@@ -79,6 +79,17 @@ _MULTI_INSTANCE_BACKENDS = {
     CoreType.openvpn: service.BackendType.OPENVPN,
 }
 
+# How long a core is given to come up.
+#
+# Deliberately not the node's default_timeout. That governs ordinary requests —
+# status queries, stats — and the model caps it at 60 seconds, which is right
+# for those. Starting a core is a different kind of work: every user for that
+# core is shipped to the node and the backend is built before the call returns.
+# A WireGuard core with a few thousand peers takes minutes, so borrowing the
+# request timeout meant every attempt was abandoned mid-way and retried, and
+# the core never finished coming up.
+_CORE_START_TIMEOUT = 600
+
 # Node ids with a connect already running.
 #
 # A plain (non-additive) Start tells the node a panel has just connected, so it
@@ -333,6 +344,7 @@ class NodeOperation(BaseOperation):
                     config=extra_core.to_str(),
                     backend_type=backend_type,
                     users=extra_users,
+                    timeout=_CORE_START_TIMEOUT,
                 )
                 logger.info(f'Added {extra_core.type} core "{core_id}" to "{db_node.name}" node')
             except NodeAPIError as e:
@@ -377,6 +389,10 @@ class NodeOperation(BaseOperation):
                 "backend_type": type,
                 "users": users,
                 "keep_alive": db_node.keep_alive,
+                # Same reasoning as the extra cores: the primary is built
+                # before this returns, and on a large node that outlasts any
+                # per-request timeout.
+                "timeout": _CORE_START_TIMEOUT,
             }
             if core.type == CoreType.xray:
                 start_kwargs["exclude_inbounds"] = core.exclude_inbound_tags
