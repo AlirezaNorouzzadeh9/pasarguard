@@ -3153,10 +3153,12 @@
       "sniDiscovered": "discovered from IP"
     },
     "openvpn": {
-      "listeners": "Extra listeners (optional)",
+      "listeners": "Listeners",
       "addListener": "Add listener",
       "portPlaceholder": "Port",
-      "listenersHint": "The node runs one OpenVPN server per entry, sharing this core's users and certificates, and splits the subnet between them. A single entry is ignored — the port above already covers that."
+      "listenersHint": "The node runs one OpenVPN server per entry, all sharing this core's users and certificates, and splits the server subnet between them.",
+      "subnetSplit": "{{count}} listener(s), each getting a /{{prefix}} out of {{subnet}}.",
+      "subnetTooSmall": "{{subnet}} is too small for {{count}} listeners — each would get a /{{prefix}}, and /24 is the floor. Use a wider subnet."
     }
   },
   "settings.cores.title": "Cores",
