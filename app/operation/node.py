@@ -77,6 +77,7 @@ logger = get_logger("node-operation")
 _MULTI_INSTANCE_BACKENDS = {
     CoreType.wg: service.BackendType.WIREGUARD,
     CoreType.openvpn: service.BackendType.OPENVPN,
+    CoreType.singbox: service.BackendType.SINGBOX,
 }
 
 # How long a core is given to come up.
