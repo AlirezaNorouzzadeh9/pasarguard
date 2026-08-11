@@ -758,6 +758,42 @@ install_node() {
             USE_REST=0
         fi
     fi
+    # Which backends should this host be prepared for?
+    #
+    # The image already ships every core, so these answers do not change what
+    # gets installed — they change what the host grants. OpenVPN opens
+    # /dev/net/tun directly and cannot start unless the device is passed
+    # through; WireGuard drives its interface through netlink and needs kernel
+    # support on the host instead. Asking here means a missing prerequisite is
+    # reported now, rather than when a user first tries to connect.
+    if [ "${INSTALL_WIREGUARD:-}" = "true" ]; then
+        ENABLE_WIREGUARD=1
+    elif [ "${INSTALL_WIREGUARD:-}" = "false" ]; then
+        ENABLE_WIREGUARD=0
+    elif [ "$AUTO_CONFIRM" = true ]; then
+        ENABLE_WIREGUARD=1
+    else
+        read -p "Do you want WireGuard support on this node? (Y/n): " -r want_wireguard
+        if [[ "$want_wireguard" =~ ^[Nn]$ ]]; then
+            ENABLE_WIREGUARD=0
+        else
+            ENABLE_WIREGUARD=1
+        fi
+    fi
+    if [ "${INSTALL_OPENVPN:-}" = "true" ]; then
+        ENABLE_OPENVPN=1
+    elif [ "${INSTALL_OPENVPN:-}" = "false" ]; then
+        ENABLE_OPENVPN=0
+    elif [ "$AUTO_CONFIRM" = true ]; then
+        ENABLE_OPENVPN=1
+    else
+        read -p "Do you want OpenVPN support on this node? (Y/n): " -r want_openvpn
+        if [[ "$want_openvpn" =~ ^[Nn]$ ]]; then
+            ENABLE_OPENVPN=0
+        else
+            ENABLE_OPENVPN=1
+        fi
+    fi
     get_occupied_ports
     if [ -n "${INSTALL_SERVICE_PORT:-}" ]; then
         SERVICE_PORT="$INSTALL_SERVICE_PORT"
@@ -865,9 +901,54 @@ install_node() {
             colorized_echo yellow "  ⚠ Failed to set image version (may not be critical)"
         fi
     fi
+    apply_backend_support "$service_name"
     # Final sync to ensure env has the correct SSL paths for custom names
     sync_env_ssl_paths
     colorized_echo green "✓ docker-compose.yml modified successfully"
+}
+# Grant the host resources each backend needs, and say plainly when the host
+# cannot provide one. Both cores otherwise start, report healthy, and only fail
+# once a user connects — which is a far more expensive way to find out.
+apply_backend_support() {
+    local service_name="$1"
+    colorized_echo blue "Configuring backend support..."
+    if [ "${ENABLE_WIREGUARD:-1}" -eq 1 ]; then
+        set_node_env PG_NODE_WG_HOST_ROUTING 1
+        if [ -d /sys/module/wireguard ] || modprobe wireguard 2>/dev/null; then
+            colorized_echo green "  ✓ WireGuard enabled (kernel support present)"
+        else
+            colorized_echo yellow "  ⚠ WireGuard enabled, but this host has no WireGuard kernel module."
+            colorized_echo yellow "    The node will run; a WireGuard core will fail to bring up its interface."
+        fi
+    else
+        set_node_env PG_NODE_WG_HOST_ROUTING 0
+        colorized_echo yellow "  • WireGuard support left off"
+    fi
+    if [ "${ENABLE_OPENVPN:-1}" -eq 1 ]; then
+        modprobe tun 2>/dev/null || true
+        if yq eval ".services[\"$service_name\"].devices = [\"/dev/net/tun\"]" -i "$APP_DIR/docker-compose.yml" 2>/dev/null; then
+            colorized_echo green "  ✓ OpenVPN enabled (/dev/net/tun passed to the container)"
+        else
+            colorized_echo red "  ✗ Could not grant /dev/net/tun — OpenVPN cores will not start."
+        fi
+        if [ ! -e /dev/net/tun ]; then
+            colorized_echo yellow "  ⚠ /dev/net/tun does not exist on this host; OpenVPN cores will not start."
+        fi
+    else
+        yq eval "del(.services[\"$service_name\"].devices)" -i "$APP_DIR/docker-compose.yml" 2>/dev/null || true
+        set_node_env PG_NODE_OPENVPN_HOST_ROUTING 0
+        colorized_echo yellow "  • OpenVPN support left off"
+    fi
+}
+# Set a key in the node .env whether it is currently absent, commented out, or
+# already set to something else.
+set_node_env() {
+    local key="$1" value="$2" file="$APP_DIR/.env"
+    if grep -qE "^[[:space:]]*#?[[:space:]]*${key}[[:space:]]*=" "$file" 2>/dev/null; then
+        sed -i -E "s|^[[:space:]]*#?[[:space:]]*${key}[[:space:]]*=.*|${key}= ${value}|" "$file"
+    else
+        echo "${key}= ${value}" >>"$file"
+    fi
 }
 uninstall_node_script() {
     if [ -f "/usr/local/bin/$APP_NAME" ]; then
@@ -1083,6 +1164,22 @@ install_command() {
         --san-entries)
             INSTALL_SAN_ENTRIES="$2"
             shift 2
+            ;;
+        --wireguard)
+            INSTALL_WIREGUARD=true
+            shift
+            ;;
+        --no-wireguard)
+            INSTALL_WIREGUARD=false
+            shift
+            ;;
+        --openvpn)
+            INSTALL_OPENVPN=true
+            shift
+            ;;
+        --no-openvpn)
+            INSTALL_OPENVPN=false
+            shift
             ;;
         *)
             echo "Unknown option: $1"
@@ -2036,6 +2133,10 @@ usage() {
     colorized_echo yellow "  --api-key KEY           $(tput sgr0)✓  Set API Key"
     colorized_echo yellow "  --use-rest              $(tput sgr0)✓  Use REST protocol instead of GRPC"
     colorized_echo yellow "  --use-grpc              $(tput sgr0)✓  Use GRPC protocol (default)"
+    colorized_echo yellow "  --wireguard             $(tput sgr0)✓  Enable WireGuard support (default)"
+    colorized_echo yellow "  --no-wireguard          $(tput sgr0)✓  Do not prepare the host for WireGuard"
+    colorized_echo yellow "  --openvpn               $(tput sgr0)✓  Enable OpenVPN support, grants /dev/net/tun (default)"
+    colorized_echo yellow "  --no-openvpn            $(tput sgr0)✓  Do not grant /dev/net/tun"
     colorized_echo yellow "  --service-port PORT     $(tput sgr0)✓  Set service port"
     colorized_echo yellow "  --cert-path PATH        $(tput sgr0)✓  Set public certificate path"
     colorized_echo yellow "  --key-path PATH         $(tput sgr0)✓  Set private key path"
