@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import useDirDetection from '@/hooks/use-dir-detection'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { DEFAULT_SINGBOX_CORE_CONFIG_JSON } from '@/lib/default-singbox-core-config'
 import { DEFAULT_XRAY_CORE_CONFIG_JSON } from '@/lib/default-xray-core-config'
 import {
   canGenerateShadowsocksPassword,
@@ -252,6 +253,10 @@ export default function CoreConfigModal({ isDialogOpen, onOpenChange, form, edit
         const keyPair = generateWireGuardKeyPair()
         setGeneratedWireGuardKeyPair(keyPair)
         defaultTemplate = createWireGuardCoreConfigJson(keyPair)
+      } else if (nextBackendType === 'singbox') {
+        // Without its own template this dropped an xray config into the editor,
+        // which the panel then refused to save.
+        defaultTemplate = DEFAULT_SINGBOX_CORE_CONFIG_JSON
       } else {
         defaultTemplate = DEFAULT_XRAY_CORE_CONFIG_JSON
       }
