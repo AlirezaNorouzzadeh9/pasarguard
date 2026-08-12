@@ -232,7 +232,12 @@ export default function CoreEditorPage() {
 
   useEffect(() => {
     if (isNew || !validId || !coreData || serverConfigJson === null) return
-    if (coreData.type === 'openvpn') return
+    // The structured editor understands xray's shape and WireGuard's. Handing
+    // it anything else throws while parsing — a sing-box inbound has `type`
+    // where xray has `protocol`, so the parse reads .includes on undefined,
+    // React unmounts the route, and the router lands the user on the login
+    // page with no indication that a config was ever opened.
+    if (coreData.type === 'openvpn' || coreData.type === 'singbox') return
     const state = useCoreEditorStore.getState()
     if (state.coreId !== coreData.id) {
       initFromCore(coreData)
