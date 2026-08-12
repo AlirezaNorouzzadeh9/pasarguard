@@ -178,3 +178,39 @@ def test_round_trip_keeps_resolved_inbounds():
     assert restored.inbounds == core.inbounds
     assert restored.inbounds_by_tag == core.inbounds_by_tag
     assert restored.type == core.type
+
+
+def test_idle_sessions_get_a_timeout_even_on_an_existing_core():
+    """Removing a user does not close a session they already hold.
+
+    xray has the same property — it drops the user from its validator and
+    leaves open connections alone — but there TCP keeps being remade, so it
+    barely shows. A QUIC session can outlive the user's quota by far longer, so
+    an idle timeout is applied when the config does not set one, bounding how
+    long a removed user can keep using a session they already have.
+    """
+    config = _config()
+    config["inbounds"][0].pop("udp_timeout", None)
+    core = SingBoxConfig(config)
+    assert core["inbounds"][0]["udp_timeout"] == "5m"
+
+
+def test_an_explicit_timeout_is_left_alone():
+    config = _config()
+    config["inbounds"][0]["udp_timeout"] = "30s"
+    core = SingBoxConfig(config)
+    assert core["inbounds"][0]["udp_timeout"] == "30s"
+
+
+def test_an_existing_core_rebuilt_from_storage_also_gets_the_timeout():
+    """Cores are rebuilt with validation skipped, which is where this was missed.
+
+    Applying the default only during validation meant it reached cores created
+    after the change and no others — leaving every core already running without
+    the one setting that bounds how long a removed user keeps a session.
+    """
+    stored = SingBoxConfig(_config()).to_json()
+    stored["config"]["inbounds"][0].pop("udp_timeout", None)
+
+    restored = SingBoxConfig.from_json(stored)
+    assert restored["inbounds"][0]["udp_timeout"] == "5m"

@@ -73,6 +73,7 @@ class SingBoxConfig(dict):
         if skip_validation:
             return
 
+        self._apply_session_defaults()
         self._validate()
         self._resolve_inbounds()
 
@@ -153,8 +154,21 @@ class SingBoxConfig(dict):
                 "created afterwards passes traffic that is counted against nobody"
             )
 
-    @staticmethod
-    def _validate_inbound(inbound: dict, tag: str):
+    # How long an idle Hysteria2 session is kept before sing-box drops it.
+    #
+    # Removing a user stops them authenticating again but does not close a
+    # session they already hold — xray behaves the same way, dropping a user
+    # from its validator and leaving open connections alone. There it is barely
+    # visible, because TCP connections keep being remade; a QUIC session can sit
+    # open far longer, so a user who ran out of data could keep using one.
+    #
+    # Ending an idle session forces a fresh handshake, which now fails. Applied
+    # to cores that do not set it rather than only to new ones, since the cores
+    # that most need it are the ones already running.
+    _DEFAULT_UDP_TIMEOUT = "5m"
+
+    @classmethod
+    def _validate_inbound(cls, inbound: dict, tag: str):
         port = inbound.get("listen_port")
         if not isinstance(port, int) or port <= 0 or port > 65535:
             raise ValueError(f"inbound '{tag}' needs a 'listen_port' between 1 and 65535")
@@ -264,11 +278,28 @@ class SingBoxConfig(dict):
             exclude_inbound_tags=set(data.get("exclude_inbound_tags") or []),
             skip_validation=True,
         )
+        # Validation is skipped here — this rebuilds a core that was already
+        # accepted — but the idle timeout still has to be applied, or it would
+        # only ever reach cores created after this change. The cores that need
+        # it most are the ones already running.
+        instance._apply_session_defaults()
         if "inbounds" in data:
             instance._inbounds = data["inbounds"]
         if "inbounds_by_tag" in data:
             instance._inbounds_by_tag = data["inbounds_by_tag"]
         return instance
+
+    def _apply_session_defaults(self) -> None:
+        """Set the idle timeout on any inbound that does not name one.
+
+        Kept separate from validation so it runs on both paths: a core being
+        saved, and a core being rebuilt from storage.
+        """
+        for inbound in self.get("inbounds") or []:
+            if not isinstance(inbound, dict):
+                continue
+            if str(inbound.get("type") or "").strip() in _SUPPORTED_INBOUNDS:
+                inbound.setdefault("udp_timeout", self._DEFAULT_UDP_TIMEOUT)
 
     def copy(self):
         return deepcopy(self)

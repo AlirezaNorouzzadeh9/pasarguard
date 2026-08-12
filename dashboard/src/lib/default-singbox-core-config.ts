@@ -49,6 +49,17 @@ export const DEFAULT_SINGBOX_CORE_CONFIG: Record<string, unknown> = {
       // The panel owns this list from here on — it is replaced at runtime
       // through the node, without restarting the process.
       users: [],
+      // Removing a user stops them authenticating again, but it does not close
+      // a session they already hold — neither here nor in xray, which drops a
+      // user from its validator and leaves open connections alone. On xray that
+      // is barely visible because TCP connections keep being remade; a QUIC
+      // session can sit open far longer, so a user who ran out of data could
+      // keep using one.
+      //
+      // An idle timeout closes it for them, which forces a fresh handshake that
+      // now fails. Five minutes is short enough to bound the leak and long
+      // enough not to churn sessions on a phone that briefly loses signal.
+      udp_timeout: '5m',
       obfs: {
         type: 'salamander',
         password: 'change-me',
