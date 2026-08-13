@@ -22,9 +22,17 @@ interface Props {
   coreId: number
   coreName: string
   config: unknown
+  excludeInboundTags?: string[] | null
+  fallbacksInboundTags?: string[] | null
 }
 
-export default function SingBoxCoreEditorPage({ coreId, coreName, config }: Props) {
+export default function SingBoxCoreEditorPage({
+  coreId,
+  coreName,
+  config,
+  excludeInboundTags,
+  fallbacksInboundTags,
+}: Props) {
   const { t } = useTranslation()
   const serverJson = useMemo(() => JSON.stringify(config ?? {}, null, 2), [config])
   const [draft, setDraft] = useState(serverJson)
@@ -63,7 +71,16 @@ export default function SingBoxCoreEditorPage({ coreId, coreName, config }: Prop
     try {
       await modifyCore.mutateAsync({
         coreId,
-        data: { name: coreName, type: 'singbox', config: parsed, exclude_inbound_tags: [], fallbacks_inbound_tags: [] },
+        // Sent back as they came. Hardcoding empty lists here cleared, on every
+        // save, any exclusion the core had — a setting this page does not show
+        // and therefore cannot be assumed absent.
+        data: {
+          name: coreName,
+          type: 'singbox',
+          config: parsed,
+          exclude_inbound_tags: excludeInboundTags ?? [],
+          fallbacks_inbound_tags: fallbacksInboundTags ?? [],
+        },
         // A sing-box core only takes effect when the node restarts it, and a
         // saved-but-not-applied config is the kind of difference nobody notices
         // until a user cannot connect.

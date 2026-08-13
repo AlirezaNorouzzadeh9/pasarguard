@@ -587,7 +587,13 @@ export default function CoreEditorPage() {
   if (isSingBoxCore && coreData) {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
-        <SingBoxCoreEditorPage coreId={coreData.id} coreName={coreData.name} config={coreData.config} />
+        <SingBoxCoreEditorPage
+          coreId={coreData.id}
+          coreName={coreData.name}
+          config={coreData.config}
+          excludeInboundTags={coreData.exclude_inbound_tags}
+          fallbacksInboundTags={coreData.fallbacks_inbound_tags}
+        />
       </div>
     )
   }
