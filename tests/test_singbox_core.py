@@ -214,3 +214,82 @@ def test_an_existing_core_rebuilt_from_storage_also_gets_the_timeout():
 
     restored = SingBoxConfig.from_json(stored)
     assert restored["inbounds"][0]["udp_timeout"] == "5m"
+
+
+def _vless(**over):
+    inbound = {
+        "type": "vless", "tag": "vl", "listen": "::", "listen_port": 8443,
+        "users": [{"name": "seed", "uuid": "11111111-2222-3333-4444-555555555555"}],
+        "tls": {"enabled": True, "server_name": "tt.example.ir",
+                "certificate_path": "/c.pem", "key_path": "/k.pem"},
+    }
+    inbound.update(over)
+    config = _config()
+    config["inbounds"] = [inbound]
+    return config
+
+
+def test_vless_is_described_for_the_link_builder():
+    """The panel already builds vless links; the core only has to name things
+    the way the existing builder expects."""
+    meta = SingBoxConfig(_vless()).inbounds_by_tag["vl"]
+    assert meta["protocol"] == "vless"
+    assert meta["port"] == 8443
+    assert meta["tls"] == "tls"
+    assert meta["network"] == "tcp"          # no transport block means plain tcp
+    assert meta["sni"] == ["tt.example.ir"]
+
+
+def test_a_transport_becomes_the_network():
+    meta = SingBoxConfig(_vless(transport={"type": "ws", "path": "/x"})).inbounds_by_tag["vl"]
+    assert meta["network"] == "ws"
+
+
+def test_stream_protocols_may_run_without_tls():
+    """Rejecting plaintext here would refuse a valid config: vless behind a
+    reverse proxy that terminates TLS is ordinary. Only QUIC needs it."""
+    core = SingBoxConfig(_vless(tls={"enabled": False}))
+    assert core.inbounds_by_tag["vl"]["tls"] == "none"
+
+
+def test_hysteria2_still_requires_tls():
+    config = _config()
+    config["inbounds"][0]["tls"] = {"enabled": False}
+    with pytest.raises(ValueError, match="requires TLS"):
+        SingBoxConfig(config)
+
+
+def test_tuic_is_not_offered_because_the_panel_cannot_render_it():
+    """The node can drive a tuic inbound, but ProxyProtocol has no tuic, so a
+    host on one would save and then render nothing."""
+    config = _config()
+    config["inbounds"] = [{
+        "type": "tuic", "tag": "tu", "listen_port": 443,
+        "users": [{"name": "a", "uuid": "11111111-2222-3333-4444-555555555555"}],
+        "tls": {"enabled": True},
+    }]
+    with pytest.raises(ValueError, match="no usable inbound"):
+        SingBoxConfig(config)
+
+
+def test_several_protocols_in_one_core():
+    config = _config()
+    config["inbounds"].append(_vless()["inbounds"][0])
+    core = SingBoxConfig(config)
+    assert sorted(core.inbounds) == ["hy2", "vl"]
+    assert core.inbounds_by_tag["hy2"]["protocol"] == "hysteria"
+    assert core.inbounds_by_tag["vl"]["protocol"] == "vless"
+
+
+def test_protocols_reflect_the_core_not_the_class():
+    """A core advertises what it serves. Returning every supported protocol
+    would tell the panel a node offers vless when the core has no vless
+    inbound."""
+    assert SingBoxConfig(_config()).protocols == frozenset((ProxyProtocol.hysteria,))
+    assert SingBoxConfig(_vless()).protocols == frozenset((ProxyProtocol.vless,))
+
+    both = _config()
+    both["inbounds"].append(_vless()["inbounds"][0])
+    assert SingBoxConfig(both).protocols == frozenset(
+        (ProxyProtocol.hysteria, ProxyProtocol.vless)
+    )

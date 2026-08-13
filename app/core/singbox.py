@@ -3,25 +3,34 @@ from __future__ import annotations
 import json
 from copy import deepcopy
 from pathlib import PosixPath
+from typing import ClassVar
 
 import commentjson
 
 from app.models.core import CoreType
 from app.models.protocol import ProxyProtocol
 
-# Only Hysteria2 for now. The node can replace an inbound's users at runtime
-# through PUT /inbounds/{tag}/users, and that endpoint is generic, but only the
-# Hysteria2 inbound has been given the exported UpdateUsers it calls. Listing a
-# protocol here before the node can drive it would produce a core that looks
-# assignable and then cannot take a user.
-_SUPPORTED_INBOUNDS = frozenset(("hysteria2",))
-
 # sing-box inbound type -> the protocol name the panel builds links for.
-# "hysteria" is what ProxyProtocol and LinkGenerator._build_hysteria call it;
-# both emit hysteria2:// URIs.
-_PROTOCOL_BY_TYPE = {"hysteria2": "hysteria"}
+#
+# Two things have to be true for a type to appear here, and they are different
+# requirements: the node must be able to replace that inbound's users at
+# runtime, and the panel must be able to describe it to a client.
+#
+# tuic satisfies the first and not the second — the node can drive it, but
+# ProxyProtocol has no tuic, so a host on a tuic inbound would save cleanly and
+# then render nothing. Listing it would produce a core that looks usable and
+# hands users an empty subscription.
+_PROTOCOL_BY_TYPE = {
+    # hysteria2 is named "hysteria" here because that is what ProxyProtocol and
+    # LinkGenerator._build_hysteria call it; both emit hysteria2:// URIs.
+    "hysteria2": "hysteria",
+    "vless": "vless",
+    "vmess": "vmess",
+    "trojan": "trojan",
+    "shadowsocks": "shadowsocks",
+}
 
-_PROTOCOLS = frozenset((ProxyProtocol.hysteria,))
+_SUPPORTED_INBOUNDS = frozenset(_PROTOCOL_BY_TYPE)
 
 
 class SingBoxConfig(dict):
@@ -167,15 +176,21 @@ class SingBoxConfig(dict):
     # that most need it are the ones already running.
     _DEFAULT_UDP_TIMEOUT = "5m"
 
+    # QUIC-based inbounds are encrypted end to end and sing-box refuses to start
+    # them without TLS. The stream protocols can legitimately run plaintext
+    # behind a reverse proxy, so requiring it there would reject valid configs.
+    _TLS_REQUIRED = frozenset(("hysteria2",))
+
     @classmethod
     def _validate_inbound(cls, inbound: dict, tag: str):
         port = inbound.get("listen_port")
         if not isinstance(port, int) or port <= 0 or port > 65535:
             raise ValueError(f"inbound '{tag}' needs a 'listen_port' between 1 and 65535")
 
+        inbound_type = str(inbound.get("type") or "").strip()
         tls = inbound.get("tls")
-        if not isinstance(tls, dict) or not tls.get("enabled"):
-            raise ValueError(f"inbound '{tag}' requires TLS; hysteria2 will not start without it")
+        if inbound_type in cls._TLS_REQUIRED and (not isinstance(tls, dict) or not tls.get("enabled")):
+            raise ValueError(f"inbound '{tag}' requires TLS; {inbound_type} will not start without it")
 
         obfs = inbound.get("obfs")
         if obfs is not None:
@@ -210,15 +225,14 @@ class SingBoxConfig(dict):
         """
         tls = inbound.get("tls") or {}
         server_name = str(tls.get("server_name") or "").strip()
+        tls_enabled = bool(tls.get("enabled"))
 
         return {
             "tag": tag,
             "protocol": _PROTOCOL_BY_TYPE[inbound_type],
             "port": inbound["listen_port"],
-            # xray reports a hysteria inbound's network as "hysteria"; the link
-            # builder keys its transport handling off this.
-            "network": "hysteria",
-            "tls": "tls",
+            "network": SingBoxConfig._network(inbound, inbound_type),
+            "tls": "tls" if tls_enabled else "none",
             "sni": [server_name] if server_name else [],
             "host": [],
             "path": "",
@@ -227,6 +241,33 @@ class SingBoxConfig(dict):
             "fallbacks": [],
             "finalmask": SingBoxConfig._finalmask(inbound),
         }
+
+    # sing-box transport type -> the network name the link builder keys off.
+    # Its names differ from xray's for two of them.
+    _NETWORK_BY_TRANSPORT: ClassVar[dict[str, str]] = {
+        "ws": "ws",
+        "grpc": "grpc",
+        "http": "tcp",
+        "httpupgrade": "httpupgrade",
+        "quic": "quic",
+    }
+
+    @staticmethod
+    def _network(inbound: dict, inbound_type: str) -> str:
+        """What the link builder should treat this inbound's transport as.
+
+        A QUIC protocol has no separate transport — xray reports a hysteria
+        inbound's network as "hysteria" and the link builder keys off that, so
+        the same name is used here. Everything else carries a transport block,
+        and without one it is plain TCP.
+        """
+        if inbound_type == "hysteria2":
+            return "hysteria"
+        transport = inbound.get("transport")
+        if not isinstance(transport, dict):
+            return "tcp"
+        kind = str(transport.get("type") or "").strip()
+        return SingBoxConfig._NETWORK_BY_TRANSPORT.get(kind, kind or "tcp")
 
     @staticmethod
     def _finalmask(inbound: dict) -> dict | None:
@@ -259,7 +300,18 @@ class SingBoxConfig(dict):
 
     @property
     def protocols(self) -> frozenset[ProxyProtocol]:
-        return _PROTOCOLS
+        """What this core actually serves, not what the class can support.
+
+        Callers use this to decide which protocols a node offers, so returning
+        the full supported set would advertise protocols this core has no
+        inbound for.
+        """
+        found = set()
+        for metadata in self._inbounds_by_tag.values():
+            protocol = ProxyProtocol.from_value(metadata.get("protocol"))
+            if protocol is not None:
+                found.add(protocol)
+        return frozenset(found)
 
     def to_json(self) -> dict:
         return {
