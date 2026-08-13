@@ -109,6 +109,13 @@ function CopyableValue({ value, label }: { value: string; label: string }) {
   )
 }
 
+/**
+ * The outlet this page renders into adds no padding of its own, so the page
+ * owns it — same as the WireGuard overview beside it, which is why the two line
+ * up rather than one sitting flush against the edge.
+ */
+const pageClass = 'flex w-full flex-col gap-4 px-4 py-4'
+
 export default function OpenVPNOverview() {
   const { t } = useTranslation()
   const dir = useDirDetection()
@@ -126,7 +133,7 @@ export default function OpenVPNOverview() {
 
   if (caLoading || coresLoading) {
     return (
-      <div className="flex flex-col gap-4">
+      <div dir={dir} className={pageClass}>
         <Skeleton className="h-56 w-full" />
         <Skeleton className="h-32 w-full" />
       </div>
@@ -137,14 +144,16 @@ export default function OpenVPNOverview() {
   // minted on first save, so there is nothing to show and nothing wrong.
   if (!ca?.ca_cert) {
     return (
-      <Card className="flex flex-col items-center gap-3 px-4 py-12 text-center">
-        <ShieldCheck className="text-muted-foreground/50 h-10 w-10" />
-        <p className="text-muted-foreground max-w-md text-sm">
-          {t('nodes.openvpn.noCa', {
-            defaultValue: 'No OpenVPN certificate authority yet. It is created automatically with your first OpenVPN core.',
-          })}
-        </p>
-      </Card>
+      <div dir={dir} className={pageClass}>
+        <Card className="flex flex-col items-center gap-3 px-4 py-12 text-center">
+          <ShieldCheck className="text-muted-foreground/50 h-10 w-10" />
+          <p className="text-muted-foreground max-w-md text-sm">
+            {t('nodes.openvpn.noCa', {
+              defaultValue: 'No OpenVPN certificate authority yet. It is created automatically with your first OpenVPN core.',
+            })}
+          </p>
+        </Card>
+      </div>
     )
   }
 
@@ -154,7 +163,7 @@ export default function OpenVPNOverview() {
   const StatusIcon = expired ? ShieldX : expiringSoon ? ShieldAlert : ShieldCheck
 
   return (
-    <div className="flex flex-col gap-4" dir={dir}>
+    <div dir={dir} className={pageClass}>
       <Card className={cn('px-4 py-4', expired && 'border-destructive/40', expiringSoon && 'border-amber-500/40')}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-center gap-2.5">
