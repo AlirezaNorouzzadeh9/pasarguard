@@ -49,6 +49,7 @@ import {
   Settings,
   Settings2,
   Share2Icon,
+  ShieldCheck,
   UserCog,
   UserKey,
   UserPlus,
@@ -98,6 +99,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             title: 'nodes.wireguard.title',
             url: '/nodes/wireguard',
             icon: Network,
+          },
+          // The page exists and the tab strip on /nodes already links to it,
+          // under the same permission — it was only missing here, so from the
+          // sidebar the section looked as though there was none.
+          {
+            title: 'nodes.openvpn.title',
+            url: '/nodes/openvpn',
+            icon: ShieldCheck,
           },
         ]
       : []),
