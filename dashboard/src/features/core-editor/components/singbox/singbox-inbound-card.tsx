@@ -1,9 +1,6 @@
-import { Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { UseFormReturn } from 'react-hook-form'
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -29,17 +26,16 @@ const SHADOWSOCKS_METHODS = [
 interface Props {
   form: UseFormReturn<SingBoxFormValues>
   index: number
-  onRemove: () => void
 }
 
 /**
- * One inbound.
+ * One inbound's fields, for the edit dialog.
  *
  * Only the fields that apply to the chosen protocol are shown: a transport on
  * hysteria2 or an obfuscation password on vless would be written into a config
  * that ignores them, which reads as a working setting that does nothing.
  */
-export function SingBoxInboundCard({ form, index, onRemove }: Props) {
+export function SingBoxInboundFields({ form, index }: Props) {
   const { t } = useTranslation()
   const type = form.watch(`inbounds.${index}.type`)
   const tlsEnabled = form.watch(`inbounds.${index}.tls.enabled`)
@@ -63,20 +59,8 @@ export function SingBoxInboundCard({ form, index, onRemove }: Props) {
   )
 
   return (
-    <div className="rounded-lg border bg-card p-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="font-mono text-[10px]">
-            {form.watch(`inbounds.${index}.tag`) || t('coreEditor.singbox.untagged', { defaultValue: 'no tag' })}
-          </Badge>
-          <span className="text-xs text-muted-foreground">{type}</span>
-        </div>
-        <Button type="button" variant="ghost" size="icon" onClick={onRemove} aria-label="remove inbound">
-          <Trash2 className="h-4 w-4 text-destructive" />
-        </Button>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div>
+      <div className="grid gap-3 sm:grid-cols-2">
         <FormField
           control={form.control}
           name={`inbounds.${index}.type`}
@@ -204,7 +188,7 @@ export function SingBoxInboundCard({ form, index, onRemove }: Props) {
       </div>
 
       {SUPPORTS_TRANSPORT.has(type) && (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <FormField
             control={form.control}
             name={`inbounds.${index}.transport_type`}

@@ -2,6 +2,7 @@ import { CoreCommandMenu } from '@/features/core-editor/components/shared/core-c
 import { CoreSectionTabs } from '@/features/core-editor/components/shell/core-section-sidebar'
 import { StickySaveBar } from '@/features/core-editor/components/shell/sticky-save-bar'
 import { cn } from '@/lib/utils'
+import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 interface CoreEditorLayoutProps {
@@ -19,16 +20,18 @@ interface CoreEditorLayoutProps {
   restartNodes: boolean
   onRestartChange: (v: boolean) => void
   className?: string
+  /** Section tabs driven from outside the editor store — see {@link CoreSectionTabs}. */
+  sections?: { items: { id: string; labelKey: string; defaultLabel: string; icon: LucideIcon }[]; active: string; onChange: (id: string) => void }
 }
 
-export function CoreEditorLayout({ header, sectionHeader, main, dirty, canSave, saveLabel, onSave, onDiscard, onCancel, saving, showRestart, restartNodes, onRestartChange, className }: CoreEditorLayoutProps) {
+export function CoreEditorLayout({ header, sectionHeader, main, dirty, canSave, saveLabel, onSave, onDiscard, onCancel, saving, showRestart, restartNodes, onRestartChange, className, sections }: CoreEditorLayoutProps) {
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col gap-0', className)}>
       <CoreCommandMenu />
       <div className="px-4 pt-3 pb-2 md:pt-6 md:pb-0">{header}</div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {sectionHeader}
-        <CoreSectionTabs />
+        <CoreSectionTabs items={sections?.items} active={sections?.active} onChange={sections?.onChange} />
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4">{main}</div>
       </div>
       <StickySaveBar

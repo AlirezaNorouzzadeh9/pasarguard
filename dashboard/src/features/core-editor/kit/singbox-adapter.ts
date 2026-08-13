@@ -224,6 +224,31 @@ function mergeInbound(original: Dict, form: InboundForm): Dict {
 }
 
 /**
+ * Fold the sections edited as raw JSON back into the config.
+ *
+ * A section the core does not have is shown as an empty object so there is
+ * something to type into. Writing that straight back would add `"route": {}` to
+ * a config that had no routing at all — a change nobody asked for, and one that
+ * makes an untouched core look edited the moment it is opened.
+ *
+ * `original` is not modified.
+ */
+export function withRawSections(original: unknown, sections: Record<string, unknown>): Dict {
+  const base: Dict = structuredClone(asDict(original))
+  for (const [key, parsed] of Object.entries(sections)) {
+    const isEmpty =
+      (Array.isArray(parsed) && parsed.length === 0) ||
+      (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) && Object.keys(parsed as Dict).length === 0)
+    if (!(key in asDict(original)) && isEmpty) {
+      delete base[key]
+      continue
+    }
+    base[key] = parsed
+  }
+  return base
+}
+
+/**
  * Write the form back over the config it came from.
  *
  * `original` is not modified.

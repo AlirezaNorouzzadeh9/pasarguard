@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { configToForm, formToConfig, newInboundForm, type SingBoxFormValues } from './singbox-adapter'
+import { configToForm, formToConfig, newInboundForm, withRawSections, type SingBoxFormValues } from './singbox-adapter'
 
 /**
  * The risk a form over sing-box carries is losing a key, not showing a wrong
@@ -149,6 +149,56 @@ describe('settings that fail quietly if got wrong', () => {
     const ss = after.inbounds.find((i: { tag: string }) => i.tag === 'ss')
     expect(ss.users.length).toBeGreaterThan(0)
     expect(ss.method).toBe('aes-128-gcm')
+  })
+})
+
+describe('the sections edited as raw JSON', () => {
+  // Found by opening a real core: it has no routing or dns, both tabs showed
+  // "{}" so there was something to type into, and saving wrote those empties
+  // back. The core gained two keys nobody asked for, and Save lit up on a
+  // config that had not been touched.
+
+  it('does not invent a section the core never had', () => {
+    const cfg = { inbounds: [], outbounds: [] }
+    const after = withRawSections(cfg, { route: {}, dns: {} })
+    expect('route' in after).toBe(false)
+    expect('dns' in after).toBe(false)
+  })
+
+  it('keeps an empty section that was already there', () => {
+    // Empty because someone emptied it, which is a different fact.
+    const cfg = { route: {}, inbounds: [] }
+    expect(withRawSections(cfg, { route: {} }).route).toEqual({})
+  })
+
+  it('writes a section once it has something in it', () => {
+    const after = withRawSections({ inbounds: [] }, { route: { final: 'direct' } })
+    expect(after.route).toEqual({ final: 'direct' })
+  })
+
+  it('replaces a section that already existed', () => {
+    const after = withRawSections({ dns: { servers: ['a'] } }, { dns: { servers: ['b'] } })
+    expect(after.dns).toEqual({ servers: ['b'] })
+  })
+
+  it('does not modify the config it was given', () => {
+    const cfg = { dns: { servers: ['a'] } }
+    withRawSections(cfg, { dns: { servers: ['b'] } })
+    expect(cfg.dns.servers).toEqual(['a'])
+  })
+
+  it('opening and saving a core with no routing or dns changes nothing', () => {
+    // The case that actually failed: the editor seeds each tab from the config,
+    // so a core without those sections seeds them as "{}" and hands that back.
+    const before: Record<string, any> = config()
+    delete before.route
+    delete before.dns
+
+    const after = formToConfig(withRawSections(before, { outbounds: before.outbounds, route: {}, dns: {} }), configToForm(before))
+
+    expect('route' in after).toBe(false)
+    expect('dns' in after).toBe(false)
+    expect(after).toEqual(formToConfig(before, configToForm(before)))
   })
 })
 
