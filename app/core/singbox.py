@@ -339,7 +339,28 @@ class SingBoxConfig(dict):
             instance._inbounds = data["inbounds"]
         if "inbounds_by_tag" in data:
             instance._inbounds_by_tag = data["inbounds_by_tag"]
+
+        # Those lists are a snapshot from when the core was last saved. If the
+        # config has moved on since — edited outside the API, or written by a
+        # version that resolved fewer inbound types — trusting the snapshot
+        # leaves the panel denying an inbound the node is already serving: a
+        # host on that tag is refused as "not found" while traffic flows through
+        # it. The check is cheap, so it is rebuilt rather than believed.
+        if instance._resolvable_tags() != set(instance._inbounds):
+            instance._resolve_inbounds()
         return instance
+
+    def _resolvable_tags(self) -> set[str]:
+        """The tags this config would expose if it were resolved right now."""
+        tags = set()
+        for inbound in self.get("inbounds") or []:
+            if not isinstance(inbound, dict):
+                continue
+            tag = str(inbound.get("tag") or "").strip()
+            kind = str(inbound.get("type") or "").strip()
+            if tag and kind in _SUPPORTED_INBOUNDS and tag not in self.exclude_inbound_tags:
+                tags.add(tag)
+        return tags
 
     def _apply_session_defaults(self) -> None:
         """Set the idle timeout on any inbound that does not name one.

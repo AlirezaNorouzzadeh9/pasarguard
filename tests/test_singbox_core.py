@@ -293,3 +293,32 @@ def test_protocols_reflect_the_core_not_the_class():
     assert SingBoxConfig(both).protocols == frozenset(
         (ProxyProtocol.hysteria, ProxyProtocol.vless)
     )
+
+
+def test_a_stale_snapshot_is_rebuilt_rather_than_believed():
+    """Cores are rebuilt from a snapshot taken when they were last saved.
+
+    If the config has moved on since — edited outside the API, or written by a
+    version that resolved fewer inbound types — believing the snapshot leaves
+    the panel denying an inbound the node is already serving. A host on that tag
+    is refused as "not found" while traffic flows through it.
+    """
+    core = SingBoxConfig(_config())
+    stored = core.to_json()
+
+    # A vless inbound reaches the config without going through validation.
+    stored["config"]["inbounds"].append(_vless()["inbounds"][0])
+
+    restored = SingBoxConfig.from_json(stored)
+    assert sorted(restored.inbounds) == ["hy2", "vl"]
+    assert restored.inbounds_by_tag["vl"]["protocol"] == "vless"
+
+
+def test_a_snapshot_that_still_matches_is_kept():
+    """Rebuilding every time would throw away resolved metadata for no reason."""
+    core = SingBoxConfig(_config())
+    stored = core.to_json()
+    stored["inbounds_by_tag"]["hy2"]["remark"] = "carried through"
+
+    restored = SingBoxConfig.from_json(stored)
+    assert restored.inbounds_by_tag["hy2"]["remark"] == "carried through"
