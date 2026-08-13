@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowUpFromLine, Plus, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, ArrowUpFromLine, ShieldCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -314,12 +314,6 @@ export default function SingBoxCoreEditorPage({
                 })}
                 searchPlaceholder={t('search')}
                 getSearchableText={row => `${row.tag} ${row.type} ${row.listen_port}`}
-                toolbarActions={
-                  <Button type="button" variant="outline" size="sm" onClick={addInbound}>
-                    <Plus className="me-1 h-4 w-4" />
-                    {t('coreEditor.singbox.addInbound', { defaultValue: 'Add inbound' })}
-                  </Button>
-                }
               />
             )}
 
