@@ -532,17 +532,21 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
                     )}
                   />
 
-                  {/* WireGuard and OpenVPN cores each run as their own process with
-                      their own ports, so a node can serve several at once. Xray is
-                      one process per node — a second would replace the first rather
-                      than run alongside it.
+                  {/* WireGuard, OpenVPN and sing-box cores each run as their own
+                      process with their own ports, so a node can serve several at
+                      once. Xray is one process per node — a second would replace
+                      the first rather than run alongside it, which is why it is
+                      absent here and can only ever be the primary core.
 
                       Keep this list in step with _MULTI_INSTANCE_BACKENDS on the
                       panel: a type missing here is not just hidden, it is dropped
-                      from the node the next time this form is saved. */}
+                      from the node the next time this form is saved. sing-box was
+                      missing, so a node could not be given one alongside an xray
+                      core from this screen at all — the option simply never
+                      appeared, and running both looked like it needed two nodes. */}
                   {(() => {
                     const primaryId = form.watch('core_config_id')
-                    const MULTI_INSTANCE_TYPES = ['wg', 'openvpn']
+                    const MULTI_INSTANCE_TYPES = ['wg', 'openvpn', 'singbox']
                     const extraCores = cores?.filter((core: CoreSimple) => MULTI_INSTANCE_TYPES.includes(core.type ?? '') && core.id !== primaryId) ?? []
                     if (extraCores.length === 0) return null
 
@@ -567,7 +571,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
                                     />
                                     <span>{core.name}</span>
                                     <span className="text-muted-foreground bg-muted rounded px-1.5 py-0.5 font-mono text-[10px] uppercase">
-                                      {core.type === 'wg' ? 'WireGuard' : core.type}
+                                      {core.type === 'wg' ? 'WireGuard' : core.type === 'singbox' ? 'sing-box' : core.type}
                                     </span>
                                   </label>
                                 )
