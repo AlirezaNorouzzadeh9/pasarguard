@@ -174,12 +174,25 @@ class SingBoxConfig(dict):
     # Ending an idle session forces a fresh handshake, which now fails. Applied
     # to cores that do not set it rather than only to new ones, since the cores
     # that most need it are the ones already running.
+    #
+    # Set on every supported inbound rather than only the QUIC ones: sing-box
+    # accepts it on all of them, and carving out exceptions would mean tracking
+    # which protocols gain UDP support in later releases. It only changes
+    # behaviour where there are UDP sessions to time out.
     _DEFAULT_UDP_TIMEOUT = "5m"
 
     # QUIC-based inbounds are encrypted end to end and sing-box refuses to start
     # them without TLS. The stream protocols can legitimately run plaintext
     # behind a reverse proxy, so requiring it there would reject valid configs.
     _TLS_REQUIRED = frozenset(("hysteria2",))
+
+    # Inbounds whose users list decides which implementation sing-box builds.
+    #
+    # shadowsocks is the one: a non-empty list gives the multi-user inbound, an
+    # empty one gives the single-user inbound — and that one cannot be given
+    # users afterwards. The list here is only a seed; the node replaces it at
+    # runtime.
+    _SEED_USER_REQUIRED = frozenset(("shadowsocks",))
 
     @classmethod
     def _validate_inbound(cls, inbound: dict, tag: str):
@@ -200,6 +213,19 @@ class SingBoxConfig(dict):
                 raise ValueError(f"inbound '{tag}': the only supported obfs type is salamander")
             if not str(obfs.get("password") or "").strip():
                 raise ValueError(f"inbound '{tag}': obfs is set but has no password")
+
+        # Refused here because the consequence is not local to this inbound: the
+        # node's user push is rejected, its start fails, and it stops the core —
+        # so every other inbound beside this one goes down for a mistake in it.
+        if inbound_type in cls._SEED_USER_REQUIRED:
+            users = inbound.get("users")
+            if not isinstance(users, list) or not users:
+                raise ValueError(
+                    f"inbound '{tag}': {inbound_type} needs at least one entry in 'users'. "
+                    "sing-box builds its single-user inbound when that list is empty and users "
+                    "cannot be added to it afterwards, so the node would stop this core and "
+                    "every other inbound on it"
+                )
 
     # ---------------------------------------------------------------- inbounds
 

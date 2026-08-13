@@ -259,6 +259,47 @@ def test_hysteria2_still_requires_tls():
         SingBoxConfig(config)
 
 
+def _shadowsocks(users):
+    config = _config()
+    config["inbounds"] = [
+        {
+            "type": "shadowsocks", "tag": "ss", "listen": "::", "listen_port": 8388,
+            "method": "aes-128-gcm", "users": users,
+        }
+    ]
+    return config
+
+
+def test_a_shadowsocks_inbound_without_users_is_rejected():
+    """The one mistake in this config that takes the whole core down.
+
+    sing-box picks its multi-user shadowsocks inbound only when the users list
+    is non-empty. The single-user one it picks otherwise has no way to be given
+    users later, so the node's push is refused, its start fails, and it stops
+    the core — every other inbound beside it goes down for this one's sake.
+    """
+    with pytest.raises(ValueError, match="at least one entry in 'users'"):
+        SingBoxConfig(_shadowsocks([]))
+
+    with pytest.raises(ValueError, match="at least one entry in 'users'"):
+        SingBoxConfig(_shadowsocks(None))
+
+
+def test_a_shadowsocks_inbound_with_a_seed_user_is_accepted():
+    # The list is only a seed; the node replaces it at runtime.
+    core = SingBoxConfig(_shadowsocks([{"name": "seed", "password": "c2VlZA=="}]))
+    assert core.inbounds == ["ss"]
+    assert core.inbounds_by_tag["ss"]["protocol"] == "shadowsocks"
+
+
+def test_other_protocols_do_not_need_a_seed_user():
+    """Only shadowsocks changes implementation based on that list, so requiring
+    it everywhere would reject configs that work."""
+    config = _vless()
+    config["inbounds"][0]["users"] = []
+    assert SingBoxConfig(config).inbounds == ["vl"]
+
+
 def test_tuic_is_not_offered_because_the_panel_cannot_render_it():
     """The node can drive a tuic inbound, but ProxyProtocol has no tuic, so a
     host on one would save and then render nothing."""
