@@ -9,9 +9,8 @@ import type { ColumnDef } from '@tanstack/react-table'
 import PageHeader from '@/components/layout/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
+import { Form } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { CoreEditorDataTable } from '@/features/core-editor/components/shared/core-editor-data-table'
 import { CoreEditorFormDialog } from '@/features/core-editor/components/shared/core-editor-form-dialog'
 import { JsonCodeEditorPanel } from '@/features/core-editor/components/shared/json-code-editor-panel'
@@ -77,6 +76,12 @@ export default function SingBoxCoreEditorPage({
   const [outbounds, setOutbounds] = useState<Dict[]>(() => (Array.isArray(original.outbounds) ? original.outbounds : []))
   const [routeText, setRouteText] = useState(() => pretty(original.route))
   const [dnsText, setDnsText] = useState(() => pretty(original.dns))
+  // The APIs the node drives the core through, plus logging. Raw JSON rather
+  // than fields: sing-box keeps growing settings here, and a form would quietly
+  // drop the ones it had not been taught.
+  const [advancedText, setAdvancedText] = useState(() =>
+    JSON.stringify({ log: original.log ?? {}, experimental: original.experimental ?? {} }, null, 2),
+  )
 
   const [editingInbound, setEditingInbound] = useState<number | null>(null)
   const [editingOutbound, setEditingOutbound] = useState<number | null>(null)
@@ -96,7 +101,8 @@ export default function SingBoxCoreEditorPage({
   }
   const route = parse(routeText)
   const dns = parse(dnsText)
-  const jsonError = route.error ?? dns.error
+  const advanced = parse(advancedText)
+  const jsonError = route.error ?? dns.error ?? advanced.error
 
   const nextConfig = useMemo(() => {
     const raw: Record<string, unknown> = { outbounds }
@@ -104,10 +110,15 @@ export default function SingBoxCoreEditorPage({
     // had, rather than being written as garbage while it is mid-edit.
     if (!route.error) raw.route = route.value
     if (!dns.error) raw.dns = dns.value
+    if (!advanced.error) {
+      const block = asDict(advanced.value)
+      raw.log = block.log ?? {}
+      raw.experimental = block.experimental ?? {}
+    }
     return formToConfig(withRawSections(original, raw), values)
-    // route/dns are re-parsed from their text on every render; the text is the
-    // dependency, not the parsed value.
-  }, [original, outbounds, routeText, dnsText, values])
+    // The JSON sections are re-parsed from their text on every render; the text
+    // is the dependency, not the parsed value.
+  }, [original, outbounds, routeText, dnsText, advancedText, values])
 
   const dirty = useMemo(() => JSON.stringify(nextConfig) !== JSON.stringify(original), [nextConfig, original])
 
@@ -116,6 +127,7 @@ export default function SingBoxCoreEditorPage({
     setOutbounds(Array.isArray(original.outbounds) ? original.outbounds : [])
     setRouteText(pretty(original.route))
     setDnsText(pretty(original.dns))
+    setAdvancedText(JSON.stringify({ log: original.log ?? {}, experimental: original.experimental ?? {} }, null, 2))
   }
 
   const save = async () => {
@@ -351,76 +363,18 @@ export default function SingBoxCoreEditorPage({
             )}
 
             {section === 'advanced' && (
-              <div className="rounded-lg border bg-card p-4">
-                <p className="text-muted-foreground mb-3 text-[11px]">
+              <div className="space-y-2">
+                <p className="text-muted-foreground text-[11px]">
                   {t('coreEditor.singbox.apiHint', {
                     defaultValue:
-                      'Users are pushed over clash_api and usage is read over v2ray_api. A core missing either starts and looks healthy while serving nobody or counting nothing.',
+                      'Users are pushed over clash_api and usage is read over v2ray_api. A core missing either starts and looks healthy while serving nobody or counting nothing. The stats block is kept in step with the inbounds on save.',
                   })}
                 </p>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <FormField
-                    control={form.control}
-                    name="clash_external_controller"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">clash_api</FormLabel>
-                        <FormControl>
-                          <Input {...field} dir="ltr" className="text-xs" placeholder="127.0.0.1:9090" />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="clash_secret"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">{t('coreEditor.singbox.secret', { defaultValue: 'Secret' })}</FormLabel>
-                        <FormControl>
-                          <Input {...field} dir="ltr" className="text-xs" />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="v2ray_listen"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">v2ray_api</FormLabel>
-                        <FormControl>
-                          <Input {...field} dir="ltr" className="text-xs" placeholder="127.0.0.1:8080" />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="log_level"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">{t('coreEditor.singbox.logLevel', { defaultValue: 'Log level' })}</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <FormControl>
-                            <SelectTrigger className="text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'panic'].map(level => (
-                              <SelectItem key={level} value={level}>
-                                {level}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                {advanced.error && <p className="text-destructive text-xs">{advanced.error}</p>}
+                <JsonCodeEditorPanel value={advancedText} onChange={setAdvancedText} className="min-h-[24rem]" />
               </div>
             )}
+
           </div>
         }
         dirty={dirty}

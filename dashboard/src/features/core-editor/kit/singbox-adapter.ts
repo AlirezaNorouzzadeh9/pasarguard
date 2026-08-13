@@ -55,10 +55,6 @@ export interface InboundForm {
 }
 
 export interface SingBoxFormValues {
-  log_level: string
-  clash_external_controller: string
-  clash_secret: string
-  v2ray_listen: string
   inbounds: InboundForm[]
 }
 
@@ -91,9 +87,6 @@ export const newInboundForm = (type: SingBoxInboundType = 'vless'): InboundForm 
 
 export function configToForm(config: unknown): SingBoxFormValues {
   const cfg = asDict(config)
-  const experimental = asDict(cfg.experimental)
-  const clash = asDict(experimental.clash_api)
-  const v2ray = asDict(experimental.v2ray_api)
   const rawInbounds = Array.isArray(cfg.inbounds) ? cfg.inbounds : []
 
   const inbounds: InboundForm[] = []
@@ -130,13 +123,7 @@ export function configToForm(config: unknown): SingBoxFormValues {
     })
   })
 
-  return {
-    log_level: str(asDict(cfg.log).level) || 'info',
-    clash_external_controller: str(clash.external_controller),
-    clash_secret: str(clash.secret),
-    v2ray_listen: str(v2ray.listen),
-    inbounds,
-  }
+  return { inbounds }
 }
 
 const splitList = (raw: string): string[] =>
@@ -267,24 +254,24 @@ export function formToConfig(original: unknown, values: SingBoxFormValues): Dict
     ...values.inbounds.map(row => mergeInbound(row.sourceIndex === null ? {} : asDict(rawInbounds[row.sourceIndex]), row)),
   ]
 
-  cfg.log = { ...asDict(cfg.log), level: values.log_level }
-
+  // log and clash_api are edited as raw JSON in the Advanced section and are
+  // not rewritten here. Stats are the exception: both settings below fail
+  // silently rather than being refused, and both depend on the inbound list
+  // this function has just rebuilt.
   const experimental: Dict = { ...asDict(cfg.experimental) }
-  experimental.clash_api = {
-    ...asDict(experimental.clash_api),
-    external_controller: values.clash_external_controller.trim(),
-    secret: values.clash_secret,
-  }
-
   const v2ray: Dict = { ...asDict(experimental.v2ray_api) }
-  v2ray.listen = values.v2ray_listen.trim()
+  const stats: Dict = { ...asDict(v2ray.stats) }
+  const users = Array.isArray(stats.users) ? stats.users.map(String) : []
   v2ray.stats = {
-    ...asDict(v2ray.stats),
+    ...stats,
     enabled: true,
     // Read once at startup, so naming users individually would leave everyone
-    // created later passing traffic counted against nobody. The panel rejects
-    // anything else, and there is no reason to offer it as a choice.
-    users: ['*'],
+    // created later passing traffic counted against nobody. Anything else is
+    // rejected by the panel, so it is ensured rather than left to be typed —
+    // any other entries someone added are kept alongside it.
+    users: users.includes('*') ? users : ['*', ...users],
+    // A tag missing from this list passes traffic counted against nobody, and
+    // the list has to follow inbounds being added or renamed.
     inbounds: (cfg.inbounds as Dict[]).map(inbound => str(inbound.tag)).filter(Boolean),
   }
   experimental.v2ray_api = v2ray

@@ -50,7 +50,14 @@ describe('reading a config into the form', () => {
     expect(hy2.tls.enabled).toBe(true)
     expect(hy2.tls.server_name).toBe('a.example')
     expect(hy2.obfs_password).toBe('abcdef')
-    expect(form.clash_external_controller).toBe('127.0.0.1:9090')
+  })
+
+  it('leaves log and the api block alone — they are edited as JSON', () => {
+    const before = config()
+    const after = formToConfig(before, configToForm(before))
+    expect(after.log).toEqual(before.log)
+    expect(after.experimental.clash_api).toEqual(before.experimental.clash_api)
+    expect(after.experimental.v2ray_api.listen).toBe(before.experimental.v2ray_api.listen)
   })
 
   it('leaves an inbound it cannot describe out of the form', () => {
@@ -121,6 +128,23 @@ describe('settings that fail quietly if got wrong', () => {
     const after = formToConfig(before, configToForm(before))
     expect(after.experimental.v2ray_api.stats.users).toEqual(['*'])
     expect(after.experimental.v2ray_api.stats.enabled).toBe(true)
+  })
+
+  it('adds the wildcard to a stats list edited by hand, without dropping it', () => {
+    // The block is raw JSON now, so someone can type a name into it. The panel
+    // rejects a list without "*", and silently discarding what they wrote would
+    // be its own surprise — so it is added alongside.
+    const before: Record<string, any> = config()
+    before.experimental.v2ray_api.stats.users = ['alice']
+    const after = formToConfig(before, configToForm(before))
+    expect(after.experimental.v2ray_api.stats.users).toEqual(['*', 'alice'])
+  })
+
+  it('does not stack wildcards when saved repeatedly', () => {
+    const before = config()
+    const once = formToConfig(before, configToForm(before))
+    const twice = formToConfig(once, configToForm(once))
+    expect(twice.experimental.v2ray_api.stats.users).toEqual(['*'])
   })
 
   it('records every inbound tag for stats, including ones just added', () => {
