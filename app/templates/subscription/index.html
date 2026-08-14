@@ -103,6 +103,21 @@ button{font-family:inherit;cursor:pointer}
 .oslist{display:none}
 .oslist.on{display:grid}
 
+/* servers: one table per protocol, switched by a full-width segmented control */
+.ptab{flex:1;display:flex;align-items:center;height:40px;justify-content:center;gap:8px;border-radius:11px;border:1px solid transparent;font-size:13.5px;font-weight:700;background:transparent;color:var(--dim)}
+.ptab.on{background:var(--navon);border-color:var(--softline);color:var(--text)}
+.pdot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.pcount{font-size:11px;font-weight:700;color:var(--dim)}
+.slist{max-height:420px;overflow-y:auto}
+.srow{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--line)}
+.srow:last-child{border-bottom:none}
+.pg-flag{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;font-size:27px;line-height:1;flex-shrink:0;box-shadow:inset 0 0 0 1px var(--cardline);font-family:"Twemoji Country Flags","Vazirmatn",sans-serif}
+.ptag{font-family:ui-monospace,"JetBrains Mono",monospace;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--softtext);background:var(--soft);padding:3px 8px;border-radius:6px;flex-shrink:0}
+.actcopy{display:flex;align-items:center;gap:6px;height:32px;padding:0 13px;border-radius:10px;background:var(--soft);border:1px solid var(--softline);color:var(--softtext);font-size:12px;font-weight:700;white-space:nowrap}
+.acticon{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:10px;background:var(--btn);border:1px solid var(--btnline);color:var(--text2);flex-shrink:0}
+.cbar{width:34%;border-radius:3px 3px 0 0;background:linear-gradient(180deg,var(--accent),var(--accent2));animation:pggrow .5s ease}
+.cbarcell{flex:1;display:flex;align-items:flex-end;justify-content:center;height:100%}
+
 @media(min-width:900px){
   .hdr-desktop{display:flex}
   .hdr-mobile{display:none}
@@ -300,7 +315,7 @@ button{font-family:inherit;cursor:pointer}
 
     <!-- usage -->
     <div class="card" style="padding:22px 24px">
-      <div class="row" style="justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+      <div class="row" style="justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
         <div class="row" style="align-items:baseline;gap:12px">
           <div style="font-size:15px;font-weight:800" data-i18n="usageChart">آمار مصرف</div>
           <div dir="ltr" class="pg-mono num-fa" id="chartTotal" style="font-size:14px;font-weight:800;color:var(--accent)">—</div>
@@ -311,29 +326,42 @@ button{font-family:inherit;cursor:pointer}
         </div>
       </div>
 
-      <div class="row" style="justify-content:center;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+      <div class="row" style="justify-content:center;gap:8px;margin-bottom:22px;flex-wrap:wrap">
         <button class="pill" id="r1d" onclick="setRange('1d')" data-i18n="r24h">۲۴ ساعت</button>
         <button class="pill on" id="r7d" onclick="setRange('7d')" data-i18n="r7d">۷ روز</button>
         <button class="pill" id="r30d" onclick="setRange('30d')" data-i18n="r30d">۳۰ روز</button>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr auto;gap:12px">
-        <div style="position:relative;height:200px" id="chartArea">
-          <div id="chartBars" style="position:absolute;inset:0;display:flex;align-items:flex-end;gap:6px"></div>
-          <svg id="chartLine" style="position:absolute;inset:0;width:100%;height:100%;display:none" preserveAspectRatio="none"></svg>
+      {# Bars and the value axis share one grid, and the tick row repeats it
+         with an empty cell under the axis — otherwise every label sits one
+         axis-width off from the column it belongs to. #}
+      <div id="barWrap">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:12px">
+          <div style="position:relative;height:200px">
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between">
+              <div style="height:1px;background:var(--line2)"></div>
+              <div style="height:1px;background:var(--line2)"></div>
+              <div style="height:1px;background:var(--line2)"></div>
+              <div style="height:1px;background:var(--line2)"></div>
+              <div style="height:1px;background:var(--cardline)"></div>
+            </div>
+            <div id="chartBars" dir="ltr" style="position:absolute;inset:0;display:flex;align-items:flex-end"></div>
+          </div>
+          <div id="chartAxis" dir="ltr" class="pg-mono num-fa" style="display:flex;flex-direction:column;justify-content:space-between;height:200px;font-size:10.5px;color:var(--dim3);font-weight:600;white-space:nowrap"></div>
         </div>
-        <div id="chartAxis" class="pg-mono num-fa" style="display:flex;flex-direction:column;justify-content:space-between;font-size:10px;color:var(--dim3);text-align:start;min-width:52px"></div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;margin-top:10px">
+          <div id="chartTicks" dir="ltr" class="row num-fa" style="justify-content:space-between"></div>
+          <span id="chartTickPad"></span>
+        </div>
       </div>
-      <div id="chartTicks" class="row num-fa" style="gap:6px;margin-top:8px;font-size:10px;color:var(--dim3)"></div>
-    </div>
 
-    <!-- subscription link -->
-    <div class="card" style="padding:18px 20px">
-      <div style="font-size:13px;font-weight:800;margin-bottom:10px" data-i18n="subLink">لینک اشتراک اختصاصی شما</div>
-      <div class="row" style="gap:8px;flex-wrap:wrap">
-        <input id="subInput" readonly dir="ltr" class="pg-mono" style="flex:1;min-width:200px;background:var(--card2);border:1px solid var(--cardline);border-radius:12px;padding:11px 13px;color:var(--text2);font-size:12px">
-        <button class="iconbtn" onclick="copySub()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="13" height="13" x="9" y="9" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span data-i18n="copyLink">کپی لینک</span></button>
-        <button class="iconbtn" onclick="qrSub(event)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3M21 21v.01M12 7v3a2 2 0 0 1-2 2H7M3 12h.01M12 3h.01M12 16v.01M16 12h1M21 12v.01M12 21v-1"/></svg>QR</button>
+      <div id="lineWrap" style="display:none">
+        <div class="row" style="justify-content:space-between;margin-bottom:18px">
+          <span id="lineRangeLabel" style="font-size:11.5px;color:var(--dim2);font-weight:600"></span>
+          <span dir="ltr" id="lineTotal" class="pg-mono num-fa" style="font-size:12.5px;font-weight:700;color:var(--text2)"></span>
+        </div>
+        <svg id="chartLine" viewBox="0 0 600 150" width="100%" height="200" preserveAspectRatio="none" style="display:block;overflow:visible"></svg>
+        <div id="lineTicks" dir="ltr" class="row num-fa" style="justify-content:space-between;margin-top:10px;font-size:10.5px;color:var(--dim3);font-weight:600"></div>
       </div>
     </div>
   </section>
@@ -341,6 +369,23 @@ button{font-family:inherit;cursor:pointer}
   <!-- ------------------------------------------------------------ servers -->
   <section class="pane" id="pane-servers">
     <h1 style="margin:0 0 2px;font-size:22px;font-weight:800;letter-spacing:-.4px" data-i18n="servers">سرورها</h1>
+
+    {# The link itself is never printed. Anyone glancing at the screen would
+       otherwise have the whole subscription; copying or scanning it does not
+       put it on display. #}
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:16px;border-radius:20px;padding:13px 16px;flex-wrap:wrap">
+      <div class="row" style="gap:14px;min-width:0">
+        <button id="qrThumb" title="بزرگ‌نمایی" onclick="qrSub(event)" style="width:58px;height:58px;border-radius:13px;background:#fff;padding:6px;flex-shrink:0;border:1px solid var(--cardline)"></button>
+        <div style="min-width:0">
+          <div style="font-size:14px;font-weight:800" data-i18n="subLink">لینک اشتراک اختصاصی شما</div>
+          <div style="font-size:11.5px;color:var(--dim2);margin-top:4px" data-i18n="subHidden">برای امنیت، لینک نمایش داده نمی‌شود — کپی کنید یا QR را اسکن کنید</div>
+        </div>
+      </div>
+      <button onclick="copySub()" style="display:flex;align-items:center;gap:8px;height:42px;padding:0 22px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;font-size:13.5px;font-weight:700;flex-shrink:0">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+        <span style="white-space:nowrap" data-i18n="copyLink">کپی لینک</span>
+      </button>
+    </div>
 
     {% if not can_use %}
       <div class="card" style="padding:26px;text-align:center">
@@ -357,88 +402,92 @@ button{font-family:inherit;cursor:pointer}
       {% if wireguard_configs %}{% set _ = protos.append(('wg','WireGuard', wireguard_configs|length)) %}{% endif %}
       {% if openvpn_configs %}{% set _ = protos.append(('ov','OpenVPN', openvpn_configs|length)) %}{% endif %}
 
-      {% if protos|length > 1 %}
-      <div class="row" style="gap:8px;flex-wrap:wrap">
+      {% if protos %}
+      <div class="row" style="gap:4px;background:var(--seg);border:1px solid var(--segline);border-radius:14px;padding:4px">
         {% for id,name,cnt in protos %}
-        <button class="pill{{ ' on' if id == pf.first else '' }}" data-proto-tab="{{ id }}" onclick="showProto('{{ id }}')">{{ name }} <bdi class="num-fa">({{ cnt }})</bdi></button>
+        <button class="ptab{{ ' on' if id == pf.first else '' }}" data-proto-tab="{{ id }}" onclick="showProto('{{ id }}')">
+          <span class="pdot"></span>{{ name }}<span class="pg-mono num-fa pcount">{{ cnt }}</span>
+        </button>
         {% endfor %}
       </div>
       {% endif %}
 
-      {% if xray_links %}
-      <div class="pproto{{ ' on' if pf.first == 'xray' else '' }}" data-proto="xray" style="flex-direction:column;gap:10px">
-        <div class="row" style="justify-content:space-between;font-size:11px;font-weight:700;color:var(--dim2);padding:0 6px">
-          <span data-i18n="colServer">سرور</span><span data-i18n="colAction">اکشن</span>
-        </div>
-        <div class="srvgrid" style="display:grid;gap:10px">
-        {% for link in xray_links %}
-          {% set scheme = (link.split('://')[0]) if '://' in link else 'sub' %}
-          {% set nm = (link.split('#')[-1]) if '#' in link else scheme %}
-          <div class="srv" data-xray="{{ link }}">
-            <div class="row" style="gap:10px;min-width:0">
-              <span class="pg-flag" data-flagfor="{{ nm|e }}" style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Twemoji Country Flags','Vazirmatn',sans-serif;font-size:30px;line-height:1;flex-shrink:0"></span>
-              <div style="min-width:0">
-                <div style="font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><bdi class="srv-name">{{ nm }}</bdi></div>
-                <div class="pg-mono" style="font-size:10px;color:var(--dim3);text-transform:uppercase">{{ scheme }}</div>
+      {% for id,name,cnt in protos %}
+      <div class="pproto{{ ' on' if id == pf.first else '' }}" data-proto="{{ id }}" style="flex-direction:column">
+        <div class="card" style="border-radius:18px;overflow:hidden;padding:0">
+          <div class="row" style="justify-content:space-between;gap:16px;padding:13px 18px;border-bottom:1px solid var(--line);background:var(--card2);flex-wrap:wrap">
+            <div>
+              <div style="font-size:14px;font-weight:800">{{ name }}</div>
+              <div style="font-size:11px;color:var(--dim2);margin-top:2px">
+                {% if id == 'xray' %}<span data-i18n="xrayHint">لینک را کپی کنید یا QR را در اپ اسکن کنید</span>
+                {% elif id == 'wg' %}<span data-i18n="wgHint">فایل کانفیگ را دانلود و در اپ رسمی WireGuard وارد کنید.</span>
+                {% else %}<span data-i18n="ovHint">فایل ‎.ovpn را دانلود و در OpenVPN Connect باز کنید.</span>{% endif %}
               </div>
             </div>
-            <div class="row" style="gap:6px">
-              <button class="sbtn" title="کپی" onclick="copyText(this.closest('.srv').getAttribute('data-xray'))"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="13" height="13" x="9" y="9" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-              <button class="sbtn" title="QR" onclick="showQR(this.closest('.srv').getAttribute('data-xray'),event)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3M12 7v3a2 2 0 0 1-2 2H7"/></svg></button>
-            </div>
+            {% if id == 'xray' and cnt > 1 %}
+            <button class="iconbtn" style="height:34px;padding:0 14px;font-size:12px" onclick="copyAllXray()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+              <span style="white-space:nowrap" data-i18n="copyAll">کپی همه</span>
+            </button>
+            {% elif id != 'xray' %}
+            <a class="iconbtn" style="height:34px;padding:0 14px;font-size:12px" href="{{ wireguard_url if id == 'wg' else openvpn_url }}">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+              <span style="white-space:nowrap" data-i18n="downloadAll">دانلود همه</span>
+            </a>
+            {% endif %}
           </div>
-        {% endfor %}
-        </div>
-        {% if xray_links|length > 1 %}
-        <button class="iconbtn" style="align-self:flex-start" onclick="copyAllXray()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="13" height="13" x="9" y="9" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span data-i18n="copyAll">کپی همه</span></button>
-        {% endif %}
-      </div>
-      {% endif %}
 
-      {% if wireguard_configs %}
-      <div class="pproto{{ ' on' if pf.first == 'wg' else '' }}" data-proto="wg" style="flex-direction:column;gap:10px">
-        <div style="font-size:11.5px;color:var(--dim);padding:0 4px" data-i18n="wgHint">فایل کانفیگ را دانلود و در اپ رسمی WireGuard وارد کنید.</div>
-        <div class="srvgrid" style="display:grid;gap:10px">
-        {% for cfg in wireguard_configs %}
-          <div class="srv">
-            <div class="row" style="gap:10px;min-width:0">
-              <span class="pg-flag" data-flagfor="{{ cfg.name|e }}" style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Twemoji Country Flags','Vazirmatn',sans-serif;font-size:30px;line-height:1;flex-shrink:0"></span>
-              <div style="min-width:0">
-                <div style="font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><bdi>{{ cfg.name }}</bdi></div>
-                <div class="pg-mono" style="font-size:10px;color:var(--dim3)">conf</div>
-              </div>
-            </div>
-            <div class="row" style="gap:6px">
-              <a class="sbtn" title="دانلود" href="{{ cfg.data_url }}" download="{{ cfg.filename }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></a>
-              <button class="sbtn" title="QR" onclick="showFileQR(this.closest('.srv').querySelector('a[download]').getAttribute('href'),event)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/></svg></button>
-            </div>
+          <div class="row" style="gap:14px;padding:10px 18px;border-bottom:1px solid var(--line);font-size:11px;font-weight:700;color:var(--dim3)">
+            <span style="flex:1" data-i18n="colServer">سرور</span>
+            <span style="width:132px;text-align:start" data-i18n="colAction">اکشن</span>
           </div>
-        {% endfor %}
-        </div>
-      </div>
-      {% endif %}
 
-      {% if openvpn_configs %}
-      <div class="pproto{{ ' on' if pf.first == 'ov' else '' }}" data-proto="ov" style="flex-direction:column;gap:10px">
-        <div style="font-size:11.5px;color:var(--dim);padding:0 4px" data-i18n="ovHint">فایل ‎.ovpn را دانلود و در OpenVPN Connect باز کنید.</div>
-        <div class="srvgrid" style="display:grid;gap:10px">
-        {% for cfg in openvpn_configs %}
-          <div class="srv">
-            <div class="row" style="gap:10px;min-width:0">
-              <span class="pg-flag" data-flagfor="{{ cfg.name|e }}" style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Twemoji Country Flags','Vazirmatn',sans-serif;font-size:30px;line-height:1;flex-shrink:0"></span>
-              <div style="min-width:0">
-                <div style="font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><bdi>{{ cfg.name }}</bdi></div>
-                <div class="pg-mono" style="font-size:10px;color:var(--dim3)">ovpn</div>
+          <div class="slist">
+          {% if id == 'xray' %}
+            {% for link in xray_links %}
+              {% set scheme = (link.split('://')[0]) if '://' in link else 'sub' %}
+              {% set nm = (link.split('#')[-1]) if '#' in link else scheme %}
+              <div class="srow" data-xray="{{ link }}">
+                <div class="row" style="flex:1;gap:11px;min-width:0">
+                  <span class="pg-flag" data-flagfor="{{ nm }}"></span>
+                  <span class="ptag">{{ scheme }}</span>
+                  <span dir="ltr" class="srv-name" style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ nm }}</span>
+                </div>
+                <div dir="ltr" class="row" style="width:132px;gap:7px">
+                  <button class="actcopy" onclick="copyText(this.closest('.srow').getAttribute('data-xray'))">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                    <span data-i18n="copy">کپی</span>
+                  </button>
+                  <button class="acticon" title="QR" onclick="showQR(this.closest('.srow').getAttribute('data-xray'),event)">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="5" height="5" rx="1"/><path d="M17 12v4a1 1 0 0 1-1 1h-4M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M3 7V5a2 2 0 0 1 2-2h2M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
+                  </button>
+                </div>
               </div>
-            </div>
-            <div class="row" style="gap:6px">
-              <a class="sbtn" title="دانلود" href="{{ cfg.data_url }}" download="{{ cfg.filename }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></a>
-            </div>
+            {% endfor %}
+          {% else %}
+            {% for cfg in (wireguard_configs if id == 'wg' else openvpn_configs) %}
+              <div class="srow">
+                <div class="row" style="flex:1;gap:11px;min-width:0">
+                  <span class="pg-flag" data-flagfor="{{ cfg.name }}"></span>
+                  <span class="ptag">{{ 'conf' if id == 'wg' else 'ovpn' }}</span>
+                  <span dir="ltr" class="srv-name" style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ cfg.name }}</span>
+                </div>
+                <div dir="ltr" class="row" style="width:132px;gap:7px">
+                  <a class="actcopy" href="{{ cfg.data_url }}" download="{{ cfg.filename }}">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    <span data-i18n="download">دانلود</span>
+                  </a>
+                  <button class="acticon" title="QR" onclick="showFileQR(this.closest('.srow').querySelector('a[download]').getAttribute('href'),event)">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="5" height="5" rx="1"/><path d="M17 12v4a1 1 0 0 1-1 1h-4M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M3 7V5a2 2 0 0 1 2-2h2M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
+                  </button>
+                </div>
+              </div>
+            {% endfor %}
+          {% endif %}
           </div>
-        {% endfor %}
         </div>
       </div>
-      {% endif %}
+      {% endfor %}
     {% endif %}
   </section>
 
@@ -503,7 +552,7 @@ var I18N={
      passed:'سپری‌شده',pctSign:'٪',ofPeriodA:'از',ofPeriodB:'روز دوره',totalVol:'حجم کل',expiry:'تاریخ انقضا',
      lastSeen:'آخرین اتصال',unlimited:'نامحدود',notStarted:'شروع نشده',usageChart:'آمار مصرف',
      barChart:'ستونی',lineChart:'خطی',r24h:'۲۴ ساعت',r7d:'۷ روز',r30d:'۳۰ روز',
-     subLink:'لینک اشتراک اختصاصی شما',subLinkShort:'لینک اشتراک',copyLink:'کپی لینک',copyAll:'کپی همه',
+     subLink:'لینک اشتراک اختصاصی شما',subHidden:'برای امنیت، لینک نمایش داده نمی‌شود — کپی کنید یا QR را اسکن کنید',copy:'کپی',download:'دانلود',downloadAll:'دانلود همه',xrayHint:'لینک را کپی کنید یا QR را در اپ اسکن کنید',subLinkShort:'لینک اشتراک',copyLink:'کپی لینک',copyAll:'کپی همه',
      colServer:'سرور',colAction:'اکشن',copied:'کپی شد!',close:'بستن',light:'روشن',dark:'تاریک',
      renew:'برای دریافت کانفیگ‌ها، اشتراک خود را تمدید کنید.',
      wgHint:'فایل کانفیگ را دانلود و در اپ رسمی WireGuard وارد کنید.',
@@ -516,7 +565,7 @@ var I18N={
      passed:'elapsed',pctSign:'%',ofPeriodA:'of',ofPeriodB:'day period',totalVol:'Total data',expiry:'Expires in',
      lastSeen:'Last seen',unlimited:'Unlimited',notStarted:'Not started',usageChart:'Usage',
      barChart:'Bars',lineChart:'Line',r24h:'24 hours',r7d:'7 days',r30d:'30 days',
-     subLink:'Your subscription link',subLinkShort:'Subscription link',copyLink:'Copy link',copyAll:'Copy all',
+     subLink:'Your subscription link',subHidden:'The link is not shown — copy it or scan the QR',copy:'Copy',download:'Download',downloadAll:'Download all',xrayHint:'Copy the link, or scan the QR in your app',subLinkShort:'Subscription link',copyLink:'Copy link',copyAll:'Copy all',
      colServer:'Server',colAction:'Action',copied:'Copied!',close:'Close',light:'Light',dark:'Dark',
      renew:'Renew your subscription to get the configs.',
      wgHint:'Download the config and import it into the official WireGuard app.',
@@ -651,6 +700,13 @@ function decodeServerNames(){
     try{var d=decodeURIComponent(s);if(d&&d!==s)el.textContent=d;}catch(e){}
   });
 }
+function renderQrThumb(){
+  /* A real QR, small: the design shows one beside the link and it should be
+     scannable rather than a decorative square. */
+  var el=document.getElementById('qrThumb');if(!el)return;
+  el.innerHTML='';
+  try{new QRCode(el,{text:subUrlValue(),width:46,height:46,correctLevel:QRCode.CorrectLevel.L});}catch(e){}
+}
 function addServerFlags(){
   document.querySelectorAll('[data-flagfor]').forEach(function(el){
     var raw=el.getAttribute('data-flagfor')||'';
@@ -720,9 +776,10 @@ function renderChart(){
     if(axis)axis.innerHTML='';
     if(ticks)ticks.innerHTML='';
     if(ct)ct.innerHTML='';
+    var bw=document.getElementById('barWrap'),lw=document.getElementById('lineWrap');
+    if(bw)bw.style.display='';if(lw)lw.style.display='none';
     var lbl0=_chartRange==='1d'?t.rangeDayLabel:(_chartRange==='7d'?t.rangeWeekLabel:t.rangeMonthLabel);
     bars.innerHTML='<div class="row" style="width:100%;justify-content:center;align-items:center;height:100%;font-size:12px;color:var(--dim3)">'+t.noUsage+'</div>';
-    bars.style.display='flex';line.style.display='none';
     if(ct)ct.innerHTML='<bdi>'+lbl0+'</bdi>';
     return;
   }
@@ -737,28 +794,38 @@ function renderChart(){
     for(var i=4;i>=0;i--)rows.push('<span>'+_bytes(max*i/4)+'</span>');
     axis.innerHTML=rows.join('');
   }
+  var barWrap=document.getElementById('barWrap'),lineWrap=document.getElementById('lineWrap');
+  var lbl=_chartRange==='1d'?t.rangeDayLabel:(_chartRange==='7d'?t.rangeWeekLabel:t.rangeMonthLabel);
   if(_chartMode==='bar'){
-    bars.style.display='flex';line.style.display='none';
+    barWrap.style.display='';lineWrap.style.display='none';
     bars.innerHTML=series.map(function(p){
-      var h=Math.max(2,Math.round(p.value/max*100));
-      return '<div class="cbar" data-v="'+p.value+'" data-t="'+_tick(p.time,_chartRange)+'" style="flex:1;height:'+h+'%;border-radius:6px 6px 3px 3px;background:linear-gradient(180deg,var(--accent),var(--accent2));animation:pggrow .5s ease"></div>';
+      var hh=Math.max(2,Math.round(p.value/max*100));
+      return '<div class="cbarcell"><div class="cbar" data-v="'+p.value+'" data-t="'+_tick(p.time,_chartRange)+'" style="height:'+hh+'%"></div></div>';
     }).join('');
+    var every=Math.ceil(series.length/8);
+    if(ticks)ticks.innerHTML=series.map(function(p,i){
+      return '<span style="flex:1;text-align:center;font-size:10.5px;color:var(--dim3);font-weight:600">'+((i%every===0)?_tick(p.time,_chartRange):'')+'</span>';
+    }).join('');
+    /* The tick row is a second grid with the same two tracks, so the spacer
+       under the axis has to match its width or every label drifts. */
+    var pad=document.getElementById('chartTickPad');
+    if(pad&&axis)pad.style.width=axis.getBoundingClientRect().width+'px';
   }else{
-    bars.style.display='none';line.style.display='block';
-    var w=100,h=100,step=series.length>1?w/(series.length-1):w;
-    var pts=series.map(function(p,i){return (i*step).toFixed(2)+','+(h-(p.value/max*h)).toFixed(2);});
-    line.setAttribute('viewBox','0 0 '+w+' '+h);
+    barWrap.style.display='none';lineWrap.style.display='';
+    var W=600,H=150,step=series.length>1?W/(series.length-1):W;
+    var pts=series.map(function(p,i){return (i*step).toFixed(1)+','+(H-(p.value/max*H)).toFixed(1);});
     line.innerHTML=
       '<defs><linearGradient id="pgfill" x1="0" y1="0" x2="0" y2="1">'+
       '<stop offset="0%" stop-color="var(--accent)" stop-opacity=".35"/>'+
       '<stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>'+
-      '<polygon points="0,'+h+' '+pts.join(' ')+' '+((series.length-1)*step).toFixed(2)+','+h+'" fill="url(#pgfill)"/>'+
+      '<polygon points="0,'+H+' '+pts.join(' ')+' '+((series.length-1)*step).toFixed(1)+','+H+'" fill="url(#pgfill)"/>'+
       '<polyline points="'+pts.join(' ')+'" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>';
-  }
-  if(ticks){
-    var every=Math.ceil(series.length/6);
-    ticks.innerHTML=series.map(function(p,i){
-      return '<span style="flex:1;text-align:center">'+((i%every===0)?_tick(p.time,_chartRange):'')+'</span>';
+    var lr=document.getElementById('lineRangeLabel'),lt=document.getElementById('lineTotal');
+    if(lr)lr.textContent=lbl;
+    if(lt)lt.textContent=_bytes(total);
+    var lticks=document.getElementById('lineTicks'),e2=Math.ceil(series.length/6);
+    if(lticks)lticks.innerHTML=series.map(function(p,i){
+      return '<span style="flex:1;text-align:center">'+((i%e2===0)?_tick(p.time,_chartRange):'')+'</span>';
     }).join('');
   }
   bindChartTip(bars);
@@ -817,8 +884,7 @@ function loadUsage(range){
   }catch(e){}
   document.getElementById('modeBar').classList.toggle('on',_chartMode==='bar');
   document.getElementById('modeLine').classList.toggle('on',_chartMode==='line');
-  var si=document.getElementById('subInput');if(si)si.value=subUrlValue();
-  decodeServerNames();addServerFlags();applyLang();loadUsage('7d');
+  decodeServerNames();addServerFlags();renderQrThumb();applyLang();loadUsage('7d');
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeQR();});
 })();
 </script>
