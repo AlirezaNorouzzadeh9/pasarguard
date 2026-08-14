@@ -378,7 +378,7 @@ button{font-family:inherit;cursor:pointer}
             <div class="row" style="gap:10px;min-width:0">
               <span class="pg-flag" data-flagfor="{{ nm|e }}" style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Twemoji Country Flags','Vazirmatn',sans-serif;font-size:30px;line-height:1;flex-shrink:0"></span>
               <div style="min-width:0">
-                <div style="font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><bdi>{{ nm|e|urldecode }}</bdi></div>
+                <div style="font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><bdi class="srv-name">{{ nm }}</bdi></div>
                 <div class="pg-mono" style="font-size:10px;color:var(--dim3);text-transform:uppercase">{{ scheme }}</div>
               </div>
             </div>
@@ -409,8 +409,8 @@ button{font-family:inherit;cursor:pointer}
               </div>
             </div>
             <div class="row" style="gap:6px">
-              <a class="sbtn" title="دانلود" href="data:application/octet-stream;charset=utf-8,{{ cfg.config|urlencode }}" download="{{ cfg.name }}.conf"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></a>
-              <button class="sbtn" title="QR" onclick="showFileQR({{ cfg.config|tojson }},event)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/></svg></button>
+              <a class="sbtn" title="دانلود" href="{{ cfg.data_url }}" download="{{ cfg.filename }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></a>
+              <button class="sbtn" title="QR" onclick="showFileQR(this.closest('.srv').querySelector('a[download]').getAttribute('href'),event)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/></svg></button>
             </div>
           </div>
         {% endfor %}
@@ -432,7 +432,7 @@ button{font-family:inherit;cursor:pointer}
               </div>
             </div>
             <div class="row" style="gap:6px">
-              <a class="sbtn" title="دانلود" href="data:application/octet-stream;charset=utf-8,{{ cfg.config|urlencode }}" download="{{ cfg.name }}.ovpn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></a>
+              <a class="sbtn" title="دانلود" href="{{ cfg.data_url }}" download="{{ cfg.filename }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></a>
             </div>
           </div>
         {% endfor %}
@@ -645,6 +645,12 @@ function flagEmoji(cc){
   if(!cc)return '';
   return String.fromCodePoint.apply(null,cc.toUpperCase().split('').map(function(c){return 127397+c.charCodeAt(0);}));
 }
+function decodeServerNames(){
+  document.querySelectorAll('.srv-name').forEach(function(el){
+    var s=el.textContent;
+    try{var d=decodeURIComponent(s);if(d&&d!==s)el.textContent=d;}catch(e){}
+  });
+}
 function addServerFlags(){
   document.querySelectorAll('[data-flagfor]').forEach(function(el){
     var raw=el.getAttribute('data-flagfor')||'';
@@ -812,7 +818,7 @@ function loadUsage(range){
   document.getElementById('modeBar').classList.toggle('on',_chartMode==='bar');
   document.getElementById('modeLine').classList.toggle('on',_chartMode==='line');
   var si=document.getElementById('subInput');if(si)si.value=subUrlValue();
-  addServerFlags();applyLang();loadUsage('7d');
+  decodeServerNames();addServerFlags();applyLang();loadUsage('7d');
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeQR();});
 })();
 </script>
