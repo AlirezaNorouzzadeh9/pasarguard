@@ -77,6 +77,7 @@ logger = get_logger("node-operation")
 _MULTI_INSTANCE_BACKENDS = {
     CoreType.wg: service.BackendType.WIREGUARD,
     CoreType.openvpn: service.BackendType.OPENVPN,
+    CoreType.singbox: service.BackendType.SINGBOX,
 }
 
 # How long a core is given to come up.
@@ -381,6 +382,19 @@ class NodeOperation(BaseOperation):
 
         old_status = db_node.status
         logger.info(f'Connecting to "{db_node.name}" node')
+        # Only fall back to XRAY for a core type the node genuinely runs as
+        # xray. A type the node has no backend for would otherwise be handed to
+        # xray, which starts, fails to parse a config written for something
+        # else, and reports the node as broken for a reason nothing explains.
+        if core.type not in _MULTI_INSTANCE_BACKENDS and core.type != CoreType.xray:
+            return {
+                "node_id": db_node.id,
+                "status": NodeStatus.error,
+                "message": f"nodes cannot run a {core.type} core yet",
+                "xray_version": "",
+                "node_version": "",
+                "old_status": old_status,
+            }
         type = _MULTI_INSTANCE_BACKENDS.get(core.type, service.BackendType.XRAY)
 
         try:

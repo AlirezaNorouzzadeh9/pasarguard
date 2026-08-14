@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import useDirDetection from '@/hooks/use-dir-detection'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { DEFAULT_SINGBOX_CORE_CONFIG_JSON } from '@/lib/default-singbox-core-config'
 import { DEFAULT_XRAY_CORE_CONFIG_JSON } from '@/lib/default-xray-core-config'
 import {
   canGenerateShadowsocksPassword,
@@ -64,7 +65,10 @@ export default function CoreConfigModal({ isDialogOpen, onOpenChange, form, edit
   const dir = useDirDetection()
   const isMobile = useIsMobile()
   const backendType = (form.watch('type') ?? 'xray') as CoreBackendType
-  const isXrayBackend = backendType !== 'wg'
+  // Only xray gets the xray editor. This used to be `!== 'wg'`, which handed
+  // every other backend the xray inbound picker, fallbacks and exclude-tags —
+  // fields those cores do not have, and which the panel rejects on save.
+  const isXrayBackend = backendType === 'xray'
   const [validation, setValidation] = useState<ValidationResult>({ isValid: true })
   const createCoreMutation = useCreateCoreConfig()
   const modifyCoreMutation = useModifyCoreConfig()
@@ -252,6 +256,10 @@ export default function CoreConfigModal({ isDialogOpen, onOpenChange, form, edit
         const keyPair = generateWireGuardKeyPair()
         setGeneratedWireGuardKeyPair(keyPair)
         defaultTemplate = createWireGuardCoreConfigJson(keyPair)
+      } else if (nextBackendType === 'singbox') {
+        // Without its own template this dropped an xray config into the editor,
+        // which the panel then refused to save.
+        defaultTemplate = DEFAULT_SINGBOX_CORE_CONFIG_JSON
       } else {
         defaultTemplate = DEFAULT_XRAY_CORE_CONFIG_JSON
       }
@@ -326,8 +334,11 @@ export default function CoreConfigModal({ isDialogOpen, onOpenChange, form, edit
       }
 
       const backendType = values.type ?? 'xray'
-      const fallbackTags = backendType !== 'wg' ? values.fallback_id || [] : []
-      const excludeInboundTags = backendType !== 'wg' ? values.excluded_inbound_ids || [] : []
+      // Fallbacks are an xray concept and the panel rejects them on any other
+      // core, so sending leftovers from a type switch fails the save with a
+      // message about a field the user never filled in.
+      const fallbackTags = backendType === 'xray' ? values.fallback_id || [] : []
+      const excludeInboundTags = backendType === 'xray' ? values.excluded_inbound_ids || [] : []
 
       if (editingCore && editingCoreId) {
         // Update existing core
@@ -915,6 +926,7 @@ export default function CoreConfigModal({ isDialogOpen, onOpenChange, form, edit
                               <SelectContent>
                                 <SelectItem value="xray">Xray</SelectItem>
                                 <SelectItem value="wg">WireGuard</SelectItem>
+                                <SelectItem value="singbox">sing-box</SelectItem>
                               </SelectContent>
                             </Select>
                           </FormControl>

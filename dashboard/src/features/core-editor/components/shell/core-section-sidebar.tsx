@@ -1,15 +1,35 @@
 import { cn } from '@/lib/utils'
 import { useCoreEditorStore } from '@/features/core-editor/state/core-editor-store'
 import { WG_CORE_SECTION_NAV, XRAY_CORE_SECTION_NAV } from '@/features/core-editor/kit/core-section-nav'
+import type { LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+type SectionTabItem = { id: string; labelKey: string; defaultLabel: string; icon: LucideIcon }
+
+interface CoreSectionTabsProps {
+  className?: string
+  /**
+   * Drive the tabs from outside the editor store.
+   *
+   * The store is typed on CoreKind, which comes from @pasarguard/core-kit and
+   * knows only xray and wg. A sing-box core is neither, so it passes its own
+   * sections rather than the store being widened to a kind the package does
+   * not have.
+   */
+  items?: SectionTabItem[]
+  active?: string
+  onChange?: (id: string) => void
+}
+
 /** Horizontal section tabs — same spacing and triggers as `_dashboard.nodes` primary tabs. */
-export function CoreSectionTabs({ className }: { className?: string }) {
+export function CoreSectionTabs({ className, items: itemsProp, active: activeProp, onChange }: CoreSectionTabsProps) {
   const { t } = useTranslation()
   const kind = useCoreEditorStore(s => s.kind)
-  const active = useCoreEditorStore(s => s.activeSection)
-  const setActive = useCoreEditorStore(s => s.setActiveSection)
-  const items = kind === 'wg' ? WG_CORE_SECTION_NAV : XRAY_CORE_SECTION_NAV
+  const storeActive = useCoreEditorStore(s => s.activeSection)
+  const setStoreActive = useCoreEditorStore(s => s.setActiveSection)
+  const items = itemsProp ?? (kind === 'wg' ? WG_CORE_SECTION_NAV : XRAY_CORE_SECTION_NAV)
+  const active = activeProp ?? storeActive
+  const setActive = onChange ?? ((id: string) => setStoreActive(id as never))
 
   return (
     <div className={cn('flex w-full border-b px-4', className)} role="tablist" aria-label={t('coreEditor.section.label', { defaultValue: 'Section' })}>

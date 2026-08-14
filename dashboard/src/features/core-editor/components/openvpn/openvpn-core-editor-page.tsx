@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StickySaveBar } from '@/features/core-editor/components/shell/sticky-save-bar'
+import { subnetCapacity } from '@/features/core-editor/kit/openvpn-subnet'
 import useDirDetection from '@/hooks/use-dir-detection'
 import { cn } from '@/lib/utils'
 import { getGetCoreConfigQueryKey, useCreateCoreConfig, useGetCoreConfig, useModifyCoreConfig } from '@/service/api'
@@ -61,16 +62,10 @@ export const parseRows = (rows: ListenerRow[] | undefined): { port: number; prot
 // Structured rather than free text: a typo or a swapped word in a "port proto"
 // line silently dropped the whole entry, and the operator only found out when
 // the port was not listening.
-// Mirrors the backend's split: each listener gets an equal slice of the server
-// subnet, and none may end up narrower than a /24. Checking it here means the
-// operator sees the limit while adding rows instead of when saving fails.
-export const subnetCapacity = (subnet: string, count: number): { perListener: number; tooSmall: boolean } | null => {
-  const prefix = Number((subnet || '').split('/')[1])
-  if (!Number.isInteger(prefix) || prefix < 0 || prefix > 32 || count < 1) return null
-  const extraBits = count > 1 ? 32 - Math.clz32(count - 1) : 0
-  const perListener = prefix + extraBits
-  return { perListener, tooSmall: perListener > 24 }
-}
+//
+// The subnet split is shared with the OpenVPN overview — checking it here means
+// the operator sees the limit while adding rows instead of when saving fails.
+export { subnetCapacity }
 
 const ListenersField = ({ form }: { form: UseFormReturn<OpenVPNFormValues> }) => {
   const { t } = useTranslation()

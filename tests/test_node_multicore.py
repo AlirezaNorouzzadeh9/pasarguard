@@ -31,14 +31,19 @@ class _FakeNode:
 
     def __init__(self, fail_on=()):
         self.started = []
+        self.timeouts = []
         self._calls = 0
         self._fail_on = set(fail_on)
 
-    async def add_backend(self, config, backend_type, users):
+    # timeout is accepted because the operation passes one: bringing up a core
+    # with a large peer list outlasts the node's default by minutes, and a
+    # double that refuses the argument hides that the call is even made.
+    async def add_backend(self, config, backend_type, users, timeout=None):
         call, self._calls = self._calls, self._calls + 1
         if call in self._fail_on:
             raise NodeAPIError(500, "port already in use")
         self.started.append((config, backend_type, users))
+        self.timeouts.append(timeout)
 
 
 def test_primary_core_comes_first():

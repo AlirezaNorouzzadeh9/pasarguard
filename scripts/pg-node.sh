@@ -766,6 +766,12 @@ install_node() {
     # through; WireGuard drives its interface through netlink and needs kernel
     # support on the host instead. Asking here means a missing prerequisite is
     # reported now, rather than when a user first tries to connect.
+    #
+    # sing-box is deliberately not asked about. It needs nothing from the host —
+    # no kernel module, no device, and the node already runs on the host network
+    # so whatever ports its inbounds bind are reachable. A question whose answer
+    # cannot change anything is worse than no question: it would suggest the
+    # core is optional here when it is always available.
     if [ "${INSTALL_WIREGUARD:-}" = "true" ]; then
         ENABLE_WIREGUARD=1
     elif [ "${INSTALL_WIREGUARD:-}" = "false" ]; then
@@ -907,8 +913,9 @@ install_node() {
     colorized_echo green "✓ docker-compose.yml modified successfully"
 }
 # Grant the host resources each backend needs, and say plainly when the host
-# cannot provide one. Both cores otherwise start, report healthy, and only fail
-# once a user connects — which is a far more expensive way to find out.
+# cannot provide one. A core without its prerequisite otherwise starts, reports
+# healthy, and only fails once a user connects — a far more expensive way to
+# find out.
 apply_backend_support() {
     local service_name="$1"
     colorized_echo blue "Configuring backend support..."
@@ -939,6 +946,15 @@ apply_backend_support() {
         set_node_env PG_NODE_OPENVPN_HOST_ROUTING 0
         colorized_echo yellow "  • OpenVPN support left off"
     fi
+    # sing-box needs nothing granted, so there is nothing to switch on or warn
+    # about. It is named anyway: a report that lists two of the three cores
+    # reads as though the third is missing from this node.
+    colorized_echo green "  ✓ sing-box available (needs no host support)"
+    # The one prerequisite it does have, and the one that is easy to get wrong:
+    # a TLS inbound reads its certificate by a path inside the container, and
+    # hysteria2 will not start without one. Only this directory is mounted in,
+    # so a certificate anywhere else is invisible to the core.
+    colorized_echo cyan "    TLS inbounds read their certificate from ${DATA_DIR}/certs (the only path mounted into the node)"
 }
 # Set a key in the node .env whether it is currently absent, commented out, or
 # already set to something else.

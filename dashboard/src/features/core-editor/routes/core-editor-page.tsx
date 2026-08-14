@@ -12,6 +12,7 @@ import { ValidationSummary, type ValidationListItem } from '@/features/core-edit
 import type { SectionHeaderAddPulse } from '@/features/core-editor/hooks/use-section-header-add-pulse'
 import { useXrayPersistValidationItems } from '@/features/core-editor/hooks/use-xray-persist-validation-items'
 import OpenVPNCoreEditorPage from '@/features/core-editor/components/openvpn/openvpn-core-editor-page'
+import SingBoxCoreEditorPage from '@/features/core-editor/components/singbox/singbox-core-editor-page'
 import { WireGuardCoreEditor } from '@/features/core-editor/components/wg/wireguard-core-editor'
 import { XrayCoreEditor } from '@/features/core-editor/components/xray/xray-core-editor'
 import { profileToPersistedConfig } from '@/features/core-editor/kit/xray-adapter'
@@ -218,6 +219,7 @@ export default function CoreEditorPage() {
   // Without this the config is loaded as xray and every OpenVPN field is
   // reported as an unknown xray option.
   const isOpenVPNCore = isNew ? searchParams.get('kind') === 'openvpn' : coreData?.type === 'openvpn'
+  const isSingBoxCore = isNew ? searchParams.get('kind') === 'singbox' : coreData?.type === 'singbox'
 
   useEffect(() => {
     if (isNew) {
@@ -232,7 +234,12 @@ export default function CoreEditorPage() {
 
   useEffect(() => {
     if (isNew || !validId || !coreData || serverConfigJson === null) return
-    if (coreData.type === 'openvpn') return
+    // The structured editor understands xray's shape and WireGuard's. Handing
+    // it anything else throws while parsing — a sing-box inbound has `type`
+    // where xray has `protocol`, so the parse reads .includes on undefined,
+    // React unmounts the route, and the router lands the user on the login
+    // page with no indication that a config was ever opened.
+    if (coreData.type === 'openvpn' || coreData.type === 'singbox') return
     const state = useCoreEditorStore.getState()
     if (state.coreId !== coreData.id) {
       initFromCore(coreData)
@@ -570,6 +577,23 @@ export default function CoreEditorPage() {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <OpenVPNCoreEditorPage />
+      </div>
+    )
+  }
+
+  // Without this the route falls through to the xray editor, which renders its
+  // Inbounds/Routing/DNS tabs empty for a sing-box core — and offers a Save that
+  // would write that emptiness over a working config.
+  if (isSingBoxCore && coreData) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <SingBoxCoreEditorPage
+          coreId={coreData.id}
+          coreName={coreData.name}
+          config={coreData.config}
+          excludeInboundTags={coreData.exclude_inbound_tags}
+          fallbacksInboundTags={coreData.fallbacks_inbound_tags}
+        />
       </div>
     )
   }
