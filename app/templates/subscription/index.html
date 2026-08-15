@@ -26,43 +26,64 @@ button{font-family:inherit;cursor:pointer}
 
 /* The whole palette hangs off this one element, so a theme or a background is
    a class swap rather than a rewrite. Dark is the default because that is what
-   the page opens as before any preference is read. */
+   the page opens as before any preference is read.
+
+   Every surface — cards, panels, buttons, hairlines, even the muted text — is
+   built from one hue (--h) and one chroma (--scb), and every accent from one
+   pair of hues (--ah/--ah2) with its own chroma and lightness. A theme is then
+   six numbers, and the boxes cannot drift away from the background the way they
+   did when each theme only repainted the gradient. The light mode derives from
+   the same six: it damps the chroma and darkens the accent rather than
+   restating a second palette per theme. */
 .appshell{
-  --g1:oklch(0.22 0.05 266);--g2:oklch(0.15 0.028 266);--g3:oklch(0.12 0.02 267);
-  --card:oklch(0.2 0.032 266 / .82);--card2:oklch(0.22 0.03 266 / .55);--cardline:oklch(0.34 0.035 266);
-  --panel:oklch(0.17 0.028 266 / .8);--panelline:oklch(0.35 0.03 266 / .65);
-  --seg:oklch(0.15 0.025 266 / .85);--segline:oklch(0.3 0.028 266);
-  --btn:oklch(0.26 0.03 266);--btnline:oklch(0.36 0.03 266);
-  --text:oklch(0.96 0.01 265);--text2:oklch(0.9 0.01 265);
-  --dim:oklch(0.72 0.02 265);--dim2:oklch(0.66 0.02 265);--dim3:oklch(0.6 0.02 265);
-  --line:oklch(0.25 0.024 266);--line2:oklch(0.28 0.03 266);--track:oklch(0.27 0.03 266);
-  --soft:oklch(0.62 0.18 264 / .18);--softline:oklch(0.6 0.18 268 / .45);--softtext:oklch(0.86 0.07 266);
-  --navon:linear-gradient(135deg,oklch(0.62 0.19 264 / .25),oklch(0.52 0.18 292 / .25));
-  --accent:oklch(0.62 0.19 264);--accent2:oklch(0.56 0.18 288);--onaccent:#fff;
+  --h:266;--scb:0.03;--ah:264;--ah2:292;--acb:0.19;--alb:0.62;
+  --sc:var(--scb);--ac:var(--acb);--al:var(--alb);
+  --g1:oklch(0.22 calc(var(--sc)*1.65) var(--h));--g2:oklch(0.15 calc(var(--sc)*0.93) var(--h));--g3:oklch(0.12 calc(var(--sc)*0.67) var(--h));
+  --card:oklch(0.205 calc(var(--sc)*1.07) var(--h) / .86);--card2:oklch(0.245 var(--sc) var(--h) / .8);--cardline:oklch(0.34 calc(var(--sc)*1.17) var(--h));
+  --panel:oklch(0.18 calc(var(--sc)*0.93) var(--h) / .74);--panelline:oklch(0.35 var(--sc) var(--h) / .65);
+  --seg:oklch(0.15 calc(var(--sc)*0.83) var(--h) / .85);--segline:oklch(0.3 calc(var(--sc)*0.93) var(--h));
+  --btn:oklch(0.26 var(--sc) var(--h));--btnline:oklch(0.36 var(--sc) var(--h));
+  --flagdisc:oklch(0.33 var(--sc) var(--h));
+  --text:oklch(0.96 calc(var(--sc)*0.33) var(--h));--text2:oklch(0.9 calc(var(--sc)*0.33) var(--h));
+  --dim:oklch(0.72 calc(var(--sc)*0.67) var(--h));--dim2:oklch(0.66 calc(var(--sc)*0.67) var(--h));--dim3:oklch(0.6 calc(var(--sc)*0.67) var(--h));
+  --line:oklch(0.25 calc(var(--sc)*0.8) var(--h));--line2:oklch(0.28 var(--sc) var(--h));--track:oklch(0.27 var(--sc) var(--h));
+  --soft:oklch(var(--al) var(--ac) var(--ah) / .18);--softline:oklch(var(--al) var(--ac) var(--ah2) / .45);--softtext:oklch(0.86 calc(var(--ac)*0.37) var(--ah));
+  --navon:linear-gradient(135deg,oklch(var(--al) var(--ac) var(--ah) / .26),oklch(calc(var(--al) - 0.1) var(--ac) var(--ah2) / .26));
+  --accent:oklch(var(--al) var(--ac) var(--ah));--accent2:oklch(calc(var(--al) - 0.06) calc(var(--ac) - 0.01) var(--ah2));--onaccent:#fff;
   --ok:oklch(0.72 0.17 155);--warn:oklch(0.78 0.16 75);--bad:oklch(0.65 0.2 25);
   min-height:100vh;background:radial-gradient(130% 80% at 50% -8%,var(--g1) 0%,var(--g2) 50%,var(--g3) 100%);background-attachment:fixed;color:var(--text)
 }
-.appshell.bg2{--g1:oklch(0.24 0.005 266);--g2:oklch(0.17 0.003 266);--g3:oklch(0.14 0.002 266);--accent:oklch(0.68 0.02 266);--accent2:oklch(0.6 0.02 266);--navon:linear-gradient(135deg,oklch(0.62 0.02 266 / .3),oklch(0.5 0.02 266 / .3))}
-.appshell.bg3{--g1:oklch(0.22 0.05 200);--g2:oklch(0.16 0.03 200);--g3:oklch(0.13 0.022 200);--accent:oklch(0.66 0.14 205);--accent2:oklch(0.58 0.13 220);--navon:linear-gradient(135deg,oklch(0.62 0.14 205 / .28),oklch(0.5 0.13 220 / .28))}
-.appshell.bg4{--g1:oklch(0.22 0.06 300);--g2:oklch(0.15 0.035 300);--g3:oklch(0.12 0.026 300);--accent:oklch(0.64 0.19 300);--accent2:oklch(0.56 0.18 320);--navon:linear-gradient(135deg,oklch(0.62 0.19 300 / .28),oklch(0.5 0.18 320 / .28))}
-.appshell.bg5{--g1:oklch(0.24 0.04 70);--g2:oklch(0.17 0.02 70);--g3:oklch(0.14 0.016 70);--accent:oklch(0.7 0.14 65);--accent2:oklch(0.62 0.13 45);--navon:linear-gradient(135deg,oklch(0.66 0.14 65 / .28),oklch(0.56 0.13 45 / .28))}
+/* ten grounds. one line each: surface hue, surface chroma, the two accent hues,
+   accent chroma, accent lightness — the rest follows from the block above */
+.appshell.bg2 {--h:266;--scb:0.005;--ah:266;--ah2:266;--acb:0.02;--alb:0.62}
+.appshell.bg3 {--h:200;--scb:0.03; --ah:205;--ah2:220;--acb:0.14;--alb:0.66}
+.appshell.bg4 {--h:300;--scb:0.035;--ah:300;--ah2:320;--acb:0.19;--alb:0.64}
+.appshell.bg5 {--h:70; --scb:0.025;--ah:65; --ah2:45; --acb:0.14;--alb:0.70}
+.appshell.bg6 {--h:160;--scb:0.028;--ah:158;--ah2:178;--acb:0.15;--alb:0.70}
+.appshell.bg7 {--h:20; --scb:0.03; --ah:15; --ah2:350;--acb:0.17;--alb:0.65}
+.appshell.bg8 {--h:240;--scb:0.035;--ah:235;--ah2:258;--acb:0.17;--alb:0.66}
+.appshell.bg9 {--h:130;--scb:0.025;--ah:140;--ah2:120;--acb:0.13;--alb:0.68}
+.appshell.bg10{--h:340;--scb:0.032;--ah:340;--ah2:315;--acb:0.16;--alb:0.66}
 
+/* Light mode is the same ten themes seen from the other side: the surfaces keep
+   their hue but lose most of their chroma, and the accent drops in lightness so
+   it still carries white text. Nothing here is per-theme. */
 .appshell.lite{
-  --g1:oklch(0.98 0.018 266);--g2:oklch(0.955 0.012 266);--g3:oklch(0.94 0.012 266);
-  --card:oklch(1 0 0 / .86);--card2:oklch(0.975 0.006 266 / .8);--cardline:oklch(0.88 0.012 266);
-  --panel:oklch(1 0 0 / .82);--panelline:oklch(0.88 0.012 266);
-  --seg:oklch(0.96 0.008 266 / .9);--segline:oklch(0.88 0.012 266);
-  --btn:oklch(0.965 0.006 266);--btnline:oklch(0.87 0.012 266);
-  --text:oklch(0.24 0.02 266);--text2:oklch(0.3 0.02 266);
-  --dim:oklch(0.5 0.02 266);--dim2:oklch(0.56 0.02 266);--dim3:oklch(0.62 0.02 266);
-  --line:oklch(0.9 0.01 266);--line2:oklch(0.86 0.012 266);--track:oklch(0.9 0.012 266);
-  --soft:oklch(0.62 0.18 264 / .12);--softline:oklch(0.6 0.18 268 / .3);--softtext:oklch(0.42 0.14 266);
+  /* -0.14 is what keeps white text legible on the accent once the ground is
+     white; the warm themes sit highest and still clear it */
+  --sc:calc(var(--scb)*0.4);--ac:calc(var(--acb)*0.88);--al:calc(var(--alb) - 0.14);
+  --g1:oklch(0.98 calc(var(--sc)*1.5) var(--h));--g2:oklch(0.955 var(--sc) var(--h));--g3:oklch(0.94 var(--sc) var(--h));
+  --card:oklch(0.995 calc(var(--sc)*0.3) var(--h) / .88);--card2:oklch(0.965 calc(var(--sc)*0.8) var(--h) / .8);--cardline:oklch(0.88 var(--sc) var(--h));
+  --panel:oklch(0.995 calc(var(--sc)*0.3) var(--h) / .82);--panelline:oklch(0.88 var(--sc) var(--h));
+  --seg:oklch(0.96 calc(var(--sc)*0.67) var(--h) / .9);--segline:oklch(0.88 var(--sc) var(--h));
+  --btn:oklch(0.965 calc(var(--sc)*0.5) var(--h));--btnline:oklch(0.87 var(--sc) var(--h));
+  --flagdisc:oklch(0.93 calc(var(--sc)*0.67) var(--h));
+  --text:oklch(0.24 calc(var(--sc)*1.67) var(--h));--text2:oklch(0.3 calc(var(--sc)*1.67) var(--h));
+  --dim:oklch(0.5 calc(var(--sc)*1.67) var(--h));--dim2:oklch(0.56 calc(var(--sc)*1.67) var(--h));--dim3:oklch(0.62 calc(var(--sc)*1.67) var(--h));
+  --line:oklch(0.9 calc(var(--sc)*0.83) var(--h));--line2:oklch(0.86 var(--sc) var(--h));--track:oklch(0.9 var(--sc) var(--h));
+  --soft:oklch(var(--al) var(--ac) var(--ah) / .12);--softline:oklch(var(--al) var(--ac) var(--ah2) / .3);--softtext:oklch(calc(var(--al) - 0.1) calc(var(--ac)*0.8) var(--ah));
   --onaccent:#fff
 }
-.appshell.bg2.lite{--g1:oklch(0.975 0.002 266);--g2:oklch(0.96 0.002 266);--g3:oklch(0.945 0.001 266);--accent:oklch(0.45 0.02 266);--accent2:oklch(0.38 0.02 266)}
-.appshell.bg3.lite{--g1:oklch(0.975 0.02 200);--g2:oklch(0.955 0.014 200);--g3:oklch(0.94 0.012 200);--accent:oklch(0.52 0.12 205);--accent2:oklch(0.46 0.11 220)}
-.appshell.bg4.lite{--g1:oklch(0.975 0.022 300);--g2:oklch(0.955 0.014 300);--g3:oklch(0.94 0.012 300);--accent:oklch(0.52 0.17 300);--accent2:oklch(0.46 0.16 320)}
-.appshell.bg5.lite{--g1:oklch(0.98 0.02 70);--g2:oklch(0.96 0.014 70);--g3:oklch(0.945 0.012 70);--accent:oklch(0.55 0.12 60);--accent2:oklch(0.48 0.11 45)}
 
 .wrap{max-width:1220px;margin:0 auto;padding:16px 16px 96px}
 .row{display:flex;align-items:center}
@@ -107,11 +128,31 @@ button{font-family:inherit;cursor:pointer}
 .ptab{flex:1;display:flex;align-items:center;height:40px;justify-content:center;gap:8px;border-radius:11px;border:1px solid transparent;font-size:13.5px;font-weight:700;background:transparent;color:var(--dim)}
 .ptab.on{background:var(--navon);border-color:var(--softline);color:var(--text)}
 .pdot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
-.pcount{font-size:11px;font-weight:700;color:var(--dim)}
 .slist{max-height:420px;overflow-y:auto}
 .srow{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--line)}
 .srow:last-child{border-bottom:none}
-.pg-flag{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;font-size:27px;line-height:1;flex-shrink:0;box-shadow:inset 0 0 0 1px var(--cardline);font-family:"Twemoji Country Flags","Vazirmatn",sans-serif}
+/* A flag emoji is a wide rectangle in a square em box. Drawing it larger than
+   the circle fills the disc but cuts the ends off the flag, so it is drawn
+   small enough to fit and the disc is given a fill of its own that is a shade
+   away from the row — the whole flag stays visible and the shape still reads
+   as a circle. Three styles then differ only in how the disc is finished. */
+.pg-flag{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;overflow:hidden;font-size:21px;line-height:1;flex-shrink:0;position:relative;background:var(--flagdisc);box-shadow:inset 0 0 0 1px var(--cardline);font-family:"Twemoji Country Flags","Vazirmatn",sans-serif}
+/* framed: a heavier ring in the accent, for readers who want the flag to read
+   as a control rather than a decoration */
+.appshell.flags2 .pg-flag{box-shadow:inset 0 0 0 2px var(--accent),0 2px 6px -2px oklch(0 0 0 / .45)}
+/* glossy: same disc, with a highlight across the top third */
+.appshell.flags3 .pg-flag{box-shadow:inset 0 0 0 1px var(--cardline)}
+.appshell.flags3 .pg-flag::after{content:"";position:absolute;inset:0;border-radius:50%;background:linear-gradient(160deg,oklch(1 0 0 / .35) 0%,oklch(1 0 0 / .06) 42%,transparent 60%);pointer-events:none}
+.appshell.lite.flags3 .pg-flag::after{background:linear-gradient(160deg,oklch(1 0 0 / .5) 0%,oklch(1 0 0 / .1) 42%,transparent 60%)}
+/* the picker shows each style on the same disc the rows use, so the choice is
+   made by looking at the thing itself rather than at a label */
+.flagdot{width:30px;height:30px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--flagdisc);font-size:19px;line-height:1;padding:0;border:2px solid transparent;position:relative;font-family:"Twemoji Country Flags","Vazirmatn",sans-serif;box-shadow:inset 0 0 0 1px var(--cardline)}
+.flagdot.on{border-color:var(--accent)}
+/* A config row reads flag, name, protocol, actions — in that order, whichever
+   way the page itself runs. Letting it follow the page direction mirrored the
+   whole row in Persian and put the buttons where the flag belongs. */
+.srow{direction:ltr}
+.srow .srv-name{text-align:left}
 .ptag{font-family:ui-monospace,"JetBrains Mono",monospace;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--softtext);background:var(--soft);padding:3px 8px;border-radius:6px;flex-shrink:0}
 .actcopy{display:flex;align-items:center;gap:6px;height:32px;padding:0 13px;border-radius:10px;background:var(--soft);border:1px solid var(--softline);color:var(--softtext);font-size:12px;font-weight:700;white-space:nowrap}
 .acticon{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:10px;background:var(--btn);border:1px solid var(--btnline);color:var(--text2);flex-shrink:0}
@@ -216,14 +257,27 @@ button{font-family:inherit;cursor:pointer}
     </div>
   </header>
 
+  <!-- the swatches are their own label: each one is painted in the ground and
+       accent it selects, so a word in front of them adds nothing -->
   <div class="bgpick">
-    <span style="font-size:11.5px;font-weight:700;color:var(--dim2);white-space:nowrap" data-i18n="bgcolor">رنگ پس‌زمینه</span>
     <div class="row" style="gap:8px">
-      <button class="bgdot on" data-bg="" onclick="setBg('')" title="آبی‌بنفش" style="background:linear-gradient(135deg,oklch(0.42 0.09 266),oklch(0.2 0.04 266))"></button>
-      <button class="bgdot" data-bg="bg2" onclick="setBg('bg2')" title="زغالی خنثی" style="background:linear-gradient(135deg,oklch(0.45 0.005 266),oklch(0.2 0.003 266))"></button>
-      <button class="bgdot" data-bg="bg3" onclick="setBg('bg3')" title="آبی‌فیروزه‌ای" style="background:linear-gradient(135deg,oklch(0.45 0.09 200),oklch(0.2 0.04 200))"></button>
-      <button class="bgdot" data-bg="bg4" onclick="setBg('bg4')" title="بنفش" style="background:linear-gradient(135deg,oklch(0.42 0.11 300),oklch(0.2 0.05 300))"></button>
-      <button class="bgdot" data-bg="bg5" onclick="setBg('bg5')" title="گرم / قهوه‌ای" style="background:linear-gradient(135deg,oklch(0.45 0.07 70),oklch(0.2 0.03 70))"></button>
+      <button class="bgdot on" data-bg="" onclick="setBg('')" title="نیلی" style="background:linear-gradient(135deg,oklch(0.62 0.19 264),oklch(0.2 0.05 266))"></button>
+      <button class="bgdot" data-bg="bg2" onclick="setBg('bg2')" title="گرافیتی" style="background:linear-gradient(135deg,oklch(0.68 0.02 266),oklch(0.2 0.008 266))"></button>
+      <button class="bgdot" data-bg="bg3" onclick="setBg('bg3')" title="فیروزه‌ای" style="background:linear-gradient(135deg,oklch(0.66 0.14 205),oklch(0.2 0.05 200))"></button>
+      <button class="bgdot" data-bg="bg4" onclick="setBg('bg4')" title="بنفش" style="background:linear-gradient(135deg,oklch(0.64 0.19 300),oklch(0.2 0.058 300))"></button>
+      <button class="bgdot" data-bg="bg5" onclick="setBg('bg5')" title="کهربایی" style="background:linear-gradient(135deg,oklch(0.7 0.14 65),oklch(0.2 0.041 70))"></button>
+      <button class="bgdot" data-bg="bg6" onclick="setBg('bg6')" title="زمردی" style="background:linear-gradient(135deg,oklch(0.7 0.15 158),oklch(0.2 0.046 160))"></button>
+      <button class="bgdot" data-bg="bg7" onclick="setBg('bg7')" title="گلگون" style="background:linear-gradient(135deg,oklch(0.65 0.17 15),oklch(0.2 0.05 20))"></button>
+      <button class="bgdot" data-bg="bg8" onclick="setBg('bg8')" title="اقیانوسی" style="background:linear-gradient(135deg,oklch(0.66 0.17 235),oklch(0.2 0.058 240))"></button>
+      <button class="bgdot" data-bg="bg9" onclick="setBg('bg9')" title="جنگلی" style="background:linear-gradient(135deg,oklch(0.68 0.13 140),oklch(0.2 0.041 130))"></button>
+      <button class="bgdot" data-bg="bg10" onclick="setBg('bg10')" title="ارغوانی" style="background:linear-gradient(135deg,oklch(0.66 0.16 340),oklch(0.2 0.053 340))"></button>
+    </div>
+    <span style="width:1px;height:22px;background:var(--cardline)"></span>
+    <span style="font-size:11.5px;font-weight:700;color:var(--dim2);white-space:nowrap" data-i18n="flagstyle">پرچم‌ها</span>
+    <div class="row" style="gap:8px">
+      <button class="flagdot on" data-flagstyle="" onclick="setFlagStyle('')" title="ساده">🇬🇧</button>
+      <button class="flagdot" data-flagstyle="flags2" onclick="setFlagStyle('flags2')" title="قاب‌دار" style="box-shadow:inset 0 0 0 2px var(--accent)">🇬🇧</button>
+      <button class="flagdot" data-flagstyle="flags3" onclick="setFlagStyle('flags3')" title="براق"><span style="position:absolute;inset:0;border-radius:50%;background:linear-gradient(160deg,oklch(1 0 0 / .35) 0%,transparent 60%)"></span>🇬🇧</button>
     </div>
   </div>
 
@@ -406,7 +460,7 @@ button{font-family:inherit;cursor:pointer}
       <div class="row" style="gap:4px;background:var(--seg);border:1px solid var(--segline);border-radius:14px;padding:4px">
         {% for id,name,cnt in protos %}
         <button class="ptab{{ ' on' if id == pf.first else '' }}" data-proto-tab="{{ id }}" onclick="showProto('{{ id }}')">
-          <span class="pdot"></span>{{ name }}<span class="pg-mono num-fa pcount">{{ cnt }}</span>
+          <span class="pdot"></span>{{ name }}
         </button>
         {% endfor %}
       </div>
@@ -437,9 +491,11 @@ button{font-family:inherit;cursor:pointer}
             {% endif %}
           </div>
 
-          <div class="row" style="gap:14px;padding:10px 18px;border-bottom:1px solid var(--line);font-size:11px;font-weight:700;color:var(--dim3)">
+          <!-- the rows below are laid out left to right in both languages, so the
+               header has to be too — otherwise the labels sit over the wrong columns -->
+          <div class="row" style="direction:ltr;gap:14px;padding:10px 18px;border-bottom:1px solid var(--line);font-size:11px;font-weight:700;color:var(--dim3)">
             <span style="flex:1" data-i18n="colServer">سرور</span>
-            <span style="width:132px;text-align:start" data-i18n="colAction">اکشن</span>
+            <span style="width:132px;text-align:center" data-i18n="colAction">اکشن</span>
           </div>
 
           <div class="slist">
@@ -450,16 +506,16 @@ button{font-family:inherit;cursor:pointer}
               <div class="srow" data-xray="{{ link }}">
                 <div class="row" style="flex:1;gap:11px;min-width:0">
                   <span class="pg-flag" data-flagfor="{{ nm }}"></span>
-                  <span class="ptag">{{ scheme }}</span>
                   <span dir="ltr" class="srv-name" style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ nm }}</span>
+                  <span class="ptag">{{ scheme }}</span>
                 </div>
                 <div dir="ltr" class="row" style="width:132px;gap:7px">
+                  <button class="acticon" title="QR" onclick="showQR(this.closest('.srow').getAttribute('data-xray'),event)">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="5" height="5" rx="1"/><path d="M17 12v4a1 1 0 0 1-1 1h-4M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M3 7V5a2 2 0 0 1 2-2h2M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
+                  </button>
                   <button class="actcopy" onclick="copyText(this.closest('.srow').getAttribute('data-xray'))">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                     <span data-i18n="copy">کپی</span>
-                  </button>
-                  <button class="acticon" title="QR" onclick="showQR(this.closest('.srow').getAttribute('data-xray'),event)">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="5" height="5" rx="1"/><path d="M17 12v4a1 1 0 0 1-1 1h-4M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M3 7V5a2 2 0 0 1 2-2h2M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
                   </button>
                 </div>
               </div>
@@ -469,17 +525,17 @@ button{font-family:inherit;cursor:pointer}
               <div class="srow">
                 <div class="row" style="flex:1;gap:11px;min-width:0">
                   <span class="pg-flag" data-flagfor="{{ cfg.name }}"></span>
-                  <span class="ptag">{{ 'conf' if id == 'wg' else 'ovpn' }}</span>
                   <span dir="ltr" class="srv-name" style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ cfg.name }}</span>
+                  <span class="ptag">{{ 'conf' if id == 'wg' else 'ovpn' }}</span>
                 </div>
                 <div dir="ltr" class="row" style="width:132px;gap:7px">
+                  <button class="acticon" title="QR" onclick="showFileQR(this.closest('.srow').querySelector('a[download]').getAttribute('href'),event)">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="5" height="5" rx="1"/><path d="M17 12v4a1 1 0 0 1-1 1h-4M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M3 7V5a2 2 0 0 1 2-2h2M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
+                  </button>
                   <a class="actcopy" href="{{ cfg.data_url }}" download="{{ cfg.filename }}">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                     <span data-i18n="download">دانلود</span>
                   </a>
-                  <button class="acticon" title="QR" onclick="showFileQR(this.closest('.srow').querySelector('a[download]').getAttribute('href'),event)">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="5" height="5" rx="1"/><path d="M17 12v4a1 1 0 0 1-1 1h-4M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M3 7V5a2 2 0 0 1 2-2h2M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
-                  </button>
                 </div>
               </div>
             {% endfor %}
@@ -548,7 +604,7 @@ button{font-family:inherit;cursor:pointer}
 /* ---------------------------------------------------------------- language */
 var I18N={
  fa:{plan:'اشتراک',account:'حساب کاربری',servers:'سرورها',apps:'اپلیکیشن‌ها',day:'روز',never:'هرگز',
-     bgcolor:'رنگ پس‌زمینه',volLeft:'حجم باقی‌مانده',timeLeft:'زمان باقی‌مانده',usedSuffix:'مصرف‌شده',
+     flagstyle:'پرچم‌ها',volLeft:'حجم باقی‌مانده',timeLeft:'زمان باقی‌مانده',usedSuffix:'مصرف‌شده',
      passed:'سپری‌شده',pctSign:'٪',ofPeriodA:'از',ofPeriodB:'روز دوره',totalVol:'حجم کل',expiry:'تاریخ انقضا',
      lastSeen:'آخرین اتصال',unlimited:'نامحدود',notStarted:'شروع نشده',usageChart:'آمار مصرف',
      barChart:'ستونی',lineChart:'خطی',r24h:'۲۴ ساعت',r7d:'۷ روز',r30d:'۳۰ روز',
@@ -561,7 +617,7 @@ var I18N={
      st_active:'فعال',st_expired:'منقضی شده',st_limited:'اتمام حجم',st_disabled:'غیرفعال',st_on_hold:'در انتظار شروع',
      rangeDayLabel:'۲۴ ساعت اخیر',rangeWeekLabel:'۷ روز اخیر',rangeMonthLabel:'۳۰ روز اخیر',noUsage:'هنوز مصرفی ثبت نشده',agoNow:'هم‌اکنون',agoMin:'دقیقه پیش',agoHour:'ساعت پیش',agoDay:'روز پیش'},
  en:{plan:'Plan',account:'Account',servers:'Servers',apps:'Apps',day:'days',never:'Never',
-     bgcolor:'Background',volLeft:'Data left',timeLeft:'Time left',usedSuffix:'used',
+     flagstyle:'Flags',volLeft:'Data left',timeLeft:'Time left',usedSuffix:'used',
      passed:'elapsed',pctSign:'%',ofPeriodA:'of',ofPeriodB:'day period',totalVol:'Total data',expiry:'Expires in',
      lastSeen:'Last seen',unlimited:'Unlimited',notStarted:'Not started',usageChart:'Usage',
      barChart:'Bars',lineChart:'Line',r24h:'24 hours',r7d:'7 days',r30d:'30 days',
@@ -613,9 +669,17 @@ function toggleTheme(){
   try{localStorage.setItem('pg_theme',lite?'lite':'dark');}catch(e){}
   setThemeLabel();renderChart();
 }
+function setFlagStyle(v){
+  var s=shell();
+  ['flags2','flags3'].forEach(function(c){s.classList.remove(c);});
+  if(v)s.classList.add(v);
+  try{localStorage.setItem('pg_flagstyle',v);}catch(e){}
+  document.querySelectorAll('.flagdot').forEach(function(d){
+    d.classList.toggle('on',(d.getAttribute('data-flagstyle')||'')===v);});
+}
 function setBg(bg){
   var s=shell();
-  ['bg2','bg3','bg4','bg5'].forEach(function(c){s.classList.remove(c);});
+  ['bg2','bg3','bg4','bg5','bg6','bg7','bg8','bg9','bg10'].forEach(function(c){s.classList.remove(c);});
   if(bg)s.classList.add(bg);
   try{localStorage.setItem('pg_bg',bg);}catch(e){}
   document.querySelectorAll('.bgdot').forEach(function(d){
@@ -725,15 +789,28 @@ function _bytes(n){
 }
 var _chartRange='7d',_chartMode='bar';
 var _usageRaw={'1d':null,'7d':null,'30d':null};
-function normalizeUsage(j){
-  if(!j)return [];
-  var arr=j.stats||j.usages||j.data||(Array.isArray(j)?j:[]);
-  if(!Array.isArray(arr))return [];
-  return arr.map(function(o){
-    var t=o.period_start||o.time||o.date||o.datetime;
-    var v=o.used_traffic!==undefined?o.used_traffic:(o.traffic!==undefined?o.traffic:(o.value||0));
-    return {time:t?new Date(t):null,value:+v||0};
-  }).filter(function(p){return p.time;}).sort(function(a,b){return a.time-b.time;});
+function normalizeUsage(data){
+  /* The endpoint answers {stats:{"<node id>":[{period_start,total_traffic}]}} —
+     a map keyed by node, not a list, and one entry per node per period. Reading
+     it as an array leaves the chart permanently empty, which is what happened.
+     Periods are summed across nodes so the chart shows the account's traffic
+     rather than one node's. */
+  var out={},st=data&&(data.stats||data);
+  if(st&&typeof st==='object'){
+    Object.keys(st).forEach(function(k){
+      if(!Array.isArray(st[k]))return;
+      st[k].forEach(function(p){
+        if(!p||typeof p!=='object')return;
+        var key=p.period_start||p.time||p.date;
+        var v=(p.total_traffic!==undefined)?p.total_traffic
+             :(p.used_traffic!==undefined)?p.used_traffic:(p.value||0);
+        if(key)out[key]=(out[key]||0)+(Number(v)||0);
+      });
+    });
+  }
+  return Object.keys(out).sort().map(function(k){
+    return {time:new Date(k),value:out[k]};
+  }).filter(function(p){return p.time&&!isNaN(p.time.getTime());});
 }
 function _slots(range){return range==='1d'?24:(range==='7d'?7:30);}
 function _tick(d,range){
@@ -881,6 +958,9 @@ function loadUsage(range){
     document.querySelectorAll('.bgdot').forEach(function(d){
       d.classList.toggle('on',(d.getAttribute('data-bg')||'')===bg);});
     var m=localStorage.getItem('pg_chartmode');if(m==='line')_chartMode='line';
+    var fs=localStorage.getItem('pg_flagstyle')||'';if(fs)shell().classList.add(fs);
+    document.querySelectorAll('.flagdot').forEach(function(d){
+      d.classList.toggle('on',(d.getAttribute('data-flagstyle')||'')===fs);});
   }catch(e){}
   document.getElementById('modeBar').classList.toggle('on',_chartMode==='bar');
   document.getElementById('modeLine').classList.toggle('on',_chartMode==='line');
