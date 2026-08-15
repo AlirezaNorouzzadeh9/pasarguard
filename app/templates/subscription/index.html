@@ -180,7 +180,12 @@ button{font-family:inherit;cursor:pointer}
 {% set days_left = ((user.expire - now()).days) if user.expire else None %}
 {#- A subscription that ran out yesterday holds a negative number; show 0. -#}
 {% set days_left = (days_left if days_left > 0 else 0) if days_left is not none else None %}
-{% set days_total = ((user.expire - user.created_at).days) if (user.expire and user.created_at) else None %}
+{#- The period runs from the last edit, not from when the account was made:
+    a renewal moves edit_at forward, so measuring from created_at makes an old
+    account read "99% spent" the day after it is topped up. Same base the
+    panel itself uses for a user's timeline. -#}
+{% set period_start = user.edit_at or user.created_at %}
+{% set days_total = ((user.expire - period_start).days) if (user.expire and period_start) else None %}
 {% set days_total = days_total if (days_total and days_total > 0) else None %}
 {% set days_pct = ((days_total - days_left) * 100 / days_total)|round(0,'floor')|int if (days_total and days_left is not none) else 0 %}
 {% set days_pct = 100 if days_pct > 100 else (0 if days_pct < 0 else days_pct) %}
