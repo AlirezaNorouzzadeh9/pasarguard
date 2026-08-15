@@ -203,7 +203,10 @@ button{font-family:inherit;cursor:pointer}
 {% if wireguard_configs and pf.first is none %}{% set pf.first = 'wg' %}{% endif %}
 {% if openvpn_configs and pf.first is none %}{% set pf.first = 'ov' %}{% endif %}
 
-<div class="appshell" id="shell">
+{# flags2 draws the accent ring around each flag; drop the class for the plain
+   disc, or swap in flags3 for the glossy one. A bgN class here changes the
+   ground and every surface with it. #}
+<div class="appshell flags2" id="shell">
 <div class="wrap">
 
   <header class="hdr hdr-desktop">
