@@ -103,10 +103,6 @@ button{font-family:inherit;cursor:pointer}
 .mtab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:1;height:48px;border-radius:14px;border:none;background:transparent;color:var(--dim2);font-size:10px;font-weight:700}
 .mtab.on{background:var(--navon);color:var(--text)}
 
-.bgpick{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--cardline);border-radius:16px;padding:10px 16px;margin-bottom:14px;flex-wrap:wrap}
-.bgdot{width:30px;height:30px;border-radius:50%;border:2px solid transparent;padding:0}
-.bgdot.on{border-color:var(--accent)}
-
 .gauges{display:flex;align-items:center;gap:20px;flex-direction:column}
 .gauge{display:flex;align-items:center;gap:18px;flex:1;min-width:0;width:100%}
 .gsplit{width:100%;height:1px;background:var(--cardline)}
@@ -144,10 +140,6 @@ button{font-family:inherit;cursor:pointer}
 .appshell.flags3 .pg-flag{box-shadow:inset 0 0 0 1px var(--cardline)}
 .appshell.flags3 .pg-flag::after{content:"";position:absolute;inset:0;border-radius:50%;background:linear-gradient(160deg,oklch(1 0 0 / .35) 0%,oklch(1 0 0 / .06) 42%,transparent 60%);pointer-events:none}
 .appshell.lite.flags3 .pg-flag::after{background:linear-gradient(160deg,oklch(1 0 0 / .5) 0%,oklch(1 0 0 / .1) 42%,transparent 60%)}
-/* the picker shows each style on the same disc the rows use, so the choice is
-   made by looking at the thing itself rather than at a label */
-.flagdot{width:30px;height:30px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--flagdisc);font-size:19px;line-height:1;padding:0;border:2px solid transparent;position:relative;font-family:"Twemoji Country Flags","Vazirmatn",sans-serif;box-shadow:inset 0 0 0 1px var(--cardline)}
-.flagdot.on{border-color:var(--accent)}
 /* A config row reads flag, name, protocol, actions — in that order, whichever
    way the page itself runs. Letting it follow the page direction mirrored the
    whole row in Persian and put the buttons where the flag belongs. */
@@ -256,30 +248,6 @@ button{font-family:inherit;cursor:pointer}
       <button class="iconbtn pg-mono" style="padding:8px 10px" onclick="toggleLang()"><span id="langLabel2">EN</span></button>
     </div>
   </header>
-
-  <!-- the swatches are their own label: each one is painted in the ground and
-       accent it selects, so a word in front of them adds nothing -->
-  <div class="bgpick">
-    <div class="row" style="gap:8px">
-      <button class="bgdot on" data-bg="" onclick="setBg('')" title="نیلی" style="background:linear-gradient(135deg,oklch(0.62 0.19 264),oklch(0.2 0.05 266))"></button>
-      <button class="bgdot" data-bg="bg2" onclick="setBg('bg2')" title="گرافیتی" style="background:linear-gradient(135deg,oklch(0.68 0.02 266),oklch(0.2 0.008 266))"></button>
-      <button class="bgdot" data-bg="bg3" onclick="setBg('bg3')" title="فیروزه‌ای" style="background:linear-gradient(135deg,oklch(0.66 0.14 205),oklch(0.2 0.05 200))"></button>
-      <button class="bgdot" data-bg="bg4" onclick="setBg('bg4')" title="بنفش" style="background:linear-gradient(135deg,oklch(0.64 0.19 300),oklch(0.2 0.058 300))"></button>
-      <button class="bgdot" data-bg="bg5" onclick="setBg('bg5')" title="کهربایی" style="background:linear-gradient(135deg,oklch(0.7 0.14 65),oklch(0.2 0.041 70))"></button>
-      <button class="bgdot" data-bg="bg6" onclick="setBg('bg6')" title="زمردی" style="background:linear-gradient(135deg,oklch(0.7 0.15 158),oklch(0.2 0.046 160))"></button>
-      <button class="bgdot" data-bg="bg7" onclick="setBg('bg7')" title="گلگون" style="background:linear-gradient(135deg,oklch(0.65 0.17 15),oklch(0.2 0.05 20))"></button>
-      <button class="bgdot" data-bg="bg8" onclick="setBg('bg8')" title="اقیانوسی" style="background:linear-gradient(135deg,oklch(0.66 0.17 235),oklch(0.2 0.058 240))"></button>
-      <button class="bgdot" data-bg="bg9" onclick="setBg('bg9')" title="جنگلی" style="background:linear-gradient(135deg,oklch(0.68 0.13 140),oklch(0.2 0.041 130))"></button>
-      <button class="bgdot" data-bg="bg10" onclick="setBg('bg10')" title="ارغوانی" style="background:linear-gradient(135deg,oklch(0.66 0.16 340),oklch(0.2 0.053 340))"></button>
-    </div>
-    <span style="width:1px;height:22px;background:var(--cardline)"></span>
-    <span style="font-size:11.5px;font-weight:700;color:var(--dim2);white-space:nowrap" data-i18n="flagstyle">پرچم‌ها</span>
-    <div class="row" style="gap:8px">
-      <button class="flagdot on" data-flagstyle="" onclick="setFlagStyle('')" title="ساده">🇬🇧</button>
-      <button class="flagdot" data-flagstyle="flags2" onclick="setFlagStyle('flags2')" title="قاب‌دار" style="box-shadow:inset 0 0 0 2px var(--accent)">🇬🇧</button>
-      <button class="flagdot" data-flagstyle="flags3" onclick="setFlagStyle('flags3')" title="براق"><span style="position:absolute;inset:0;border-radius:50%;background:linear-gradient(160deg,oklch(1 0 0 / .35) 0%,transparent 60%)"></span>🇬🇧</button>
-    </div>
-  </div>
 
   {% if alert is defined and alert %}
   <div class="card" style="border-color:var(--softline);background:var(--soft);padding:12px 16px;margin-bottom:14px;font-size:12.5px;color:var(--softtext)"><bdi>{{ alert }}</bdi></div>
@@ -604,7 +572,7 @@ button{font-family:inherit;cursor:pointer}
 /* ---------------------------------------------------------------- language */
 var I18N={
  fa:{plan:'اشتراک',account:'حساب کاربری',servers:'سرورها',apps:'اپلیکیشن‌ها',day:'روز',never:'هرگز',
-     flagstyle:'پرچم‌ها',volLeft:'حجم باقی‌مانده',timeLeft:'زمان باقی‌مانده',usedSuffix:'مصرف‌شده',
+     volLeft:'حجم باقی‌مانده',timeLeft:'زمان باقی‌مانده',usedSuffix:'مصرف‌شده',
      passed:'سپری‌شده',pctSign:'٪',ofPeriodA:'از',ofPeriodB:'روز دوره',totalVol:'حجم کل',expiry:'تاریخ انقضا',
      lastSeen:'آخرین اتصال',unlimited:'نامحدود',notStarted:'شروع نشده',usageChart:'آمار مصرف',
      barChart:'ستونی',lineChart:'خطی',r24h:'۲۴ ساعت',r7d:'۷ روز',r30d:'۳۰ روز',
@@ -617,7 +585,7 @@ var I18N={
      st_active:'فعال',st_expired:'منقضی شده',st_limited:'اتمام حجم',st_disabled:'غیرفعال',st_on_hold:'در انتظار شروع',
      rangeDayLabel:'۲۴ ساعت اخیر',rangeWeekLabel:'۷ روز اخیر',rangeMonthLabel:'۳۰ روز اخیر',noUsage:'هنوز مصرفی ثبت نشده',agoNow:'هم‌اکنون',agoMin:'دقیقه پیش',agoHour:'ساعت پیش',agoDay:'روز پیش'},
  en:{plan:'Plan',account:'Account',servers:'Servers',apps:'Apps',day:'days',never:'Never',
-     flagstyle:'Flags',volLeft:'Data left',timeLeft:'Time left',usedSuffix:'used',
+     volLeft:'Data left',timeLeft:'Time left',usedSuffix:'used',
      passed:'elapsed',pctSign:'%',ofPeriodA:'of',ofPeriodB:'day period',totalVol:'Total data',expiry:'Expires in',
      lastSeen:'Last seen',unlimited:'Unlimited',notStarted:'Not started',usageChart:'Usage',
      barChart:'Bars',lineChart:'Line',r24h:'24 hours',r7d:'7 days',r30d:'30 days',
@@ -669,23 +637,9 @@ function toggleTheme(){
   try{localStorage.setItem('pg_theme',lite?'lite':'dark');}catch(e){}
   setThemeLabel();renderChart();
 }
-function setFlagStyle(v){
-  var s=shell();
-  ['flags2','flags3'].forEach(function(c){s.classList.remove(c);});
-  if(v)s.classList.add(v);
-  try{localStorage.setItem('pg_flagstyle',v);}catch(e){}
-  document.querySelectorAll('.flagdot').forEach(function(d){
-    d.classList.toggle('on',(d.getAttribute('data-flagstyle')||'')===v);});
-}
-function setBg(bg){
-  var s=shell();
-  ['bg2','bg3','bg4','bg5','bg6','bg7','bg8','bg9','bg10'].forEach(function(c){s.classList.remove(c);});
-  if(bg)s.classList.add(bg);
-  try{localStorage.setItem('pg_bg',bg);}catch(e){}
-  document.querySelectorAll('.bgdot').forEach(function(d){
-    d.classList.toggle('on',(d.getAttribute('data-bg')||'')===bg);});
-  renderChart();
-}
+/* The ground and the flag style are no longer things a subscriber picks — they
+   are set once, on the shell, by adding a bgN / flagsN class. The palettes are
+   still in the stylesheet, so changing the look is a one-word edit there. */
 
 /* ------------------------------------------------------------------- tabs */
 function goTab(name){
@@ -954,13 +908,10 @@ function loadUsage(range){
 (function(){
   try{
     if(localStorage.getItem('pg_theme')==='lite')shell().classList.add('lite');
-    var bg=localStorage.getItem('pg_bg')||'';if(bg)shell().classList.add(bg);
-    document.querySelectorAll('.bgdot').forEach(function(d){
-      d.classList.toggle('on',(d.getAttribute('data-bg')||'')===bg);});
     var m=localStorage.getItem('pg_chartmode');if(m==='line')_chartMode='line';
-    var fs=localStorage.getItem('pg_flagstyle')||'';if(fs)shell().classList.add(fs);
-    document.querySelectorAll('.flagdot').forEach(function(d){
-      d.classList.toggle('on',(d.getAttribute('data-flagstyle')||'')===fs);});
+    /* a ground or flag style stored before the picker was removed would
+       otherwise keep overriding the one the page now ships with */
+    localStorage.removeItem('pg_bg');localStorage.removeItem('pg_flagstyle');
   }catch(e){}
   document.getElementById('modeBar').classList.toggle('on',_chartMode==='bar');
   document.getElementById('modeLine').classList.toggle('on',_chartMode==='line');
