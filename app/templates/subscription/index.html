@@ -396,17 +396,23 @@ button{font-family:inherit;cursor:pointer}
        otherwise have the whole subscription; copying or scanning it does not
        put it on display. #}
     <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:16px;border-radius:20px;padding:13px 16px;flex-wrap:wrap">
-      <div class="row" style="gap:14px;min-width:0">
-        <button id="qrThumb" title="بزرگ‌نمایی" onclick="qrSub(event)" style="width:58px;height:58px;border-radius:13px;background:#fff;padding:6px;flex-shrink:0;border:1px solid var(--cardline)"></button>
-        <div style="min-width:0">
-          <div style="font-size:14px;font-weight:800" data-i18n="subLink">لینک اشتراک اختصاصی شما</div>
-          <div style="font-size:11.5px;color:var(--dim2);margin-top:4px" data-i18n="subHidden">برای امنیت، لینک نمایش داده نمی‌شود — کپی کنید یا QR را اسکن کنید</div>
-        </div>
+      <div style="min-width:0">
+        <div style="font-size:14px;font-weight:800" data-i18n="subLink">لینک اشتراک اختصاصی شما</div>
+        <div style="font-size:11.5px;color:var(--dim2);margin-top:4px" data-i18n="subHidden">برای امنیت، لینک نمایش داده نمی‌شود — کپی کنید یا QR را اسکن کنید</div>
       </div>
-      <button onclick="copySub()" style="display:flex;align-items:center;gap:8px;height:42px;padding:0 22px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;font-size:13.5px;font-weight:700;flex-shrink:0">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-        <span style="white-space:nowrap" data-i18n="copyLink">کپی لینک</span>
-      </button>
+      {# The QR sits with the copy button rather than printed beside the text:
+         both are the same kind of thing — a way to take the link away — and a
+         code small enough to fit the row is too small to scan anyway, so it
+         only ever led to the modal. #}
+      <div dir="ltr" class="row" style="gap:8px;flex-shrink:0">
+        <button onclick="qrSub(event)" title="QR" style="display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:12px;background:var(--btn);border:1px solid var(--btnline);color:var(--text2)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1"/></svg>
+        </button>
+        <button onclick="copySub()" style="display:flex;align-items:center;gap:8px;height:42px;padding:0 22px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;font-size:13.5px;font-weight:700">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+          <span style="white-space:nowrap" data-i18n="copyLink">کپی لینک</span>
+        </button>
+      </div>
     </div>
 
     {% if not can_use %}
@@ -718,13 +724,6 @@ function decodeServerNames(){
     try{var d=decodeURIComponent(s);if(d&&d!==s)el.textContent=d;}catch(e){}
   });
 }
-function renderQrThumb(){
-  /* A real QR, small: the design shows one beside the link and it should be
-     scannable rather than a decorative square. */
-  var el=document.getElementById('qrThumb');if(!el)return;
-  el.innerHTML='';
-  try{new QRCode(el,{text:subUrlValue(),width:46,height:46,correctLevel:QRCode.CorrectLevel.L});}catch(e){}
-}
 function addServerFlags(){
   document.querySelectorAll('[data-flagfor]').forEach(function(el){
     var raw=el.getAttribute('data-flagfor')||'';
@@ -915,7 +914,7 @@ function loadUsage(range){
   }catch(e){}
   document.getElementById('modeBar').classList.toggle('on',_chartMode==='bar');
   document.getElementById('modeLine').classList.toggle('on',_chartMode==='line');
-  decodeServerNames();addServerFlags();renderQrThumb();applyLang();loadUsage('7d');
+  decodeServerNames();addServerFlags();applyLang();loadUsage('7d');
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeQR();});
 })();
 </script>
