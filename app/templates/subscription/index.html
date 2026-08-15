@@ -352,9 +352,9 @@ button{font-family:inherit;cursor:pointer}
       </div>
 
       <div class="row" style="justify-content:center;gap:8px;margin-bottom:22px;flex-wrap:wrap">
-        <button class="pill" id="r1d" onclick="setRange('1d')" data-i18n="r24h">۲۴ ساعت</button>
-        <button class="pill on" id="r7d" onclick="setRange('7d')" data-i18n="r7d">۷ روز</button>
-        <button class="pill" id="r30d" onclick="setRange('30d')" data-i18n="r30d">۳۰ روز</button>
+        <button class="pill" id="r1d" onclick="setRange('1d')" data-i18n="r24h">24 ساعت</button>
+        <button class="pill on" id="r7d" onclick="setRange('7d')" data-i18n="r7d">7 روز</button>
+        <button class="pill" id="r30d" onclick="setRange('30d')" data-i18n="r30d">30 روز</button>
       </div>
 
       {# Bars and the value axis share one grid, and the tick row repeats it
@@ -584,7 +584,7 @@ var I18N={
      volLeft:'حجم باقی‌مانده',timeLeft:'زمان باقی‌مانده',usedSuffix:'مصرف‌شده',
      passed:'سپری‌شده',pctSign:'٪',ofPeriodA:'از',ofPeriodB:'روز دوره',totalVol:'حجم کل',expiry:'تاریخ انقضا',
      lastSeen:'آخرین اتصال',unlimited:'نامحدود',notStarted:'شروع نشده',usageChart:'آمار مصرف',
-     barChart:'ستونی',lineChart:'خطی',r24h:'۲۴ ساعت',r7d:'۷ روز',r30d:'۳۰ روز',
+     barChart:'ستونی',lineChart:'خطی',r24h:'24 ساعت',r7d:'7 روز',r30d:'30 روز',
      subLink:'لینک اشتراک اختصاصی شما',subHidden:'برای امنیت، لینک نمایش داده نمی‌شود — کپی کنید یا QR را اسکن کنید',copy:'کپی',download:'دانلود',downloadAll:'دانلود همه',xrayHint:'لینک را کپی کنید یا QR را در اپ اسکن کنید',subLinkShort:'لینک اشتراک',copyLink:'کپی لینک',copyAll:'کپی همه',
      colServer:'سرور',colAction:'اکشن',copied:'کپی شد!',close:'بستن',light:'روشن',dark:'تاریک',
      renew:'برای دریافت کانفیگ‌ها، اشتراک خود را تمدید کنید.',
@@ -592,7 +592,7 @@ var I18N={
      ovHint:'فایل ‎.ovpn را دانلود و در OpenVPN Connect باز کنید.',
      appsHint:'اپ موردنظر را نصب کنید، سپس لینک اشتراک را در آن وارد کنید.',
      st_active:'فعال',st_expired:'منقضی شده',st_limited:'اتمام حجم',st_disabled:'غیرفعال',st_on_hold:'در انتظار شروع',
-     rangeDayLabel:'۲۴ ساعت اخیر',rangeWeekLabel:'۷ روز اخیر',rangeMonthLabel:'۳۰ روز اخیر',noUsage:'هنوز مصرفی ثبت نشده',agoNow:'هم‌اکنون',agoMin:'دقیقه پیش',agoHour:'ساعت پیش',agoDay:'روز پیش'},
+     rangeDayLabel:'24 ساعت اخیر',rangeWeekLabel:'7 روز اخیر',rangeMonthLabel:'30 روز اخیر',noUsage:'هنوز مصرفی ثبت نشده',agoNow:'هم‌اکنون',agoMin:'دقیقه پیش',agoHour:'ساعت پیش',agoDay:'روز پیش'},
  en:{plan:'Plan',account:'Account',servers:'Servers',apps:'Apps',day:'days',never:'Never',
      volLeft:'Data left',timeLeft:'Time left',usedSuffix:'used',
      passed:'elapsed',pctSign:'%',ofPeriodA:'of',ofPeriodB:'day period',totalVol:'Total data',expiry:'Expires in',
@@ -614,12 +614,7 @@ function applyLang(){
     var k=el.getAttribute('data-i18n');if(t[k])el.textContent=t[k];});
   var a=document.getElementById('langLabel'),b=document.getElementById('langLabel2');
   if(a)a.textContent=(L==='fa')?'EN':'FA';if(b)b.textContent=(L==='fa')?'EN':'FA';
-  /* Persian digits are a display choice, not the data — the DOM keeps the
-     latin form so copying a number gives back what the panel stored. */
-  document.querySelectorAll('.num-fa').forEach(function(el){
-    if(!el.hasAttribute('data-raw'))el.setAttribute('data-raw',el.textContent);
-    var s=el.getAttribute('data-raw');
-    el.textContent=(L==='fa')?s.replace(/[0-9]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[+d];}):s;});
+  /* Numbers stay in latin digits in both languages. */
   renderLastSeen();setThemeLabel();renderChart();
 }
 function renderLastSeen(){
@@ -630,8 +625,6 @@ function renderLastSeen(){
           : s<86400 ? Math.floor(s/3600)+' '+t.agoHour
           : Math.floor(s/86400)+' '+t.agoDay;
   el.textContent=txt;
-  el.classList.add('num-fa');el.removeAttribute('data-raw');
-  if(_lang()==='fa')el.textContent=txt.replace(/[0-9]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[+d];});
 }
 function toggleLang(){try{localStorage.setItem('pg_lang',_lang()==='fa'?'en':'fa');}catch(e){}applyLang();}
 
