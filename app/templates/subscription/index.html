@@ -287,7 +287,7 @@ button{font-family:inherit;cursor:pointer}
             <span style="font-size:13.5px;font-weight:700;white-space:nowrap" data-i18n="volLeft">حجم باقی‌مانده</span>
             {% if limit %}
             <span dir="ltr" class="pg-mono num-fa" style="font-size:12px;color:var(--dim);white-space:nowrap">{{ '%.1f'|format(used_gb) }} / {{ '%.1f'|format(total_gb) }} GB</span>
-            <span style="font-size:11.5px;font-weight:600;color:var(--accent);white-space:nowrap"><bdi class="num-fa">{{ pct_used }}</bdi><span data-i18n="pctSign">٪</span> <span data-i18n="usedSuffix">مصرف‌شده</span></span>
+            <span style="font-size:11.5px;font-weight:600;color:var(--accent);white-space:nowrap"><bdi class="num-fa">{{ pct_used }}</bdi><span data-i18n="pctSign">%</span> <span data-i18n="usedSuffix">مصرف‌شده</span></span>
             {% else %}
             <span style="font-size:12px;color:var(--dim)" data-i18n="unlimited">نامحدود</span>
             {% endif %}
@@ -319,7 +319,7 @@ button{font-family:inherit;cursor:pointer}
             <span style="font-size:12px;color:var(--dim)" data-i18n="notStarted">شروع نشده</span>
             {% elif days_total %}
             <span style="font-size:12px;color:var(--dim);white-space:nowrap"><span data-i18n="ofPeriodA">از</span> <bdi class="num-fa">{{ days_total }}</bdi> <span data-i18n="ofPeriodB">روز دوره</span></span>
-            <span style="font-size:11.5px;font-weight:600;color:var(--accent2);white-space:nowrap"><bdi class="num-fa">{{ days_pct }}</bdi><span data-i18n="pctSign">٪</span> <span data-i18n="passed">سپری‌شده</span></span>
+            <span style="font-size:11.5px;font-weight:600;color:var(--accent2);white-space:nowrap"><bdi class="num-fa">{{ days_pct }}</bdi><span data-i18n="pctSign">%</span> <span data-i18n="passed">سپری‌شده</span></span>
             {% else %}
             <span style="font-size:12px;color:var(--dim)" data-i18n="unlimited">نامحدود</span>
             {% endif %}
@@ -592,7 +592,7 @@ button{font-family:inherit;cursor:pointer}
 var I18N={
  fa:{plan:'اشتراک',account:'حساب کاربری',servers:'سرورها',apps:'اپلیکیشن‌ها',day:'روز',never:'هرگز',
      volLeft:'حجم باقی‌مانده',timeLeft:'زمان باقی‌مانده',usedSuffix:'مصرف‌شده',
-     passed:'سپری‌شده',pctSign:'٪',ofPeriodA:'از',ofPeriodB:'روز دوره',totalVol:'حجم کل',expiry:'تاریخ انقضا',
+     passed:'سپری‌شده',pctSign:'%',ofPeriodA:'از',ofPeriodB:'روز دوره',totalVol:'حجم کل',expiry:'تاریخ انقضا',
      lastSeen:'آخرین اتصال',unlimited:'نامحدود',notStarted:'شروع نشده',usageChart:'آمار مصرف',
      barChart:'ستونی',lineChart:'خطی',r24h:'24 ساعت',r7d:'7 روز',r30d:'30 روز',
      subLink:'لینک اشتراک اختصاصی شما',subHidden:'برای امنیت، لینک نمایش داده نمی‌شود — کپی کنید یا QR را اسکن کنید',copy:'کپی',download:'دانلود',downloadAll:'دانلود همه',xrayHint:'لینک را کپی کنید یا QR را در اپ اسکن کنید',subLinkShort:'لینک اشتراک',copyLink:'کپی لینک',copyAll:'کپی همه',
