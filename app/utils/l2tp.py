@@ -22,9 +22,12 @@ if TYPE_CHECKING:
 
 _PSK_ALPHABET = string.ascii_letters + string.digits
 
-
-def _random_psk(length: int = 12) -> str:
-    return "".join(secrets.choice(_PSK_ALPHABET) for _ in range(length))
+# The IPsec PSK cannot be per-user: charon authenticates the transport SA by the
+# node's own IP, before the L2TP/PPP layer names the user (iOS/Android dial in
+# main mode). So it is necessarily shared across a core's users. This deployment
+# wants one fixed value across every core so the app can carry a single secret;
+# an operator can still override it per core by sending an explicit `psk`.
+_DEFAULT_PSK = "2000"
 
 
 def _random_password(length: int = 8) -> str:
@@ -35,13 +38,13 @@ def _random_password(length: int = 8) -> str:
 async def ensure_l2tp_core_material(db: AsyncSession, config: dict) -> dict:
     """Fill in the shared IPsec PSK for an L2TP core config.
 
-    Idempotent — an existing (or operator-supplied) PSK is kept as-is; only a
-    missing one is generated. ``db`` is unused today but kept for signature
-    parity with the other ``ensure_*_core_material`` helpers.
+    Idempotent — an existing (or operator-supplied) PSK is kept as-is; a missing
+    one falls back to the deployment-wide default. ``db`` is unused today but
+    kept for signature parity with the other ``ensure_*_core_material`` helpers.
     """
     config = dict(config)
     if not str(config.get("psk") or "").strip():
-        config["psk"] = _random_psk()
+        config["psk"] = _DEFAULT_PSK
     return config
 
 

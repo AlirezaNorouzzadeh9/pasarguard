@@ -46,11 +46,13 @@ def test_l2tp_egress_rejects_bad_name():
 
 
 @pytest.mark.asyncio
-async def test_ensure_l2tp_material_generates_psk():
-    from app.utils.l2tp import ensure_l2tp_core_material
+async def test_ensure_l2tp_material_fills_default_psk():
+    from app.utils.l2tp import _DEFAULT_PSK, ensure_l2tp_core_material
 
+    # A missing PSK falls back to the deployment-wide default rather than a
+    # random per-core value, so the app can carry one shared secret.
     out = await ensure_l2tp_core_material(None, {"inbound_tag": "l2tp-main", "pool": "10.31.0.0/24"})
-    assert out.get("psk")
-    # Idempotent — an existing PSK is kept.
+    assert out["psk"] == _DEFAULT_PSK
+    # An operator-supplied PSK is still kept as-is.
     out2 = await ensure_l2tp_core_material(None, {"psk": "keepme"})
     assert out2["psk"] == "keepme"
