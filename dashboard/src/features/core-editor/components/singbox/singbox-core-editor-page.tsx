@@ -27,7 +27,9 @@ import {
 } from '@/features/core-editor/kit/singbox-adapter'
 import useDirDetection from '@/hooks/use-dir-detection'
 import { cn } from '@/lib/utils'
-import { useModifyCoreConfig, type CoreCreateConfig } from '@/service/api'
+import { useQueryClient } from '@tanstack/react-query'
+
+import { getGetCoreConfigQueryKey, useCreateCoreConfig, useModifyCoreConfig, type CoreCreateConfig } from '@/service/api'
 
 /**
  * Editing a sing-box core, in the same shell as an xray one.
@@ -43,7 +45,8 @@ import { useModifyCoreConfig, type CoreCreateConfig } from '@/service/api'
  * rule it does not recognise is worse for those than no form at all.
  */
 interface Props {
-  coreId: number
+  /** null = creating a new core; save goes through create instead of modify */
+  coreId: number | null
   coreName: string
   config: unknown
   excludeInboundTags?: string[] | null
@@ -55,6 +58,21 @@ type Dict = Record<string, any>
 const asDict = (value: unknown): Dict => (value && typeof value === 'object' && !Array.isArray(value) ? (value as Dict) : {})
 const pretty = (value: unknown) => JSON.stringify(value ?? {}, null, 2)
 
+/* What a new core starts from. The experimental block is not optional garnish:
+   clash_api is how the node adds and removes users on the running core, and
+   v2ray_api (with users:["*"]) is where their usage is read — the panel
+   refuses to save a config without them. Inbounds start empty on purpose; the
+   editor's empty state explains what a core without them means. */
+export const NEW_SINGBOX_CONFIG = {
+  log: { level: 'warn' },
+  inbounds: [],
+  outbounds: [{ type: 'direct', tag: 'direct' }],
+  experimental: {
+    clash_api: { external_controller: '127.0.0.1:9090' },
+    v2ray_api: { listen: '127.0.0.1:8080', stats: { enabled: true, users: ['*'] } },
+  },
+}
+
 export default function SingBoxCoreEditorPage({
   coreId,
   coreName,
@@ -65,8 +83,12 @@ export default function SingBoxCoreEditorPage({
   const { t } = useTranslation()
   const dir = useDirDetection()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const modifyCore = useModifyCoreConfig()
+  const createCore = useCreateCoreConfig()
+  const isNew = coreId === null
 
+  const [name, setName] = useState(coreName)
   const [section, setSection] = useState<SingBoxCoreSection>('inbounds')
   const initial = useMemo(() => configToForm(config), [config])
   const form = useForm<SingBoxFormValues>({ defaultValues: initial })
@@ -135,6 +157,10 @@ export default function SingBoxCoreEditorPage({
       toast.error(jsonError)
       return
     }
+    if (!name.trim()) {
+      toast.error(t('coreConfigModal.nameRequired', { defaultValue: 'The core needs a name.' }))
+      return
+    }
     const tags = values.inbounds.map(row => row.tag.trim()).filter(Boolean)
     if (tags.length !== values.inbounds.length) {
       toast.error(t('coreEditor.singbox.tagRequired', { defaultValue: 'Every inbound needs a tag.' }))
@@ -150,20 +176,30 @@ export default function SingBoxCoreEditorPage({
     }
 
     try {
+      const data = {
+        name: name.trim(),
+        type: 'singbox',
+        // The API type describes an xray config; a sing-box config is a
+        // different shape the panel stores verbatim, so the cast is the
+        // honest thing rather than pretending it matches.
+        config: nextConfig as CoreCreateConfig,
+        exclude_inbound_tags: excludeInboundTags ?? [],
+        fallbacks_inbound_tags: fallbacksInboundTags ?? [],
+      }
+      if (coreId === null) {
+        const res = await createCore.mutateAsync({ data })
+        toast.success(t('coreConfigModal.createSuccess', { name: data.name, defaultValue: 'Core created' }))
+        queryClient.invalidateQueries({ queryKey: ['/api/cores'] })
+        queryClient.invalidateQueries({ queryKey: ['/api/cores/simple'] })
+        navigate(`/nodes/cores/${res.id}`, { replace: true })
+        return
+      }
       await modifyCore.mutateAsync({
         coreId,
-        data: {
-          name: coreName,
-          type: 'singbox',
-          // The API type describes an xray config; a sing-box config is a
-          // different shape the panel stores verbatim, so the cast is the
-          // honest thing rather than pretending it matches.
-          config: nextConfig as CoreCreateConfig,
-          exclude_inbound_tags: excludeInboundTags ?? [],
-          fallbacks_inbound_tags: fallbacksInboundTags ?? [],
-        },
+        data,
         params: { restart_nodes: restartNodes },
       })
+      queryClient.invalidateQueries({ queryKey: getGetCoreConfigQueryKey(coreId) })
       form.reset(values)
       toast.success(t('coreConfig.saved', { defaultValue: 'Core saved' }))
     } catch (err: any) {
@@ -289,7 +325,12 @@ export default function SingBoxCoreEditorPage({
         <ArrowLeft className="h-5 w-5" />
       </Button>
       <div className="grid min-w-0 max-w-2xl flex-1 grid-cols-[1fr_auto] items-center gap-2 sm:gap-3">
-        <Input value={coreName} readOnly className="h-10 font-medium" />
+        <Input
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder={t('coreConfigModal.namePlaceholder', { defaultValue: 'Core name' })}
+          className="h-10 font-medium"
+        />
         <Badge variant="outline" className="h-10 shrink-0 px-3">
           sing-box
         </Badge>
@@ -377,13 +418,13 @@ export default function SingBoxCoreEditorPage({
 
           </div>
         }
-        dirty={dirty}
-        canSave={dirty && !jsonError}
+        dirty={isNew || dirty}
+        canSave={(isNew || dirty) && !jsonError}
         onSave={save}
         onDiscard={discard}
         onCancel={() => navigate(-1)}
-        saving={modifyCore.isPending}
-        showRestart
+        saving={modifyCore.isPending || createCore.isPending}
+        showRestart={!isNew}
         restartNodes={restartNodes}
         onRestartChange={setRestartNodes}
       />

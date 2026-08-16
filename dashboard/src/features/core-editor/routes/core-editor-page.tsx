@@ -12,7 +12,7 @@ import { ValidationSummary, type ValidationListItem } from '@/features/core-edit
 import type { SectionHeaderAddPulse } from '@/features/core-editor/hooks/use-section-header-add-pulse'
 import { useXrayPersistValidationItems } from '@/features/core-editor/hooks/use-xray-persist-validation-items'
 import OpenVPNCoreEditorPage from '@/features/core-editor/components/openvpn/openvpn-core-editor-page'
-import SingBoxCoreEditorPage from '@/features/core-editor/components/singbox/singbox-core-editor-page'
+import SingBoxCoreEditorPage, { NEW_SINGBOX_CONFIG } from '@/features/core-editor/components/singbox/singbox-core-editor-page'
 import { WireGuardCoreEditor } from '@/features/core-editor/components/wg/wireguard-core-editor'
 import { XrayCoreEditor } from '@/features/core-editor/components/xray/xray-core-editor'
 import { profileToPersistedConfig } from '@/features/core-editor/kit/xray-adapter'
@@ -223,8 +223,9 @@ export default function CoreEditorPage() {
 
   useEffect(() => {
     if (isNew) {
-      if (searchParams.get('kind') === 'openvpn') return
-      const k = (searchParams.get('kind') as CoreKind | null) === 'wg' ? 'wg' : 'xray'
+      const paramKind = searchParams.get('kind')
+      if (paramKind === 'openvpn' || paramKind === 'singbox') return
+      const k = (paramKind as CoreKind | null) === 'wg' ? 'wg' : 'xray'
       const currentName = useCoreEditorStore.getState().coreName
       initNew(k, currentName)
     }
@@ -434,8 +435,9 @@ export default function CoreEditorPage() {
             <Select
               value={kind === 'wg' ? 'wg' : 'xray'}
               onValueChange={value => {
-                if (value === 'openvpn') {
-                  // OpenVPN only supports switching from the "new" flow.
+                if (value === 'openvpn' || value === 'singbox') {
+                  // OpenVPN and sing-box have self-contained editors, reached
+                  // only from the "new" flow.
                   if (isNew) {
                     setSearchParams(
                       prev => {
@@ -471,6 +473,7 @@ export default function CoreEditorPage() {
                 <SelectItem value="xray">Xray</SelectItem>
                 <SelectItem value="wg">WireGuard</SelectItem>
                 <SelectItem value="openvpn">OpenVPN</SelectItem>
+                <SelectItem value="singbox">sing-box</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -584,15 +587,16 @@ export default function CoreEditorPage() {
   // Without this the route falls through to the xray editor, which renders its
   // Inbounds/Routing/DNS tabs empty for a sing-box core — and offers a Save that
   // would write that emptiness over a working config.
-  if (isSingBoxCore && coreData) {
+  if (isSingBoxCore && (isNew || coreData)) {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <SingBoxCoreEditorPage
-          coreId={coreData.id}
-          coreName={coreData.name}
-          config={coreData.config}
-          excludeInboundTags={coreData.exclude_inbound_tags}
-          fallbacksInboundTags={coreData.fallbacks_inbound_tags}
+          key={isNew ? 'new' : coreData!.id}
+          coreId={isNew ? null : coreData!.id}
+          coreName={isNew ? '' : coreData!.name}
+          config={isNew ? NEW_SINGBOX_CONFIG : coreData!.config}
+          excludeInboundTags={isNew ? null : coreData!.exclude_inbound_tags}
+          fallbacksInboundTags={isNew ? null : coreData!.fallbacks_inbound_tags}
         />
       </div>
     )
