@@ -119,6 +119,12 @@ button{font-family:inherit;cursor:pointer}
 .pproto.on{display:flex}
 .oslist{display:none}
 .oslist.on{display:grid}
+/* the app icon is the flag disc with square corners: same size, same fill, same
+   hairline, so a row here reads like a row in the servers table */
+.app-icon{position:relative;width:34px;height:34px;border-radius:11px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--flagdisc);box-shadow:inset 0 0 0 1px var(--cardline);font-size:14px;font-weight:800;color:var(--dim2)}
+.app-icon img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+/* applyLang stamps <html lang>, so per-language text and links need no JS */
+html[lang="en"] .lang-fa,html[lang="fa"] .lang-en,.lang-ru,.lang-zh{display:none}
 
 /* servers: one table per protocol, switched by a full-width segmented control */
 .ptab{flex:1;display:flex;align-items:center;height:40px;justify-content:center;gap:8px;border-radius:11px;border:1px solid transparent;font-size:13.5px;font-weight:700;background:transparent;color:var(--dim)}
@@ -592,32 +598,90 @@ button{font-family:inherit;cursor:pointer}
   <section class="pane" id="pane-apps">
     <h1 style="margin:0 0 2px;font-size:22px;font-weight:800;letter-spacing:-.4px" data-i18n="apps">اپلیکیشن‌ها</h1>
     <div style="font-size:12px;color:var(--dim);margin-bottom:4px" data-i18n="appsHint">اپ موردنظر را نصب کنید، سپس لینک اشتراک را در آن وارد کنید.</div>
-    <div class="row" style="gap:8px;flex-wrap:wrap">
-      {% for oid,oname in [('android','Android'),('ios','iOS'),('windows','Windows'),('mac','macOS')] %}
-      <button class="pill{{ ' on' if loop.first else '' }}" data-os-tab="{{ oid }}" onclick="showOS('{{ oid }}')">{{ oname }}</button>
+
+    {# The panel carries its own application list — icons, per-language
+       descriptions, one-click import links, download links. It is used whenever
+       an admin has filled it in; the built-in list below is the fallback for a
+       panel where nobody has, which is how this page shipped. #}
+    {% set os_names = [('android','Android'),('ios','iOS'),('windows','Windows'),('macos','macOS'),('linux','Linux'),('androidtv','Android TV'),('appletv','Apple TV')] %}
+    {% set builtin = {
+      'android':[('v2rayNG','Xray','https://github.com/2dust/v2rayNG/releases/latest'),('Hiddify','Xray','https://github.com/hiddify/hiddify-next/releases/latest'),('WireGuard','WireGuard','https://play.google.com/store/apps/details?id=com.wireguard.android'),('OpenVPN Connect','OpenVPN','https://play.google.com/store/apps/details?id=net.openvpn.openvpn')],
+      'ios':[('Streisand','Xray','https://apps.apple.com/app/streisand/id6450534064'),('Shadowrocket','Xray','https://apps.apple.com/app/shadowrocket/id932747118'),('WireGuard','WireGuard','https://apps.apple.com/app/wireguard/id1441195209'),('OpenVPN Connect','OpenVPN','https://apps.apple.com/app/openvpn-connect/id590379981')],
+      'windows':[('v2rayN','Xray','https://github.com/2dust/v2rayN/releases/latest'),('Hiddify','Xray','https://github.com/hiddify/hiddify-next/releases/latest'),('WireGuard','WireGuard','https://www.wireguard.com/install/'),('OpenVPN Connect','OpenVPN','https://openvpn.net/client/')],
+      'macos':[('V2Box','Xray','https://apps.apple.com/app/v2box-v2ray-client/id6446814690'),('Hiddify','Xray','https://github.com/hiddify/hiddify-next/releases/latest'),('WireGuard','WireGuard','https://apps.apple.com/app/wireguard/id1451685025'),('OpenVPN Connect','OpenVPN','https://openvpn.net/client/')]
+    } %}
+    {% set af = namespace(first=none) %}
+    {% set shown = [] %}
+    {% for oid,oname in os_names %}
+      {% set group = (apps | selectattr('platform','equalto',oid) | list) if apps else builtin.get(oid, []) %}
+      {% if group %}
+        {% set _ = shown.append((oid, oname, group)) %}
+        {% if af.first is none %}{% set af.first = oid %}{% endif %}
+      {% endif %}
+    {% endfor %}
+
+    {% if shown %}
+    <div class="row" style="gap:4px;background:var(--seg);border:1px solid var(--segline);border-radius:14px;padding:4px;flex-wrap:wrap">
+      {% for oid,oname,group in shown %}
+      <button class="ptab{{ ' on' if oid == af.first else '' }}" data-os-tab="{{ oid }}" onclick="showOS('{{ oid }}')">
+        <span class="pdot"></span>{{ oname }}
+      </button>
       {% endfor %}
     </div>
-    {% set _ex %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>{% endset %}
-    {% set apps_data = {
-      'android':[('v2rayNG','Xray','V','https://github.com/2dust/v2rayNG/releases/latest'),('Hiddify','Xray','H','https://github.com/hiddify/hiddify-next/releases/latest'),('WireGuard','WireGuard','W','https://play.google.com/store/apps/details?id=com.wireguard.android'),('OpenVPN Connect','OpenVPN','O','https://play.google.com/store/apps/details?id=net.openvpn.openvpn')],
-      'ios':[('Streisand','Xray','S','https://apps.apple.com/app/streisand/id6450534064'),('Shadowrocket','Xray','R','https://apps.apple.com/app/shadowrocket/id932747118'),('WireGuard','WireGuard','W','https://apps.apple.com/app/wireguard/id1441195209'),('OpenVPN Connect','OpenVPN','O','https://apps.apple.com/app/openvpn-connect/id590379981')],
-      'windows':[('v2rayN','Xray','N','https://github.com/2dust/v2rayN/releases/latest'),('Hiddify','Xray','H','https://github.com/hiddify/hiddify-next/releases/latest'),('WireGuard','WireGuard','W','https://www.wireguard.com/install/'),('OpenVPN Connect','OpenVPN','O','https://openvpn.net/client/')],
-      'mac':[('V2Box','Xray','B','https://apps.apple.com/app/v2box-v2ray-client/id6446814690'),('Hiddify','Xray','H','https://github.com/hiddify/hiddify-next/releases/latest'),('WireGuard','WireGuard','W','https://apps.apple.com/app/wireguard/id1451685025'),('OpenVPN Connect','OpenVPN','O','https://openvpn.net/client/')]
-    } %}
-    {% for os,items in apps_data.items() %}
-    <div class="oslist{{ ' on' if loop.first else '' }}" data-os="{{ os }}" style="grid-template-columns:1fr;gap:10px">
-      {% for name,tag,letter,url in items %}
-      <a class="srv" href="{{ url }}" target="_blank" rel="noopener">
-        <div class="row" style="gap:10px;min-width:0">
-          <span class="row" style="width:34px;height:34px;border-radius:11px;background:var(--soft);color:var(--softtext);justify-content:center;font-weight:800;flex-shrink:0">{{ letter }}</span>
-          <div style="min-width:0">
-            <div style="font-size:12.5px;font-weight:700">{{ name }}</div>
-            <div style="font-size:10px;color:var(--dim3)">{{ tag }}</div>
+    {% endif %}
+
+    {% for oid,oname,group in shown %}
+    <div class="oslist{{ ' on' if oid == af.first else '' }}" data-os="{{ oid }}">
+      <div class="card" style="border-radius:18px;overflow:hidden;padding:0">
+        <div class="slist" style="max-height:none">
+        {% for app in group %}
+          {% if apps %}
+            {% set aname = app.name %}{% set aicon = app.icon_url %}{% set aimport = app.import_url %}
+            {% set arec = app.recommended %}{% set adescs = app.description or {} %}{% set alinks = app.download_links or [] %}
+          {% else %}
+            {% set aname = app[0] %}{% set aicon = '' %}{% set aimport = '' %}
+            {% set arec = false %}{% set adescs = {} %}{% set alinks = [] %}
+          {% endif %}
+          <div class="srow">
+            <div class="row" style="flex:1;gap:11px;min-width:0">
+              {# the letter sits underneath the image: an icon_url that is blocked
+                 or gone leaves a designed monogram, not a broken-image box #}
+              <span class="app-icon">{{ aname[0]|upper }}{% if aicon %}<img src="{{ aicon }}" alt="" loading="lazy" onerror="this.remove()">{% endif %}</span>
+              <div style="min-width:0">
+                <div class="row" style="gap:7px;min-width:0">
+                  <span dir="ltr" class="srv-name" style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ aname }}</span>
+                  {% if arec %}<span class="ptag" data-i18n="appRecommended">پیشنهادی</span>{% endif %}
+                </div>
+                <div style="font-size:11px;color:var(--dim3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                  {%- if adescs.get('fa') or adescs.get('en') -%}
+                    <span class="lang-fa">{{ adescs.get('fa') or adescs.get('en') }}</span><span class="lang-en">{{ adescs.get('en') or adescs.get('fa') }}</span>
+                  {%- elif not apps -%}{{ app[1] }}{%- endif -%}
+                </div>
+              </div>
+            </div>
+            <div dir="ltr" class="row" style="gap:7px;justify-content:flex-end;flex-shrink:0">
+              {% if aimport %}
+              <a class="actcopy" href="{{ aimport }}">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                <span data-i18n="appImport">افزودن</span>
+              </a>
+              {% endif %}
+              {% if alinks %}
+                {% for dl in alinks %}
+                <a class="acticon lang-{{ dl.language }}" href="{{ dl.url }}" target="_blank" rel="noopener" title="{{ dl.name }}">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                </a>
+                {% endfor %}
+              {% elif not apps %}
+              <a class="acticon" href="{{ app[2] }}" target="_blank" rel="noopener" title="دانلود">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+              </a>
+              {% endif %}
+            </div>
           </div>
+        {% endfor %}
         </div>
-        <span class="sbtn">{{ _ex }}</span>
-      </a>
-      {% endfor %}
+      </div>
     </div>
     {% endfor %}
   </section>
@@ -645,7 +709,7 @@ button{font-family:inherit;cursor:pointer}
 /* ---------------------------------------------------------------- language */
 var I18N={
  fa:{plan:'اشتراک',account:'حساب کاربری',servers:'سرورها',apps:'اپلیکیشن‌ها',day:'روز',never:'هرگز',
-     l2tpHint:'مشخصات اتصال را در تنظیمات VPN دستگاه وارد کنید (نوع: L2TP/IPsec PSK).',l2tpShared:'مشترک بین همهٔ سرورها',l2tpCopyAll:'کپی مشخصات',l2tpServer:'سرور',l2tpUser:'نام کاربری',l2tpPass:'رمز عبور',l2tpSecret:'کلید مشترک',
+     l2tpHint:'مشخصات اتصال را در تنظیمات VPN دستگاه وارد کنید (نوع: L2TP/IPsec PSK).',appRecommended:'پیشنهادی',appImport:'افزودن',l2tpShared:'مشترک بین همهٔ سرورها',l2tpCopyAll:'کپی مشخصات',l2tpServer:'سرور',l2tpUser:'نام کاربری',l2tpPass:'رمز عبور',l2tpSecret:'کلید مشترک',
      volLeft:'حجم باقی‌مانده',timeLeft:'زمان باقی‌مانده',usedSuffix:'مصرف‌شده',
      passed:'سپری‌شده',pctSign:'%',ofPeriodA:'از',ofPeriodB:'روز دوره',totalVol:'حجم کل',expiry:'تاریخ انقضا',
      lastSeen:'آخرین اتصال',unlimited:'نامحدود',notStarted:'شروع نشده',usageChart:'آمار مصرف',
@@ -659,7 +723,7 @@ var I18N={
      st_active:'فعال',st_expired:'منقضی شده',st_limited:'اتمام حجم',st_disabled:'غیرفعال',st_on_hold:'در انتظار شروع',
      rangeDayLabel:'24 ساعت اخیر',rangeWeekLabel:'7 روز اخیر',rangeMonthLabel:'30 روز اخیر',noUsage:'هنوز مصرفی ثبت نشده',agoNow:'هم‌اکنون',agoMin:'دقیقه پیش',agoHour:'ساعت پیش',agoDay:'روز پیش'},
  en:{plan:'Plan',account:'Account',servers:'Servers',apps:'Apps',day:'days',never:'Never',
-     l2tpHint:'Enter these in your device VPN settings (type: L2TP/IPsec PSK).',l2tpShared:'Shared by every server',l2tpCopyAll:'Copy details',l2tpServer:'Server',l2tpUser:'Username',l2tpPass:'Password',l2tpSecret:'Shared secret',
+     l2tpHint:'Enter these in your device VPN settings (type: L2TP/IPsec PSK).',appRecommended:'Recommended',appImport:'Add',l2tpShared:'Shared by every server',l2tpCopyAll:'Copy details',l2tpServer:'Server',l2tpUser:'Username',l2tpPass:'Password',l2tpSecret:'Shared secret',
      volLeft:'Data left',timeLeft:'Time left',usedSuffix:'used',
      passed:'elapsed',pctSign:'%',ofPeriodA:'of',ofPeriodB:'day period',totalVol:'Total data',expiry:'Expires in',
      lastSeen:'Last seen',unlimited:'Unlimited',notStarted:'Not started',usageChart:'Usage',
