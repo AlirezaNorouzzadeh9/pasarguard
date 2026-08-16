@@ -475,7 +475,7 @@ button{font-family:inherit;cursor:pointer}
             </button>
             {% elif id == 'l2tp' and l2tp_details %}
             {% set c0 = l2tp_details[0] %}
-            <button class="iconbtn" style="height:34px;padding:0 14px;font-size:12px" onclick="copyL2tp({{ c0.username|tojson }},{{ c0.password|tojson }},{{ c0.secret|tojson }})">
+            <button class="iconbtn" style="height:34px;padding:0 14px;font-size:12px" onclick='copyL2tp({{ c0.username|tojson }},{{ c0.password|tojson }},{{ c0.secret|tojson }})'>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
               <span style="white-space:nowrap" data-i18n="l2tpCopyAll">کپی مشخصات</span>
             </button>
@@ -501,7 +501,7 @@ button{font-family:inherit;cursor:pointer}
                 <div style="font-size:10.5px;font-weight:700;color:var(--dim3)" data-i18n="{{ key }}">{{ label }}</div>
                 <div dir="ltr" class="row" style="gap:8px;margin-top:6px;justify-content:space-between">
                   <span class="pg-mono" style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ val }}</span>
-                  <button class="acticon" style="width:28px;height:28px;flex-shrink:0" onclick="copyText({{ val|tojson }})"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
+                  <button class="acticon" style="width:28px;height:28px;flex-shrink:0" onclick='copyText({{ val|tojson }})'><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
                 </div>
               </div>
               {% endfor %}
@@ -549,7 +549,7 @@ button{font-family:inherit;cursor:pointer}
                   <span dir="ltr" class="pg-mono" style="font-size:11.5px;color:var(--dim2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ d.server }}</span>
                 </div>
                 <div dir="ltr" class="row" style="width:132px;gap:7px;justify-content:flex-end">
-                  <button class="actcopy" onclick="copyText({{ d.server|tojson }})">
+                  <button class="actcopy" onclick='copyText({{ d.server|tojson }})'>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                     <span data-i18n="copy">کپی</span>
                   </button>
@@ -744,9 +744,7 @@ function subUrlValue(){return (location.origin+location.pathname).replace(/\/+$/
 function copySub(){copyText(subUrlValue());}
 function copyL2tp(user,pass,secret){
   /* the field names iOS/Android show, so what is pasted lines up with the dialog */
-  copyText('Account: '+user+'
-Password: '+pass+'
-Secret: '+secret);
+  copyText(['Account: '+user,'Password: '+pass,'Secret: '+secret].join('\n'));
 }
 function copyAllXray(){
   var a=[];document.querySelectorAll('[data-xray]').forEach(function(r){
