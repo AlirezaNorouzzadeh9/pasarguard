@@ -706,18 +706,33 @@ function showFileQR(cfg,ev){showQR(cfg,ev);}
 function closeQR(){document.getElementById('qrModal').style.display='none';}
 
 /* ------------------------------------------------------------------ flags */
-var CC={'آلمان':'DE','germany':'DE','de':'DE','آمریکا':'US','usa':'US','us':'US','united states':'US',
- 'انگلیس':'GB','uk':'GB','england':'GB','britain':'GB','gb':'GB','هلند':'NL','netherlands':'NL','nl':'NL',
- 'ترکیه':'TR','turkey':'TR','tr':'TR','فرانسه':'FR','france':'FR','fr':'FR','فنلاند':'FI','finland':'FI','fi':'FI',
- 'لهستان':'PL','poland':'PL','pl':'PL','ایتالیا':'IT','italy':'IT','it':'IT','سوئیس':'CH','switzerland':'CH','ch':'CH',
- 'اوکراین':'UA','ukraine':'UA','ua':'UA','آلبانی':'AL','albania':'AL','al':'AL','ایران':'IR','iran':'IR','ir':'IR',
- 'کانادا':'CA','canada':'CA','ca':'CA','سوئد':'SE','sweden':'SE','se':'SE','ژاپن':'JP','japan':'JP','jp':'JP',
- 'سنگاپور':'SG','singapore':'SG','sg':'SG','امارات':'AE','uae':'AE','ae':'AE','روسیه':'RU','russia':'RU','ru':'RU'};
+var CC={'آلمان':'DE','germany':'DE','آمریکا':'US','usa':'US','united states':'US',
+ 'انگلیس':'GB','england':'GB','britain':'GB','هلند':'NL','netherlands':'NL',
+ 'ترکیه':'TR','turkey':'TR','فرانسه':'FR','france':'FR','فنلاند':'FI','finland':'FI',
+ 'لهستان':'PL','poland':'PL','ایتالیا':'IT','italy':'IT','سوئیس':'CH','switzerland':'CH',
+ 'اوکراین':'UA','ukraine':'UA','آلبانی':'AL','albania':'AL','ایران':'IR','iran':'IR',
+ 'کانادا':'CA','canada':'CA','سوئد':'SE','sweden':'SE','ژاپن':'JP','japan':'JP',
+ 'سنگاپور':'SG','singapore':'SG','امارات':'AE','uae':'AE','روسیه':'RU','russia':'RU',
+ 'اتریش':'AT','austria':'AT','ایرلند':'IE','ireland':'IE','استرالیا':'AU','australia':'AU',
+ 'اسپانیا':'ES','spain':'ES','نروژ':'NO','norway':'NO','دانمارک':'DK','denmark':'DK',
+ 'پرتغال':'PT','portugal':'PT','بلژیک':'BE','belgium':'BE','چک':'CZ','czech':'CZ',
+ 'رومانی':'RO','romania':'RO','بلغارستان':'BG','bulgaria':'BG','یونان':'GR','greece':'GR',
+ 'هند':'IN','india':'IN'};
+/* bare ISO codes are matched only as their own word — as substrings they fire
+   inside other words ("GB" out of "300.0 GB", US out of "User", DE out of
+   "Sweden"), which is exactly the bug this replaces */
+var CC2={de:'DE',us:'US',uk:'GB',nl:'NL',tr:'TR',fr:'FR',fi:'FI',pl:'PL',
+ it:'IT',ch:'CH',ua:'UA',al:'AL',ir:'IR',ca:'CA',se:'SE',jp:'JP',sg:'SG',ae:'AE',
+ ru:'RU',at:'AT',ie:'IE',au:'AU',es:'ES',no:'NO',dk:'DK',pt:'PT',be:'BE',cz:'CZ',
+ ro:'RO',bg:'BG',gr:'GR'};
 function detectCountry(name){
   var s=(name||'').toLowerCase();
   for(var k in CC){if(s.indexOf(k)!==-1)return CC[k];}
-  var m=s.match(/\b([a-z]{2})\b/);
-  if(m&&CC[m[1]])return CC[m[1]];
+  var toks=s.split(/[^a-z0-9]+/);
+  for(var i=0;i<toks.length;i++){
+    var t=toks[i].replace(/[0-9]+$/,'');       /* de2, us3 — numbered locations */
+    if(t.length===2&&CC2[t])return CC2[t];
+  }
   return null;
 }
 function flagEmoji(cc){
@@ -728,6 +743,20 @@ function decodeServerNames(){
   document.querySelectorAll('.srv-name').forEach(function(el){
     var s=el.textContent;
     try{var d=decodeURIComponent(s);if(d&&d!==s)el.textContent=d;}catch(e){}
+  });
+}
+/* The panel can inject informational entries into the subscription — remaining
+   traffic, days left — as fake configs whose remark leads with an emoji.
+   Client apps render them as status lines, but here they showed up as servers
+   with a flag and a QR (the GB flag, out of "300.0 GB"). The page already says
+   all of that in the gauges, so the rows are hidden — hidden rather than
+   removed, because "copy all" reads the DOM and the client app should still
+   receive its status entries. */
+function stripInfoRows(){
+  var INFO=/^(?:📊|📅|📈|📦|🔋|📶|⏳|⌛|⚠|∞|♾|🚫|📆)/;
+  document.querySelectorAll('.srow').forEach(function(row){
+    var nm=row.querySelector('.srv-name');
+    if(nm&&INFO.test(nm.textContent.trim()))row.style.display='none';
   });
 }
 function addServerFlags(){
@@ -920,7 +949,7 @@ function loadUsage(range){
   }catch(e){}
   document.getElementById('modeBar').classList.toggle('on',_chartMode==='bar');
   document.getElementById('modeLine').classList.toggle('on',_chartMode==='line');
-  decodeServerNames();addServerFlags();applyLang();loadUsage('7d');
+  decodeServerNames();stripInfoRows();addServerFlags();applyLang();loadUsage('7d');
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeQR();});
 })();
 </script>
