@@ -124,6 +124,11 @@ button{font-family:inherit;cursor:pointer}
 .ptab{flex:1;display:flex;align-items:center;height:40px;justify-content:center;gap:8px;border-radius:11px;border:1px solid transparent;font-size:13.5px;font-weight:700;background:transparent;color:var(--dim)}
 .ptab.on{background:var(--navon);border-color:var(--softline);color:var(--text)}
 .pdot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+/* three values, one row on a wide screen and stacked on a phone — they are read
+   together, so they are laid out together */
+.l2tp-creds{display:grid;grid-template-columns:1fr;gap:10px}
+.l2tp-cred{background:var(--card2);border:1px solid var(--cardline);border-radius:13px;padding:9px 13px 10px;min-width:0}
+@media(min-width:700px){.l2tp-creds{grid-template-columns:repeat(3,1fr)}}
 .slist{max-height:420px;overflow-y:auto}
 .srow{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--line)}
 .srow:last-child{border-bottom:none}
@@ -468,6 +473,12 @@ button{font-family:inherit;cursor:pointer}
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
               <span style="white-space:nowrap" data-i18n="copyAll">کپی همه</span>
             </button>
+            {% elif id == 'l2tp' and l2tp_details %}
+            {% set c0 = l2tp_details[0] %}
+            <button class="iconbtn" style="height:34px;padding:0 14px;font-size:12px" onclick="copyL2tp({{ c0.username|tojson }},{{ c0.password|tojson }},{{ c0.secret|tojson }})">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+              <span style="white-space:nowrap" data-i18n="l2tpCopyAll">کپی مشخصات</span>
+            </button>
             {% elif id in ('wg','ov') %}
             <a class="iconbtn" style="height:34px;padding:0 14px;font-size:12px" href="{{ wireguard_url if id == 'wg' else openvpn_url }}">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
@@ -475,6 +486,28 @@ button{font-family:inherit;cursor:pointer}
             </a>
             {% endif %}
           </div>
+
+          {# The three values are the same for every server — the PSK is shared by
+             protocol design, and the account is the user. Printing them once, above
+             the list, is the difference between reading four values and reading
+             four values per server. #}
+          {% if id == 'l2tp' and l2tp_details %}
+          {% set cred = l2tp_details[0] %}
+          <div style="padding:13px 18px 15px;border-bottom:1px solid var(--line)">
+            <div style="font-size:11px;font-weight:700;color:var(--dim3);margin-bottom:9px" data-i18n="l2tpShared">مشترک بین همهٔ سرورها</div>
+            <div class="l2tp-creds">
+              {% for key, label, val in [('l2tpUser','نام کاربری', cred.username), ('l2tpPass','رمز عبور', cred.password), ('l2tpSecret','کلید مشترک', cred.secret)] %}
+              <div class="l2tp-cred">
+                <div style="font-size:10.5px;font-weight:700;color:var(--dim3)" data-i18n="{{ key }}">{{ label }}</div>
+                <div dir="ltr" class="row" style="gap:8px;margin-top:6px;justify-content:space-between">
+                  <span class="pg-mono" style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ val }}</span>
+                  <button class="acticon" style="width:28px;height:28px;flex-shrink:0" onclick="copyText({{ val|tojson }})"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
 
           <!-- the rows below are laid out left to right in both languages, so the
                header has to be too — otherwise the labels sit over the wrong columns -->
@@ -506,34 +539,20 @@ button{font-family:inherit;cursor:pointer}
               </div>
             {% endfor %}
           {% elif id == 'l2tp' %}
-            {# L2TP is neither a link nor a file: the OS dialog wants four values
-               typed in, so each row unfolds into a labelled list with per-value
-               copy instead of offering a QR or a download. #}
+            {# Credentials are printed once above; a row only has to say which
+               server, and hand over its address. #}
             {% for d in l2tp_details %}
-              <div class="srow" style="flex-wrap:wrap">
+              <div class="srow">
                 <div class="row" style="flex:1;gap:11px;min-width:0">
                   <span class="pg-flag" data-flagfor="{{ d.remark }}"></span>
                   <span dir="ltr" class="srv-name" style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ d.remark }}</span>
-                  <span class="ptag">l2tp</span>
+                  <span dir="ltr" class="pg-mono" style="font-size:11.5px;color:var(--dim2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ d.server }}</span>
                 </div>
                 <div dir="ltr" class="row" style="width:132px;gap:7px;justify-content:flex-end">
-                  <button class="actcopy" onclick="toggleL2tp(this)">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-                    <span data-i18n="l2tpShow">جزئیات</span>
+                  <button class="actcopy" onclick="copyText({{ d.server|tojson }})">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                    <span data-i18n="copy">کپی</span>
                   </button>
-                </div>
-                <div class="l2tp-detail" style="display:none;width:100%;padding:4px 0 6px">
-                  {% for key, label, val in [('l2tpServer','سرور', d.server), ('l2tpUser','نام کاربری', d.username), ('l2tpPass','رمز عبور', d.password), ('l2tpSecret','کلید مشترک (Secret)', d.secret)] %}
-                  <div class="row" style="gap:10px;padding:5px 0;justify-content:space-between">
-                    <span style="font-size:11.5px;font-weight:700;color:var(--dim2);white-space:nowrap" data-i18n="{{ key }}">{{ label }}</span>
-                    <span class="row" dir="ltr" style="gap:7px;min-width:0">
-                      <span class="pg-mono" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ val }}</span>
-                      <button class="acticon" style="width:26px;height:26px;flex-shrink:0" onclick="copyText({{ val|tojson }})">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                      </button>
-                    </span>
-                  </div>
-                  {% endfor %}
                 </div>
               </div>
             {% endfor %}
@@ -626,7 +645,7 @@ button{font-family:inherit;cursor:pointer}
 /* ---------------------------------------------------------------- language */
 var I18N={
  fa:{plan:'اشتراک',account:'حساب کاربری',servers:'سرورها',apps:'اپلیکیشن‌ها',day:'روز',never:'هرگز',
-     l2tpHint:'مشخصات اتصال را در تنظیمات VPN دستگاه وارد کنید (نوع: L2TP/IPsec PSK).',l2tpShow:'جزئیات',l2tpServer:'سرور',l2tpUser:'نام کاربری',l2tpPass:'رمز عبور',l2tpSecret:'کلید مشترک (Secret)',
+     l2tpHint:'مشخصات اتصال را در تنظیمات VPN دستگاه وارد کنید (نوع: L2TP/IPsec PSK).',l2tpShared:'مشترک بین همهٔ سرورها',l2tpCopyAll:'کپی مشخصات',l2tpServer:'سرور',l2tpUser:'نام کاربری',l2tpPass:'رمز عبور',l2tpSecret:'کلید مشترک',
      volLeft:'حجم باقی‌مانده',timeLeft:'زمان باقی‌مانده',usedSuffix:'مصرف‌شده',
      passed:'سپری‌شده',pctSign:'%',ofPeriodA:'از',ofPeriodB:'روز دوره',totalVol:'حجم کل',expiry:'تاریخ انقضا',
      lastSeen:'آخرین اتصال',unlimited:'نامحدود',notStarted:'شروع نشده',usageChart:'آمار مصرف',
@@ -640,7 +659,7 @@ var I18N={
      st_active:'فعال',st_expired:'منقضی شده',st_limited:'اتمام حجم',st_disabled:'غیرفعال',st_on_hold:'در انتظار شروع',
      rangeDayLabel:'24 ساعت اخیر',rangeWeekLabel:'7 روز اخیر',rangeMonthLabel:'30 روز اخیر',noUsage:'هنوز مصرفی ثبت نشده',agoNow:'هم‌اکنون',agoMin:'دقیقه پیش',agoHour:'ساعت پیش',agoDay:'روز پیش'},
  en:{plan:'Plan',account:'Account',servers:'Servers',apps:'Apps',day:'days',never:'Never',
-     l2tpHint:'Enter these in your device VPN settings (type: L2TP/IPsec PSK).',l2tpShow:'Details',l2tpServer:'Server',l2tpUser:'Username',l2tpPass:'Password',l2tpSecret:'Shared secret',
+     l2tpHint:'Enter these in your device VPN settings (type: L2TP/IPsec PSK).',l2tpShared:'Shared by every server',l2tpCopyAll:'Copy details',l2tpServer:'Server',l2tpUser:'Username',l2tpPass:'Password',l2tpSecret:'Shared secret',
      volLeft:'Data left',timeLeft:'Time left',usedSuffix:'used',
      passed:'elapsed',pctSign:'%',ofPeriodA:'of',ofPeriodB:'day period',totalVol:'Total data',expiry:'Expires in',
      lastSeen:'Last seen',unlimited:'Unlimited',notStarted:'Not started',usageChart:'Usage',
@@ -723,9 +742,11 @@ function legacyCopy(text){
 }
 function subUrlValue(){return (location.origin+location.pathname).replace(/\/+$/,'');}
 function copySub(){copyText(subUrlValue());}
-function toggleL2tp(btn){
-  var d=btn.closest('.srow').querySelector('.l2tp-detail');
-  d.style.display=(d.style.display==='none')?'block':'none';
+function copyL2tp(user,pass,secret){
+  /* the field names iOS/Android show, so what is pasted lines up with the dialog */
+  copyText('Account: '+user+'
+Password: '+pass+'
+Secret: '+secret);
 }
 function copyAllXray(){
   var a=[];document.querySelectorAll('[data-xray]').forEach(function(r){
