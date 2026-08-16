@@ -33,6 +33,7 @@ from app.subscription.share import (
 )
 from app.templates import render_template
 from app.utils.hwid import resolve_effective_hwid_settings
+from app.node.sync import sync_users
 from app.utils.l2tp import prepare_l2tp_proxy_settings
 from app.utils.openvpn import prepare_openvpn_proxy_settings
 from config import template_settings
@@ -333,6 +334,11 @@ class SubscriptionOperation(BaseOperation):
         # expire_on_commit=False keeps attributes loaded; a refresh here would
         # expire the eagerly-loaded groups and break later serialization.
         await db.commit()
+        # The nodes were handed this user before the credential existed, so
+        # without a push here the sub page shows a password the node has never
+        # heard of until the next full sync. Fire-and-forget, same as the
+        # other user-mutation paths.
+        await sync_users([db_user])
         return True
 
     async def fetch_config(self, user: UsersResponseWithInbounds, client_type: ConfigFormat) -> tuple[str | bytes, str]:
