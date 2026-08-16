@@ -13,6 +13,7 @@ class BackendType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     WIREGUARD: _ClassVar[BackendType]
     OPENVPN: _ClassVar[BackendType]
     SINGBOX: _ClassVar[BackendType]
+    L2TP: _ClassVar[BackendType]
 
 class StatType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -26,6 +27,7 @@ XRAY: BackendType
 WIREGUARD: BackendType
 OPENVPN: BackendType
 SINGBOX: BackendType
+L2TP: BackendType
 Outbounds: StatType
 Outbound: StatType
 Inbounds: StatType
@@ -242,8 +244,16 @@ class Openvpn(_message.Message):
     fingerprint: str
     def __init__(self, serial: _Optional[str] = ..., fingerprint: _Optional[str] = ...) -> None: ...
 
+class Ikev2(_message.Message):
+    __slots__ = ("username", "password")
+    USERNAME_FIELD_NUMBER: _ClassVar[int]
+    PASSWORD_FIELD_NUMBER: _ClassVar[int]
+    username: str
+    password: str
+    def __init__(self, username: _Optional[str] = ..., password: _Optional[str] = ...) -> None: ...
+
 class Proxy(_message.Message):
-    __slots__ = ("vmess", "vless", "trojan", "shadowsocks", "wireguard", "hysteria", "openvpn")
+    __slots__ = ("vmess", "vless", "trojan", "shadowsocks", "wireguard", "hysteria", "openvpn", "ikev2")
     VMESS_FIELD_NUMBER: _ClassVar[int]
     VLESS_FIELD_NUMBER: _ClassVar[int]
     TROJAN_FIELD_NUMBER: _ClassVar[int]
@@ -251,6 +261,7 @@ class Proxy(_message.Message):
     WIREGUARD_FIELD_NUMBER: _ClassVar[int]
     HYSTERIA_FIELD_NUMBER: _ClassVar[int]
     OPENVPN_FIELD_NUMBER: _ClassVar[int]
+    IKEV2_FIELD_NUMBER: _ClassVar[int]
     vmess: Vmess
     vless: Vless
     trojan: Trojan
@@ -258,7 +269,8 @@ class Proxy(_message.Message):
     wireguard: Wireguard
     hysteria: Hysteria
     openvpn: Openvpn
-    def __init__(self, vmess: _Optional[_Union[Vmess, _Mapping]] = ..., vless: _Optional[_Union[Vless, _Mapping]] = ..., trojan: _Optional[_Union[Trojan, _Mapping]] = ..., shadowsocks: _Optional[_Union[Shadowsocks, _Mapping]] = ..., wireguard: _Optional[_Union[Wireguard, _Mapping]] = ..., hysteria: _Optional[_Union[Hysteria, _Mapping]] = ..., openvpn: _Optional[_Union[Openvpn, _Mapping]] = ...) -> None: ...
+    ikev2: Ikev2
+    def __init__(self, vmess: _Optional[_Union[Vmess, _Mapping]] = ..., vless: _Optional[_Union[Vless, _Mapping]] = ..., trojan: _Optional[_Union[Trojan, _Mapping]] = ..., shadowsocks: _Optional[_Union[Shadowsocks, _Mapping]] = ..., wireguard: _Optional[_Union[Wireguard, _Mapping]] = ..., hysteria: _Optional[_Union[Hysteria, _Mapping]] = ..., openvpn: _Optional[_Union[Openvpn, _Mapping]] = ..., ikev2: _Optional[_Union[Ikev2, _Mapping]] = ...) -> None: ...
 
 class User(_message.Message):
     __slots__ = ("email", "proxies", "inbounds")

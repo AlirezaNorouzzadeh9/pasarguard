@@ -113,6 +113,20 @@ class OpenVPNSettings(BaseModel):
     not_after: str | None = None  # ISO-8601 timestamp
 
 
+class IKEv2Settings(BaseModel):
+    """Per-user IPsec EAP/CHAP credentials, restored for the L2TP backend.
+
+    The IKEv2 core is gone, but L2TP/IPsec authenticates its PPP layer with
+    this same username/password pair, so the credential keeps the name the
+    data already uses. The username is ``str(user.id)``; the password is
+    issued lazily (post user-insert / on subscription render). Fields default
+    to ``None`` so existing users validate without a backfill.
+    """
+
+    username: str | None = None
+    password: str | None = None
+
+
 class ProxyTable(BaseModel):
     vmess: VMessSettings = Field(default_factory=VMessSettings)
     vless: VlessSettings = Field(default_factory=VlessSettings)
@@ -121,6 +135,7 @@ class ProxyTable(BaseModel):
     wireguard: WireGuardSettings = Field(default_factory=WireGuardSettings)
     hysteria: HysteriaSettings = Field(default_factory=HysteriaSettings)
     openvpn: OpenVPNSettings = Field(default_factory=OpenVPNSettings)
+    ikev2: IKEv2Settings = Field(default_factory=IKEv2Settings)
 
     def dict(self, *, no_obj=True, **kwargs):
         if no_obj:

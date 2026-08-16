@@ -302,7 +302,10 @@ class SubscriptionInboundData(BaseModel):
         cleaned = [remote for remote in parsed if remote is not None]
         return cleaned or None
 
-
+    # ---- L2TP/IPsec (from inbound metadata; user creds ride the ikev2 proxy) ----
+    l2tp_server_addr: str = Field("")
+    l2tp_psk: str = Field("")
+    l2tp_dns: list[str] | None = Field(default=None)
 
     # Flow (from inbound, user can override)
     inbound_flow: str = Field("")

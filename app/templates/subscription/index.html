@@ -207,6 +207,7 @@ button{font-family:inherit;cursor:pointer}
 {% if xray_links and pf.first is none %}{% set pf.first = 'xray' %}{% endif %}
 {% if wireguard_configs and pf.first is none %}{% set pf.first = 'wg' %}{% endif %}
 {% if openvpn_configs and pf.first is none %}{% set pf.first = 'ov' %}{% endif %}
+{% if l2tp_details is defined and l2tp_details and pf.first is none %}{% set pf.first = 'l2tp' %}{% endif %}
 
 {# flags2 draws the accent ring around each flag; drop the class for the plain
    disc, or swap in flags3 for the glossy one. A bgN class here changes the
@@ -437,6 +438,7 @@ button{font-family:inherit;cursor:pointer}
       {% if xray_links %}{% set _ = protos.append(('xray','Xray', xray_links|length)) %}{% endif %}
       {% if wireguard_configs %}{% set _ = protos.append(('wg','WireGuard', wireguard_configs|length)) %}{% endif %}
       {% if openvpn_configs %}{% set _ = protos.append(('ov','OpenVPN', openvpn_configs|length)) %}{% endif %}
+      {% if l2tp_details is defined and l2tp_details %}{% set _ = protos.append(('l2tp','L2TP', l2tp_details|length)) %}{% endif %}
 
       {% if protos %}
       <div class="row" style="gap:4px;background:var(--seg);border:1px solid var(--segline);border-radius:14px;padding:4px">
@@ -457,7 +459,8 @@ button{font-family:inherit;cursor:pointer}
               <div style="font-size:11px;color:var(--dim2);margin-top:2px">
                 {% if id == 'xray' %}<span data-i18n="xrayHint">لینک را کپی کنید یا QR را در اپ اسکن کنید</span>
                 {% elif id == 'wg' %}<span data-i18n="wgHint">فایل کانفیگ را دانلود و در اپ رسمی WireGuard وارد کنید.</span>
-                {% else %}<span data-i18n="ovHint">فایل ‎.ovpn را دانلود و در OpenVPN Connect باز کنید.</span>{% endif %}
+                {% elif id == 'ov' %}<span data-i18n="ovHint">فایل ‎.ovpn را دانلود و در OpenVPN Connect باز کنید.</span>
+                {% else %}<span data-i18n="l2tpHint">مشخصات اتصال را در تنظیمات VPN دستگاه وارد کنید (نوع: L2TP/IPsec PSK).</span>{% endif %}
               </div>
             </div>
             {% if id == 'xray' and cnt > 1 %}
@@ -465,7 +468,7 @@ button{font-family:inherit;cursor:pointer}
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
               <span style="white-space:nowrap" data-i18n="copyAll">کپی همه</span>
             </button>
-            {% elif id != 'xray' %}
+            {% elif id in ('wg','ov') %}
             <a class="iconbtn" style="height:34px;padding:0 14px;font-size:12px" href="{{ wireguard_url if id == 'wg' else openvpn_url }}">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
               <span style="white-space:nowrap" data-i18n="downloadAll">دانلود همه</span>
@@ -499,6 +502,38 @@ button{font-family:inherit;cursor:pointer}
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                     <span data-i18n="copy">کپی</span>
                   </button>
+                </div>
+              </div>
+            {% endfor %}
+          {% elif id == 'l2tp' %}
+            {# L2TP is neither a link nor a file: the OS dialog wants four values
+               typed in, so each row unfolds into a labelled list with per-value
+               copy instead of offering a QR or a download. #}
+            {% for d in l2tp_details %}
+              <div class="srow" style="flex-wrap:wrap">
+                <div class="row" style="flex:1;gap:11px;min-width:0">
+                  <span class="pg-flag" data-flagfor="{{ d.remark }}"></span>
+                  <span dir="ltr" class="srv-name" style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ d.remark }}</span>
+                  <span class="ptag">l2tp</span>
+                </div>
+                <div dir="ltr" class="row" style="width:132px;gap:7px;justify-content:flex-end">
+                  <button class="actcopy" onclick="toggleL2tp(this)">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                    <span data-i18n="l2tpShow">جزئیات</span>
+                  </button>
+                </div>
+                <div class="l2tp-detail" style="display:none;width:100%;padding:4px 0 6px">
+                  {% for key, label, val in [('l2tpServer','سرور', d.server), ('l2tpUser','نام کاربری', d.username), ('l2tpPass','رمز عبور', d.password), ('l2tpSecret','کلید مشترک (Secret)', d.secret)] %}
+                  <div class="row" style="gap:10px;padding:5px 0;justify-content:space-between">
+                    <span style="font-size:11.5px;font-weight:700;color:var(--dim2);white-space:nowrap" data-i18n="{{ key }}">{{ label }}</span>
+                    <span class="row" dir="ltr" style="gap:7px;min-width:0">
+                      <span class="pg-mono" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ val }}</span>
+                      <button class="acticon" style="width:26px;height:26px;flex-shrink:0" onclick="copyText({{ val|tojson }})">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                      </button>
+                    </span>
+                  </div>
+                  {% endfor %}
                 </div>
               </div>
             {% endfor %}
@@ -591,6 +626,7 @@ button{font-family:inherit;cursor:pointer}
 /* ---------------------------------------------------------------- language */
 var I18N={
  fa:{plan:'اشتراک',account:'حساب کاربری',servers:'سرورها',apps:'اپلیکیشن‌ها',day:'روز',never:'هرگز',
+     l2tpHint:'مشخصات اتصال را در تنظیمات VPN دستگاه وارد کنید (نوع: L2TP/IPsec PSK).',l2tpShow:'جزئیات',l2tpServer:'سرور',l2tpUser:'نام کاربری',l2tpPass:'رمز عبور',l2tpSecret:'کلید مشترک (Secret)',
      volLeft:'حجم باقی‌مانده',timeLeft:'زمان باقی‌مانده',usedSuffix:'مصرف‌شده',
      passed:'سپری‌شده',pctSign:'%',ofPeriodA:'از',ofPeriodB:'روز دوره',totalVol:'حجم کل',expiry:'تاریخ انقضا',
      lastSeen:'آخرین اتصال',unlimited:'نامحدود',notStarted:'شروع نشده',usageChart:'آمار مصرف',
@@ -604,6 +640,7 @@ var I18N={
      st_active:'فعال',st_expired:'منقضی شده',st_limited:'اتمام حجم',st_disabled:'غیرفعال',st_on_hold:'در انتظار شروع',
      rangeDayLabel:'24 ساعت اخیر',rangeWeekLabel:'7 روز اخیر',rangeMonthLabel:'30 روز اخیر',noUsage:'هنوز مصرفی ثبت نشده',agoNow:'هم‌اکنون',agoMin:'دقیقه پیش',agoHour:'ساعت پیش',agoDay:'روز پیش'},
  en:{plan:'Plan',account:'Account',servers:'Servers',apps:'Apps',day:'days',never:'Never',
+     l2tpHint:'Enter these in your device VPN settings (type: L2TP/IPsec PSK).',l2tpShow:'Details',l2tpServer:'Server',l2tpUser:'Username',l2tpPass:'Password',l2tpSecret:'Shared secret',
      volLeft:'Data left',timeLeft:'Time left',usedSuffix:'used',
      passed:'elapsed',pctSign:'%',ofPeriodA:'of',ofPeriodB:'day period',totalVol:'Total data',expiry:'Expires in',
      lastSeen:'Last seen',unlimited:'Unlimited',notStarted:'Not started',usageChart:'Usage',
@@ -686,6 +723,10 @@ function legacyCopy(text){
 }
 function subUrlValue(){return (location.origin+location.pathname).replace(/\/+$/,'');}
 function copySub(){copyText(subUrlValue());}
+function toggleL2tp(btn){
+  var d=btn.closest('.srow').querySelector('.l2tp-detail');
+  d.style.display=(d.style.display==='none')?'block':'none';
+}
 function copyAllXray(){
   var a=[];document.querySelectorAll('[data-xray]').forEach(function(r){
     var v=r.getAttribute('data-xray');if(v)a.push(v);});

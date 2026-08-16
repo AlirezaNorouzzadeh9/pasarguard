@@ -9,6 +9,9 @@ class ProxyProtocol(IntEnum):
     wireguard = 5
     hysteria = 6
     openvpn = 7
+    # back from the ikev2 era for L2TP/IPsec: its PPP layer authenticates with
+    # the same username/password credential, so the protocol outlives the core
+    ikev2 = 8
 
     @classmethod
     def from_value(cls, value: str) -> ProxyProtocol | None:

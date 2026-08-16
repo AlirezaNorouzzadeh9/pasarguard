@@ -24,6 +24,7 @@ from app.settings import hwid_settings, subscription_settings
 from app.subscription.share import (
     apply_custom_format_variables,
     encode_title,
+    generate_l2tp_details,
     generate_openvpn_configs,
     generate_subscription,
     generate_wireguard_configs,
@@ -32,6 +33,7 @@ from app.subscription.share import (
 )
 from app.templates import render_template
 from app.utils.hwid import resolve_effective_hwid_settings
+from app.utils.l2tp import prepare_l2tp_proxy_settings
 from app.utils.openvpn import prepare_openvpn_proxy_settings
 from config import template_settings
 
@@ -321,6 +323,8 @@ class SubscriptionOperation(BaseOperation):
 
         proxy_settings = ProxyTable.model_validate(db_user.proxy_settings)
         updated = await prepare_openvpn_proxy_settings(db, proxy_settings, groups, db_user.id)
+        # Same late-join story for L2TP: credentials appear on first render.
+        updated = await prepare_l2tp_proxy_settings(db, updated, groups, db_user.id)
         new_settings = updated.dict()
         if new_settings == db_user.proxy_settings:
             return False
@@ -514,6 +518,10 @@ class SubscriptionOperation(BaseOperation):
             wireguard_url = f"{base_url}/wireguard" if base_url and wireguard_configs else None
             openvpn_url = f"{base_url}/openvpn" if base_url and openvpn_configs else None
 
+            # L2TP is neither a link nor a file: the page shows the connection
+            # details (server / username / password / secret) for manual setup.
+            l2tp_details = await generate_l2tp_details(user, sub_settings.randomize_order)
+
             return HTMLResponse(
                 render_template(
                     template,
@@ -528,6 +536,7 @@ class SubscriptionOperation(BaseOperation):
                         wireguard_url,
                         openvpn_configs,
                         openvpn_url,
+                        l2tp_details,
                     ),
                 )
             )
@@ -665,6 +674,7 @@ class SubscriptionOperation(BaseOperation):
         wireguard_url: str | None = None,
         openvpn_configs: list[dict] | None = None,
         openvpn_url: str | None = None,
+        l2tp_details: list[dict] | None = None,
     ) -> dict[str, Any]:
         return {
             "user": SubscriptionUserResponse.model_validate(user),
@@ -675,6 +685,7 @@ class SubscriptionOperation(BaseOperation):
             "wireguard_url": wireguard_url,
             "openvpn_configs": openvpn_configs or [],
             "openvpn_url": openvpn_url,
+            "l2tp_details": l2tp_details or [],
             "apps": self._make_apps_import_urls(
                 sub_settings.applications,
                 format_variables,

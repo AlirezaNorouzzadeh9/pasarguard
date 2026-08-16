@@ -13,6 +13,7 @@ import type { SectionHeaderAddPulse } from '@/features/core-editor/hooks/use-sec
 import { useXrayPersistValidationItems } from '@/features/core-editor/hooks/use-xray-persist-validation-items'
 import OpenVPNCoreEditorPage from '@/features/core-editor/components/openvpn/openvpn-core-editor-page'
 import SingBoxCoreEditorPage, { NEW_SINGBOX_CONFIG } from '@/features/core-editor/components/singbox/singbox-core-editor-page'
+import L2TPCoreEditorPage from '@/features/core-editor/components/l2tp/l2tp-core-editor-page'
 import { WireGuardCoreEditor } from '@/features/core-editor/components/wg/wireguard-core-editor'
 import { XrayCoreEditor } from '@/features/core-editor/components/xray/xray-core-editor'
 import { profileToPersistedConfig } from '@/features/core-editor/kit/xray-adapter'
@@ -220,6 +221,7 @@ export default function CoreEditorPage() {
   // reported as an unknown xray option.
   const isOpenVPNCore = isNew ? searchParams.get('kind') === 'openvpn' : coreData?.type === 'openvpn'
   const isSingBoxCore = isNew ? searchParams.get('kind') === 'singbox' : coreData?.type === 'singbox'
+  const isL2TPCore = isNew ? searchParams.get('kind') === 'l2tp' : coreData?.type === 'l2tp'
 
   useEffect(() => {
     if (isNew) {
@@ -435,9 +437,9 @@ export default function CoreEditorPage() {
             <Select
               value={kind === 'wg' ? 'wg' : 'xray'}
               onValueChange={value => {
-                if (value === 'openvpn' || value === 'singbox') {
-                  // OpenVPN and sing-box have self-contained editors, reached
-                  // only from the "new" flow.
+                if (value === 'openvpn' || value === 'singbox' || value === 'l2tp') {
+                  // OpenVPN, sing-box and L2TP have self-contained editors,
+                  // reached only from the "new" flow.
                   if (isNew) {
                     setSearchParams(
                       prev => {
@@ -474,6 +476,7 @@ export default function CoreEditorPage() {
                 <SelectItem value="wg">WireGuard</SelectItem>
                 <SelectItem value="openvpn">OpenVPN</SelectItem>
                 <SelectItem value="singbox">sing-box</SelectItem>
+                <SelectItem value="l2tp">L2TP</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -580,6 +583,14 @@ export default function CoreEditorPage() {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <OpenVPNCoreEditorPage />
+      </div>
+    )
+  }
+
+  if (isL2TPCore) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <L2TPCoreEditorPage />
       </div>
     )
   }

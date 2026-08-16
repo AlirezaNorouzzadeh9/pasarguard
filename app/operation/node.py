@@ -78,6 +78,7 @@ _MULTI_INSTANCE_BACKENDS = {
     CoreType.wg: service.BackendType.WIREGUARD,
     CoreType.openvpn: service.BackendType.OPENVPN,
     CoreType.singbox: service.BackendType.SINGBOX,
+    CoreType.l2tp: service.BackendType.L2TP,
 }
 
 # How long a core is given to come up.

@@ -110,6 +110,7 @@ from app.settings import hwid_settings, subscription_settings
 from app.utils.helpers import fix_datetime_timezone
 from app.utils.hwid import resolve_effective_hwid_settings
 from app.utils.jwt import create_subscription_token
+from app.utils.l2tp import prepare_l2tp_proxy_settings
 from app.utils.logger import get_logger
 from app.utils.openvpn import prepare_openvpn_proxy_settings
 from app.utils.system import readable_duration, readable_size
@@ -458,6 +459,8 @@ class UserOperation(BaseOperation):
         updated = await prepare_openvpn_proxy_settings(
             db, proxy_settings, groups, db_user.id, force_reissue=force_reissue
         )
+        # L2TP piggybacks here for the same reason: its username is the user id.
+        updated = await prepare_l2tp_proxy_settings(db, updated, groups, db_user.id, force_reissue=force_reissue)
         new_settings = updated.dict()
         if new_settings != db_user.proxy_settings:
             db_user.proxy_settings = new_settings
@@ -477,9 +480,10 @@ class UserOperation(BaseOperation):
             ProxyTable.model_validate(build_revoked_proxy_settings(db_user)),
             exclude_user_id=db_user.id,
         )
-        # Reissue the OpenVPN client cert with a fresh serial, so the profiles
-        # already distributed are denied by the node.
-        return await prepare_openvpn_proxy_settings(db, proxy_settings, groups, db_user.id, force_reissue=True)
+        # Reissue the OpenVPN client cert with a fresh serial and rotate the
+        # L2TP password, so the profiles already distributed are denied.
+        proxy_settings = await prepare_openvpn_proxy_settings(db, proxy_settings, groups, db_user.id, force_reissue=True)
+        return await prepare_l2tp_proxy_settings(db, proxy_settings, groups, db_user.id, force_reissue=True)
 
     async def _get_validated_template_with_access(
         self, db: AsyncSession, template_id: int, admin: AdminDetails

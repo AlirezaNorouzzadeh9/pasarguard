@@ -154,6 +154,30 @@ async def _prepare_subscription_inbound_data(
             else None,
         )
 
+    if protocol == "l2tp":
+        # Address-only shape: the client needs a server address, the shared
+        # PSK and its own credentials — the credentials ride on the user, not
+        # the host, so only the inbound metadata is carried here.
+        return SubscriptionInboundData(
+            remark=host.remark,
+            inbound_tag=host.inbound_tag,
+            protocol=protocol,
+            address=list(host.address) if host.address else ["{SERVER_IP}"],
+            port=[host.port] if host.port else [inbound_config.get("listen_port", 500)],
+            network=network,
+            tls_config=TLSConfig(),
+            transport_config=TCPTransportConfig(path="", host=[]),
+            mux_settings=None,
+            l2tp_server_addr=inbound_config.get("server_addr", ""),
+            l2tp_psk=inbound_config.get("psk", ""),
+            l2tp_dns=inbound_config.get("dns") or None,
+            priority=host.priority,
+            status=list(host.status) if host.status else None,
+            subscription_templates=host.subscription_templates.model_dump(exclude_none=True)
+            if host.subscription_templates
+            else None,
+        )
+
     if protocol == "openvpn":
         ov_over: OpenVPNHostOverrides | None = host.openvpn_overrides
         if ov_over is None:
