@@ -635,9 +635,9 @@ html[lang="en"] .lang-fa,html[lang="fa"] .lang-en,.lang-ru,.lang-zh{display:none
     {% if shown %}
     <div class="row" style="gap:4px;background:var(--seg);border:1px solid var(--segline);border-radius:14px;padding:4px;flex-wrap:wrap">
       {% for oid,oname,group in shown %}
-      <button class="ptab{{ ' on' if oid == af.first else '' }}" data-os-tab="{{ oid }}" onclick="showOS('{{ oid }}')">
-        <span class="pdot"></span>{{ oname }}
-      </button>
+      {# no dot here: on the protocol tabs it stands for a live backend, and an
+         operating system is not a thing that can be up or down #}
+      <button class="ptab{{ ' on' if oid == af.first else '' }}" data-os-tab="{{ oid }}" onclick="showOS('{{ oid }}')">{{ oname }}</button>
       {% endfor %}
     </div>
     {% endif %}
