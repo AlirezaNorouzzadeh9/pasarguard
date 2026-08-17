@@ -129,7 +129,6 @@ html[lang="en"] .lang-fa,html[lang="fa"] .lang-en,.lang-ru,.lang-zh{display:none
 /* servers: one table per protocol, switched by a full-width segmented control */
 .ptab{flex:1;display:flex;align-items:center;height:40px;justify-content:center;gap:8px;border-radius:11px;border:1px solid transparent;font-size:13.5px;font-weight:700;background:transparent;color:var(--dim)}
 .ptab.on{background:var(--navon);border-color:var(--softline);color:var(--text)}
-.pdot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
 /* three values, one row on a wide screen and stacked on a phone — they are read
    together, so they are laid out together */
 .l2tp-creds{display:grid;grid-template-columns:1fr;gap:10px}
@@ -454,9 +453,7 @@ html[lang="en"] .lang-fa,html[lang="fa"] .lang-en,.lang-ru,.lang-zh{display:none
       {% if protos %}
       <div class="row" style="gap:4px;background:var(--seg);border:1px solid var(--segline);border-radius:14px;padding:4px">
         {% for id,name,cnt in protos %}
-        <button class="ptab{{ ' on' if id == pf.first else '' }}" data-proto-tab="{{ id }}" onclick="showProto('{{ id }}')">
-          <span class="pdot"></span>{{ name }}
-        </button>
+        <button class="ptab{{ ' on' if id == pf.first else '' }}" data-proto-tab="{{ id }}" onclick="showProto('{{ id }}')">{{ name }}</button>
         {% endfor %}
       </div>
       {% endif %}
@@ -635,8 +632,6 @@ html[lang="en"] .lang-fa,html[lang="fa"] .lang-en,.lang-ru,.lang-zh{display:none
     {% if shown %}
     <div class="row" style="gap:4px;background:var(--seg);border:1px solid var(--segline);border-radius:14px;padding:4px;flex-wrap:wrap">
       {% for oid,oname,group in shown %}
-      {# no dot here: on the protocol tabs it stands for a live backend, and an
-         operating system is not a thing that can be up or down #}
       <button class="ptab{{ ' on' if oid == af.first else '' }}" data-os-tab="{{ oid }}" onclick="showOS('{{ oid }}')">{{ oname }}</button>
       {% endfor %}
     </div>
