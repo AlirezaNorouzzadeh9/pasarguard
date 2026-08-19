@@ -32,7 +32,7 @@ from app.models.group import (
     RemoveGroupsResponse,
 )
 from app.models.user import BulkOperationDryRunResponse, UserListQuery
-from app.node.sync import sync_users
+from app.node.sync import full_resync_wireguard_nodes, sync_users
 from app.operation import BaseOperation, OperatorType
 from app.operation.permissions import apply_group_access
 from app.utils.logger import get_logger
@@ -98,6 +98,8 @@ class GroupOperation(BaseOperation):
         await self._sync_users_allocations(db, users)
         await db.commit()
         await sync_users(users)
+        # Editing a group can strip WireGuard access; a full resync drops the now-orphaned peers.
+        await full_resync_wireguard_nodes(db)
 
         group = GroupResponse.model_validate(db_group)
 
@@ -118,6 +120,8 @@ class GroupOperation(BaseOperation):
         await self._sync_users_allocations(db, users)
         await db.commit()
         await sync_users(users)
+        # Deleting a group revokes its inbounds; a full resync drops the now-orphaned WireGuard peers.
+        await full_resync_wireguard_nodes(db)
 
         logger.info(f'Group "{db_group.name}" deleted by admin "{admin.username}"')
 
@@ -148,6 +152,8 @@ class GroupOperation(BaseOperation):
         await self._sync_users_allocations(db, users)
         await db.commit()
         await sync_users(users)
+        # Bulk-removing groups revokes their inbounds; a full resync drops the now-orphaned WireGuard peers.
+        await full_resync_wireguard_nodes(db)
 
         if self.operator_type in (OperatorType.API, OperatorType.WEB):
             return {"detail": f"operation has been successfuly done on {users_count} users"}
@@ -184,6 +190,9 @@ class GroupOperation(BaseOperation):
             await self._sync_users_allocations(db, users)
             await db.commit()
             await sync_users(users)
+
+        # Deleting groups revokes their inbounds; a full resync drops the now-orphaned WireGuard peers.
+        await full_resync_wireguard_nodes(db)
 
         for name, group_id in zip(group_names, group_ids):
             logger.info(f'Group "{name}" deleted by admin "{admin.username}"')
@@ -232,6 +241,8 @@ class GroupOperation(BaseOperation):
             await self._sync_users_allocations(db, users)
             await db.commit()
             await sync_users(users)
+            # Disabling a group revokes its inbounds; a full resync drops the now-orphaned WireGuard peers.
+            await full_resync_wireguard_nodes(db)
 
         for db_group in groups_to_update:
             group = GroupResponse.model_validate(db_group)
