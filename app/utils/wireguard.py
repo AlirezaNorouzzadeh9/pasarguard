@@ -32,8 +32,19 @@ async def ensure_unique_wireguard_public_key(
     public_key = proxy_settings.wireguard.public_key
     if not public_key:
         return
-    if await wireguard_public_key_in_use(db, public_key, exclude_user_id=exclude_user_id):
-        raise ValueError("wireguard public_key is already assigned to another user")
+    if not await wireguard_public_key_in_use(db, public_key, exclude_user_id=exclude_user_id):
+        return
+    # The supplied public key already belongs to another user. This happens when a
+    # client (e.g. a reseller bot) reuses one hardcoded WireGuard keypair for every
+    # user it creates. Rather than fail the whole create, replace it with a freshly
+    # generated unique keypair so the user is still provisioned correctly.
+    for _ in range(10):
+        private_key, new_public_key = generate_wireguard_keypair()
+        if not await wireguard_public_key_in_use(db, new_public_key, exclude_user_id=exclude_user_id):
+            proxy_settings.wireguard.private_key = private_key
+            proxy_settings.wireguard.public_key = new_public_key
+            return
+    raise ValueError("could not generate a unique wireguard keypair")
 
 
 async def user_has_wireguard_access(db: AsyncSession, groups: Iterable) -> bool:
