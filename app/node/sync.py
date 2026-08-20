@@ -3,7 +3,7 @@ import asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_object_session
 
-from app.db.models import Admin, AdminRole, AdminStatus, CoreConfig, CoreType, Node, User
+from app.db.models import Admin, AdminRole, AdminStatus, Node, User
 from app.models.user import UserNotificationResponse
 from app.nats.node_rpc import encode_node_command, node_nats_client
 from app.nats.proto_utils import serialize_proto_message, serialize_proto_messages
@@ -174,7 +174,7 @@ async def sync_users(users: list[User]) -> None:
     asyncio.create_task(_dispatch_users_update(proto_users))
 
 
-async def full_resync_wireguard_nodes(db) -> None:
+async def full_resync_wireguard_nodes(db, affected_tags: set[str] | None = None) -> None:
     """Full-reconcile every registered node that runs a WireGuard core.
 
     The incremental ``sync_users`` path only carries users who still have an
@@ -183,17 +183,28 @@ async def full_resync_wireguard_nodes(db) -> None:
     peer stays live — the client keeps connecting. A full ``sync_users`` sends
     the node its complete desired peer set, which reconciles away the orphan.
 
+    A full resync per wg node is expensive (it ships that node its whole user
+    set), so ``affected_tags`` lets a caller name the inbound tags the operation
+    actually touched: if none of them belong to a WireGuard core there is no
+    orphan to drop and the function returns before touching a node. Passing
+    ``None`` keeps the unconditional behaviour, for callers that cannot say.
+
     Access-revoking group operations call this after committing. It is best
     effort: a node that is unregistered is skipped, and one whose sync fails
     (e.g. currently unreachable) is logged without aborting the request.
     """
     from app.core.manager import core_manager
+    from app.db.crud.wireguard import get_wg_cores, wg_core_tags
     from app.node.user import core_users
 
-    wg_core_ids = set(
-        (await db.execute(select(CoreConfig.id).where(CoreConfig.type == CoreType.wg))).scalars().all()
-    )
+    wg_cores = await get_wg_cores(db)
+    wg_core_ids = {core.id for core in wg_cores}
     if not wg_core_ids:
+        return
+
+    # Nothing the operation changed lives on a WireGuard inbound, so no peer can
+    # have been orphaned — skip the whole reconcile.
+    if affected_tags is not None and not (affected_tags & wg_core_tags(wg_cores)):
         return
 
     db_nodes = (await db.execute(select(Node))).scalars().all()
