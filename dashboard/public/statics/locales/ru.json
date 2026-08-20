@@ -3562,5 +3562,6 @@
     "updateCommandLabel": "Выполните через SSH:",
     "closeBanner": "Закрыть уведомление об обновлении",
     "needsUpdate": "Требуется обновление"
-  }
+  },
+  "coreEditor.col.usage": "Трафик"
 }

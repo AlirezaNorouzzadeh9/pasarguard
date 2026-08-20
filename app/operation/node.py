@@ -14,6 +14,7 @@ from app.db.crud.node import (
     bulk_update_node_status,
     clear_usage_data,
     create_node,
+    get_inbounds_usage,
     get_node_by_id,
     get_node_stats,
     get_nodes,
@@ -52,6 +53,7 @@ from app.models.node import (
     UserIPListAll,
 )
 from app.models.stats import (
+    InboundUsageStatsList,
     NodeOutboundsLatencyResponse,
     NodeRealtimeStats,
     NodeStatsList,
@@ -78,6 +80,7 @@ _MULTI_INSTANCE_BACKENDS = {
     CoreType.wg: service.BackendType.WIREGUARD,
     CoreType.openvpn: service.BackendType.OPENVPN,
     CoreType.singbox: service.BackendType.SINGBOX,
+    CoreType.l2tp: service.BackendType.L2TP,
 }
 
 # How long a core is given to come up.
@@ -611,6 +614,20 @@ class NodeOperation(BaseOperation):
             period=query.period,
             node_id=query.node_id,
             group_by_node=query.group_by_node,
+        )
+
+    async def get_inbound_usage(
+        self,
+        db: AsyncSession,
+        query: NodeUsageQuery,
+    ) -> InboundUsageStatsList:
+        start, end = await self.validate_dates(query.start, query.end, True)
+        return await get_inbounds_usage(
+            db,
+            start,
+            end,
+            period=query.period,
+            node_id=query.node_id,
         )
 
     async def get_user_count_metric(

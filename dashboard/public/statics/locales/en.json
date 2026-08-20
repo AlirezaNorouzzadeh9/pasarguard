@@ -3609,5 +3609,6 @@
     "updateCommandLabel": "Connect via SSH and run:",
     "closeBanner": "Close update notification",
     "needsUpdate": "Needs update"
-  }
+  },
+  "coreEditor.col.usage": "Usage"
 }

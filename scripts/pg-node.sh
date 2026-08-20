@@ -684,6 +684,25 @@ read_and_save_file() {
         echo "$line" >>"$output_file"
     done
 }
+# Download a file, falling back to a copy shipped next to this script.
+#
+# GitHub does not answer every machine a node is installed on — a rate limit and
+# a filtered route both end as a failed download — and the installer used to
+# exit there. Run from a directory that also holds .env.example and
+# docker-compose/node.yml, it now completes with no network at all.
+fetch_or_bundled() {
+    local url="$1" bundled_rel="$2" dest="$3"
+    if curl -fsL "$url" -o "$dest"; then
+        return 0
+    fi
+    local bundled="${SCRIPT_DIR}/${bundled_rel}"
+    if [ -f "$bundled" ]; then
+        colorized_echo yellow "  ⚠ Download failed; using the copy shipped with this script"
+        cp "$bundled" "$dest" && return 0
+    fi
+    return 1
+}
+
 install_node() {
     local node_version=$1
     FILES_URL_PREFIX="https://raw.githubusercontent.com/AlirezaNorouzzadeh9/pasarguardNode/main"
@@ -800,6 +819,20 @@ install_node() {
             ENABLE_OPENVPN=1
         fi
     fi
+    if [ "${INSTALL_L2TP:-}" = "true" ]; then
+        ENABLE_L2TP=1
+    elif [ "${INSTALL_L2TP:-}" = "false" ]; then
+        ENABLE_L2TP=0
+    elif [ "$AUTO_CONFIRM" = true ]; then
+        ENABLE_L2TP=1
+    else
+        read -p "Do you want L2TP/IPsec support on this node? (Y/n): " -r want_l2tp
+        if [[ "$want_l2tp" =~ ^[Nn]$ ]]; then
+            ENABLE_L2TP=0
+        else
+            ENABLE_L2TP=1
+        fi
+    fi
     get_occupied_ports
     if [ -n "${INSTALL_SERVICE_PORT:-}" ]; then
         SERVICE_PORT="$INSTALL_SERVICE_PORT"
@@ -840,17 +873,17 @@ install_node() {
     # Pre-create .env as 0600 (and tighten any pre-existing copy) so the node
     # API_KEY written below is never world-readable.
     harden_secret_file "$APP_DIR/.env"
-    if curl -fsL "$FILES_URL_PREFIX/.env.example" -o "$APP_DIR/.env"; then
+    if fetch_or_bundled "$FILES_URL_PREFIX/.env.example" ".env.example" "$APP_DIR/.env"; then
         colorized_echo green "  ✓ File saved: $APP_DIR/.env"
     else
-        colorized_echo red "  ✗ Failed to download .env.example"
+        colorized_echo red "  ✗ Could not obtain .env.example (download failed, no bundled copy)"
         exit 1
     fi
     colorized_echo cyan "  Command: curl -fsL $COMPOSE_FILES_URL_PREFIX/node.yml -o $APP_DIR/docker-compose.yml"
-    if curl -fsL "$COMPOSE_FILES_URL_PREFIX/node.yml" -o "$APP_DIR/docker-compose.yml"; then
+    if fetch_or_bundled "$COMPOSE_FILES_URL_PREFIX/node.yml" "docker-compose/node.yml" "$APP_DIR/docker-compose.yml"; then
         colorized_echo green "  ✓ File saved: $APP_DIR/docker-compose.yml"
     else
-        colorized_echo red "  ✗ Failed to download node.yml"
+        colorized_echo red "  ✗ Could not obtain node.yml (download failed, no bundled copy)"
         exit 1
     fi
     # Modifying .env file
@@ -931,20 +964,48 @@ apply_backend_support() {
         set_node_env PG_NODE_WG_HOST_ROUTING 0
         colorized_echo yellow "  • WireGuard support left off"
     fi
+    # Devices are collected here and written once. They used to be assigned per
+    # backend, which meant the last branch to run replaced the whole list — with
+    # one device-needing backend that was invisible, with two it would have had
+    # them erasing each other.
+    local devices=()
     if [ "${ENABLE_OPENVPN:-1}" -eq 1 ]; then
         modprobe tun 2>/dev/null || true
-        if yq eval ".services[\"$service_name\"].devices = [\"/dev/net/tun\"]" -i "$APP_DIR/docker-compose.yml" 2>/dev/null; then
+        devices+=("/dev/net/tun")
+        if [ -e /dev/net/tun ]; then
             colorized_echo green "  ✓ OpenVPN enabled (/dev/net/tun passed to the container)"
         else
-            colorized_echo red "  ✗ Could not grant /dev/net/tun — OpenVPN cores will not start."
+            colorized_echo yellow "  ⚠ OpenVPN enabled, but /dev/net/tun does not exist on this host."
+            colorized_echo yellow "    The node will run; an OpenVPN core will fail to bring up its interface."
         fi
-        if [ ! -e /dev/net/tun ]; then
-            colorized_echo yellow "  ⚠ /dev/net/tun does not exist on this host; OpenVPN cores will not start."
+    else
+        set_node_env PG_NODE_OPENVPN_HOST_ROUTING 0
+        colorized_echo yellow "  • OpenVPN support left off"
+    fi
+    if [ "${ENABLE_L2TP:-1}" -eq 1 ]; then
+        # ppp_generic backs /dev/ppp, and pppd is what actually carries an L2TP
+        # session — xl2tpd will accept the tunnel and then fail to build one.
+        modprobe ppp_generic 2>/dev/null || true
+        devices+=("/dev/ppp")
+        if [ -e /dev/ppp ]; then
+            colorized_echo green "  ✓ L2TP/IPsec enabled (/dev/ppp passed to the container)"
+        else
+            colorized_echo yellow "  ⚠ L2TP enabled, but this host has no /dev/ppp (ppp_generic module)."
+            colorized_echo yellow "    The node will run; an L2TP core will accept clients and build no tunnel."
+        fi
+        colorized_echo cyan "    L2TP needs UDP 500, 4500 and 1701 reachable from the internet"
+    else
+        colorized_echo yellow "  • L2TP support left off"
+    fi
+    if [ ${#devices[@]} -gt 0 ]; then
+        local devices_json
+        devices_json=$(printf '"%s",' "${devices[@]}")
+        devices_json="[${devices_json%,}]"
+        if ! yq eval ".services[\"$service_name\"].devices = $devices_json" -i "$APP_DIR/docker-compose.yml" 2>/dev/null; then
+            colorized_echo red "  ✗ Could not grant ${devices[*]} — the cores that need them will not start."
         fi
     else
         yq eval "del(.services[\"$service_name\"].devices)" -i "$APP_DIR/docker-compose.yml" 2>/dev/null || true
-        set_node_env PG_NODE_OPENVPN_HOST_ROUTING 0
-        colorized_echo yellow "  • OpenVPN support left off"
     fi
     # sing-box needs nothing granted, so there is nothing to switch on or warn
     # about. It is named anyway: a report that lists two of the three cores
@@ -1195,6 +1256,14 @@ install_command() {
             ;;
         --no-openvpn)
             INSTALL_OPENVPN=false
+            shift
+            ;;
+        --l2tp)
+            INSTALL_L2TP=true
+            shift
+            ;;
+        --no-l2tp)
+            INSTALL_L2TP=false
             shift
             ;;
         *)
@@ -2152,7 +2221,9 @@ usage() {
     colorized_echo yellow "  --wireguard             $(tput sgr0)✓  Enable WireGuard support (default)"
     colorized_echo yellow "  --no-wireguard          $(tput sgr0)✓  Do not prepare the host for WireGuard"
     colorized_echo yellow "  --openvpn               $(tput sgr0)✓  Enable OpenVPN support, grants /dev/net/tun (default)"
-    colorized_echo yellow "  --no-openvpn            $(tput sgr0)✓  Do not grant /dev/net/tun"
+    colorized_echo yellow "  --no-openvpn            $(tput sgr0)✓  Do not prepare the host for OpenVPN"
+    colorized_echo yellow "  --l2tp                  $(tput sgr0)✓  Enable L2TP/IPsec support, grants /dev/ppp (default)"
+    colorized_echo yellow "  --no-l2tp               $(tput sgr0)✓  Do not prepare the host for L2TP/IPsec"
     colorized_echo yellow "  --service-port PORT     $(tput sgr0)✓  Set service port"
     colorized_echo yellow "  --cert-path PATH        $(tput sgr0)✓  Set public certificate path"
     colorized_echo yellow "  --key-path PATH         $(tput sgr0)✓  Set private key path"

@@ -3617,5 +3617,6 @@
     "updateCommandLabel": "通过 SSH 连接并运行:",
     "closeBanner": "关闭更新通知",
     "needsUpdate": "需要更新"
-  }
+  },
+  "coreEditor.col.usage": "流量"
 }

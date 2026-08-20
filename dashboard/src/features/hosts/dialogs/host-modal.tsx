@@ -432,7 +432,7 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
   const [openSection, setOpenSection] = useState<string | undefined>(undefined)
   const [wireguardOpenSection, setWireguardOpenSection] = useState<string | undefined>(undefined)
   const [isTransportOpen, setIsTransportOpen] = useState(false)
-  const [resolvedHostMode, setResolvedHostMode] = useState<'xray' | 'wireguard' | 'openvpn'>('xray')
+  const [resolvedHostMode, setResolvedHostMode] = useState<'xray' | 'wireguard' | 'openvpn' | 'l2tp'>('xray')
   const { t } = useTranslation()
   const dir = useDirDetection()
   const isMobile = useIsMobile()
@@ -870,6 +870,8 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
         setResolvedHostMode('wireguard')
       } else if (selectedInbound.protocol === 'openvpn') {
         setResolvedHostMode('openvpn')
+      } else if (selectedInbound.protocol === 'l2tp') {
+        setResolvedHostMode('l2tp')
       } else {
         setResolvedHostMode('xray')
       }
@@ -888,7 +890,7 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
 
     if (resolvedHostMode === 'wireguard') {
       setOpenSection(undefined)
-    } else if (resolvedHostMode === 'openvpn') {
+    } else if (resolvedHostMode === 'openvpn' || resolvedHostMode === 'l2tp') {
       setOpenSection(undefined)
       setWireguardOpenSection(undefined)
     } else {
@@ -1439,7 +1441,7 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
                     <span>{t('loading', { defaultValue: 'Loading...' })}</span>
                   </div>
                 </div>
-              ) : shouldRenderOpenVPNLayout ? // An OpenVPN profile has no transport, TLS or fingerprint to set;
+              ) : shouldRenderOpenVPNLayout || resolvedHostMode === 'l2tp' ? // An OpenVPN or L2TP host has no transport, TLS or fingerprint to set;
               // everything it needs is the remotes editor above.
               null : shouldRenderWireGuardLayout ? (
                 <Accordion type="single" collapsible value={wireguardOpenSection} onValueChange={handleWireguardAccordionChange} className="!mt-0 mb-6 flex w-full flex-col gap-y-6">

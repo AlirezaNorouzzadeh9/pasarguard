@@ -74,6 +74,12 @@ class NodeUsageStatsList(StatList):
     stats: dict[int, list[NodeUsageStat]]
 
 
+class InboundUsageStatsList(StatList):
+    """Per-inbound usage, keyed by inbound tag (optionally split per node)."""
+
+    stats: dict[str, list[NodeUsageStat]]
+
+
 class NodeRealtimeStats(BaseModel):
     mem_total: int
     mem_used: int

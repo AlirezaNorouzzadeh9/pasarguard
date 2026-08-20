@@ -3582,5 +3582,6 @@
     "updateCommandLabel": "از طریق SSH متصل شوید و اجرا کنید:",
     "closeBanner": "بستن اعلان به‌روزرسانی",
     "needsUpdate": "نیاز به به‌روزرسانی"
-  }
+  },
+  "coreEditor.col.usage": "مصرف"
 }
