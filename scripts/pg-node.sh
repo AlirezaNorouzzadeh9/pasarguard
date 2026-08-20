@@ -684,6 +684,25 @@ read_and_save_file() {
         echo "$line" >>"$output_file"
     done
 }
+# Download a file, falling back to a copy shipped next to this script.
+#
+# GitHub does not answer every machine a node is installed on — a rate limit and
+# a filtered route both end as a failed download — and the installer used to
+# exit there. Run from a directory that also holds .env.example and
+# docker-compose/node.yml, it now completes with no network at all.
+fetch_or_bundled() {
+    local url="$1" bundled_rel="$2" dest="$3"
+    if curl -fsL "$url" -o "$dest"; then
+        return 0
+    fi
+    local bundled="${SCRIPT_DIR}/${bundled_rel}"
+    if [ -f "$bundled" ]; then
+        colorized_echo yellow "  ⚠ Download failed; using the copy shipped with this script"
+        cp "$bundled" "$dest" && return 0
+    fi
+    return 1
+}
+
 install_node() {
     local node_version=$1
     FILES_URL_PREFIX="https://raw.githubusercontent.com/AlirezaNorouzzadeh9/pasarguardNode/main"
@@ -854,17 +873,17 @@ install_node() {
     # Pre-create .env as 0600 (and tighten any pre-existing copy) so the node
     # API_KEY written below is never world-readable.
     harden_secret_file "$APP_DIR/.env"
-    if curl -fsL "$FILES_URL_PREFIX/.env.example" -o "$APP_DIR/.env"; then
+    if fetch_or_bundled "$FILES_URL_PREFIX/.env.example" ".env.example" "$APP_DIR/.env"; then
         colorized_echo green "  ✓ File saved: $APP_DIR/.env"
     else
-        colorized_echo red "  ✗ Failed to download .env.example"
+        colorized_echo red "  ✗ Could not obtain .env.example (download failed, no bundled copy)"
         exit 1
     fi
     colorized_echo cyan "  Command: curl -fsL $COMPOSE_FILES_URL_PREFIX/node.yml -o $APP_DIR/docker-compose.yml"
-    if curl -fsL "$COMPOSE_FILES_URL_PREFIX/node.yml" -o "$APP_DIR/docker-compose.yml"; then
+    if fetch_or_bundled "$COMPOSE_FILES_URL_PREFIX/node.yml" "docker-compose/node.yml" "$APP_DIR/docker-compose.yml"; then
         colorized_echo green "  ✓ File saved: $APP_DIR/docker-compose.yml"
     else
-        colorized_echo red "  ✗ Failed to download node.yml"
+        colorized_echo red "  ✗ Could not obtain node.yml (download failed, no bundled copy)"
         exit 1
     fi
     # Modifying .env file
