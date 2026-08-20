@@ -14,6 +14,8 @@ to survive an inbound being renamed or dropped from the panel config.
 import sqlalchemy as sa
 from alembic import op
 
+from app.db.compiles_types import SqliteCompatibleBigInteger
+
 # revision identifiers, used by Alembic.
 revision = "c4f8a12d7e90"
 down_revision = "e1c8a3f0b562"
@@ -24,9 +26,13 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "inbound_usages",
-        sa.Column("id", sa.Integer(), nullable=False),
+        # Id columns must be SqliteCompatibleBigInteger, not sa.Integer: since
+        # 4f15c0789493 every id column is BIGINT on MySQL/MariaDB, and an INT
+        # foreign key referencing the BIGINT nodes.id fails there with
+        # errno 150 "Foreign key constraint is incorrectly formed".
+        sa.Column("id", SqliteCompatibleBigInteger(), autoincrement=True, nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("node_id", sa.Integer(), nullable=True),
+        sa.Column("node_id", SqliteCompatibleBigInteger(), nullable=True),
         sa.Column("inbound_tag", sa.String(length=256), nullable=False),
         sa.Column("uplink", sa.BigInteger(), nullable=False),
         sa.Column("downlink", sa.BigInteger(), nullable=False),
