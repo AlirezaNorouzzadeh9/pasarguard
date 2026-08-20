@@ -19,7 +19,7 @@ from sqlalchemy.sql.expression import Insert
 from app import on_shutdown, scheduler
 from app.db import GetDB
 from app.db.base import engine
-from app.db.models import Admin, Node, NodeUsage, NodeUserUsage, System, User
+from app.db.models import Admin, InboundUsage, Node, NodeUsage, NodeUserUsage, System, User
 from app.node import node_manager
 from app.operation.admin_sync import enforce_admin_limits_now
 from app.utils.logger import get_logger
@@ -304,6 +304,87 @@ def build_node_usage_upsert(dialect: str, upsert_param: dict):
         return [(insert_stmt, [upsert_param]), (update_stmt, [update_param])]
 
 
+def build_inbound_usage_upsert(dialect: str, upsert_param: dict):
+    """
+    Build UPSERT statement for InboundUsage based on database dialect.
+
+    Args:
+        dialect: Database dialect name ('postgresql', 'mysql', or 'sqlite')
+        upsert_param: Parameter dict with keys: node_id, created_at, tag, up, down
+
+    Returns:
+        tuple: (statements_list, params_list) - For SQLite returns 2 statements, others return 1
+    """
+    if dialect == "postgresql":
+        stmt = pg_insert(InboundUsage).values(
+            node_id=bindparam("node_id"),
+            created_at=bindparam("created_at"),
+            inbound_tag=bindparam("tag"),
+            uplink=bindparam("up"),
+            downlink=bindparam("down"),
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["created_at", "node_id", "inbound_tag"],
+            set_={
+                "uplink": InboundUsage.uplink + bindparam("up"),
+                "downlink": InboundUsage.downlink + bindparam("down"),
+            },
+        )
+        return [(stmt, [upsert_param])]
+
+    elif dialect == "mysql":
+        stmt = mysql_insert(InboundUsage).values(
+            node_id=bindparam("node_id"),
+            created_at=bindparam("created_at"),
+            inbound_tag=bindparam("tag"),
+            uplink=bindparam("up"),
+            downlink=bindparam("down"),
+        )
+        stmt = stmt.on_duplicate_key_update(
+            uplink=InboundUsage.uplink + stmt.inserted.uplink,
+            downlink=InboundUsage.downlink + stmt.inserted.downlink,
+        )
+        return [(stmt, [upsert_param])]
+
+    else:  # SQLite
+        insert_stmt = (
+            insert(InboundUsage)
+            .values(
+                node_id=bindparam("node_id"),
+                created_at=bindparam("created_at"),
+                inbound_tag=bindparam("tag"),
+                uplink=0,
+                downlink=0,
+            )
+            .prefix_with("OR IGNORE")
+        )
+
+        update_stmt = (
+            update(InboundUsage)
+            .values(
+                uplink=InboundUsage.uplink + bindparam("up"),
+                downlink=InboundUsage.downlink + bindparam("down"),
+            )
+            .where(
+                and_(
+                    InboundUsage.node_id == bindparam("b_node_id"),
+                    InboundUsage.created_at == bindparam("b_created_at"),
+                    InboundUsage.inbound_tag == bindparam("b_tag"),
+                )
+            )
+        )
+
+        update_param = {
+            "up": upsert_param["up"],
+            "down": upsert_param["down"],
+            "b_node_id": upsert_param["node_id"],
+            "b_created_at": upsert_param["created_at"],
+            "b_tag": upsert_param["tag"],
+        }
+
+        return [(insert_stmt, [upsert_param]), (update_stmt, [update_param])]
+
+
 async def safe_execute(stmt, params=None, max_retries: int = 2):
     """
     Safely execute database operations with deadlock and connection handling.
@@ -578,6 +659,76 @@ async def get_outbounds_stats(node: PasarGuardNode):
         return []
 
 
+def _process_inbounds_stats_response(stats_response):
+    """
+    Process inbounds stats response (CPU-bound operation) - can run in thread pool.
+    Aggregates per inbound tag: counters arrive as inbound>>>TAG>>>traffic>>>up/down,
+    which the node has already split into name=TAG / type=uplink|downlink.
+    """
+    per_tag = defaultdict(lambda: [0, 0])
+    for stat in filter(attrgetter("value"), stats_response.stats):
+        if stat.type == "uplink":
+            per_tag[stat.name][0] += stat.value
+        elif stat.type == "downlink":
+            per_tag[stat.name][1] += stat.value
+    return [{"tag": tag, "up": up, "down": down} for tag, (up, down) in per_tag.items()]
+
+
+async def get_inbounds_stats(node: PasarGuardNode):
+    """
+    Get per-inbound stats from node using thread pool for CPU-bound processing.
+
+    Backends that have no inbound counters (wg, openvpn, l2tp) answer with an
+    error, which the node's composite swallows as long as another backend
+    (xray, sing-box) produced stats; a node with no such backend errors here
+    and is recorded as having no inbound usage.
+    """
+    try:
+        async with API_SEM:
+            stats_response = await node.get_stats(stat_type=StatType.Inbounds, reset=True, timeout=10)
+
+        loop = asyncio.get_running_loop()
+        thread_pool = await _get_thread_pool()
+        params = await loop.run_in_executor(thread_pool, _process_inbounds_stats_response, stats_response)
+
+        return params
+    except NodeAPIError as e:
+        logger.debug("Failed to get inbounds stats, error: %s", e.detail)
+        return []
+    except Exception as e:
+        logger.error("Failed to get inbounds stats, unknown error: %s", e)
+        return []
+
+
+async def record_inbound_stats_batched(all_node_params: dict):
+    """
+    Record per-inbound statistics for ALL nodes in batched operations.
+
+    Args:
+        all_node_params: Dict mapping node_id -> list of {"tag", "up", "down"}
+    """
+    if not all_node_params:
+        return
+
+    created_at = _get_time_bucket()
+    dialect = await get_dialect()
+
+    upsert_params = [
+        {"node_id": node_id, "created_at": created_at, "tag": p["tag"], "up": p["up"], "down": p["down"]}
+        for node_id, params in all_node_params.items()
+        for p in params
+        if p["up"] or p["down"]
+    ]
+    if not upsert_params:
+        return
+
+    async with JOB_SEM:
+        for upsert_param in upsert_params:
+            queries = build_inbound_usage_upsert(dialect, upsert_param)
+            for stmt, stmt_params in queries:
+                await safe_execute(stmt, stmt_params)
+
+
 async def calculate_admin_usage(users_usage: list) -> tuple[dict, set[int]]:
     if not users_usage:
         return {}, set()
@@ -806,8 +957,12 @@ async def _record_node_usages_impl():
     logger.debug(f"Starting node usage recording for {len(nodes)} nodes")
 
     try:
-        # Get healthy nodes and gather stats directly
-        stats_results = await asyncio.gather(*[get_outbounds_stats(node) for _, node in nodes], return_exceptions=True)
+        # Get healthy nodes and gather stats directly (outbound totals and
+        # per-inbound counters in one concurrent sweep)
+        stats_results, inbound_results = await asyncio.gather(
+            asyncio.gather(*[get_outbounds_stats(node) for _, node in nodes], return_exceptions=True),
+            asyncio.gather(*[get_inbounds_stats(node) for _, node in nodes], return_exceptions=True),
+        )
         api_params = {}
         for i, result in enumerate(stats_results):
             node_id = nodes[i][0]
@@ -816,6 +971,21 @@ async def _record_node_usages_impl():
                 api_params[node_id] = []
             else:
                 api_params[node_id] = result
+
+        inbound_api_params = {}
+        for i, result in enumerate(inbound_results):
+            node_id = nodes[i][0]
+            if isinstance(result, Exception):
+                logger.warning(f"Failed to get inbounds stats for node {node_id}: {result}")
+                inbound_api_params[node_id] = []
+            else:
+                inbound_api_params[node_id] = result
+
+        # Record per-inbound history before the outbound-total early return:
+        # the counters were already reset on the node, so skipping the write
+        # would drop them.
+        if not usage_settings.disable_recording_node_usage:
+            await record_inbound_stats_batched(inbound_api_params)
 
         # Calculate per-node totals
         node_totals = {

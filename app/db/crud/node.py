@@ -9,6 +9,7 @@ from sqlalchemy.sql.functions import coalesce
 from app.db.compiles_types import DateDiff
 from app.db.models import (
     DataLimitResetStrategy,
+    InboundUsage,
     Node,
     NodeStat,
     NodeStatus,
@@ -25,7 +26,7 @@ from app.models.node import (
     NodeSimpleSortOption,
     UsageTable,
 )
-from app.models.stats import NodeStats, NodeStatsList, NodeUsageStat, NodeUsageStatsList, Period
+from app.models.stats import InboundUsageStatsList, NodeStats, NodeStatsList, NodeUsageStat, NodeUsageStatsList, Period
 
 from .general import (
     MYSQL_FORMATS,
@@ -326,6 +327,64 @@ async def get_nodes_usage(
         stats[node_id_val].append(NodeUsageStat(**row_dict))
 
     return NodeUsageStatsList(period=period, start=start, end=end, stats=stats)
+
+
+async def get_inbounds_usage(
+    db: AsyncSession,
+    start: datetime,
+    end: datetime,
+    period: Period,
+    node_id: int | None = None,
+) -> InboundUsageStatsList:
+    """
+    Retrieves per-inbound usage within a specified time range, grouped by
+    period buckets (same complete-bucket semantics as get_nodes_usage) and
+    keyed by inbound tag. Tags are summed across nodes unless node_id narrows
+    the result to one node.
+    """
+    dialect = db.bind.dialect.name
+
+    trunc_expr = _build_trunc_expression(db, period, InboundUsage.created_at, start)
+
+    start_utc = to_utc_for_filter(start)
+    end_utc = to_utc_for_filter(end)
+    conditions = [InboundUsage.created_at >= start_utc, InboundUsage.created_at < end_utc]
+    if node_id is not None:
+        conditions.append(InboundUsage.node_id == node_id)
+
+    stmt = (
+        select(
+            trunc_expr.label("period_start"),
+            InboundUsage.inbound_tag.label("inbound_tag"),
+            func.sum(InboundUsage.downlink).label("downlink"),
+            func.sum(InboundUsage.uplink).label("uplink"),
+        )
+        .where(and_(*conditions))
+        .group_by(trunc_expr, InboundUsage.inbound_tag)
+        .order_by(trunc_expr, InboundUsage.inbound_tag)
+    )
+
+    # HAVING clause to exclude the partial first bucket, mirroring get_nodes_usage
+    if start.tzinfo:
+        first_complete_bucket = _get_next_period_boundary(start, period)
+        boundary_value = first_complete_bucket.replace(tzinfo=None)
+        if dialect == "postgresql":
+            stmt = stmt.having(trunc_expr >= boundary_value)
+        elif dialect in ("mysql", "sqlite"):
+            format_str = MYSQL_FORMATS[period] if dialect == "mysql" else SQLITE_FORMATS[period]
+            boundary_str = boundary_value.strftime(format_str.replace("%i", "%M"))
+            stmt = stmt.having(literal_column("period_start") >= boundary_str)
+
+    result = await db.execute(stmt)
+
+    stats: dict[str, list[NodeUsageStat]] = {}
+    for row in result.mappings():
+        row_dict = dict(row)
+        tag = row_dict.pop("inbound_tag")
+        attach_timezone_to_period_start(row_dict, start.tzinfo, dialect)
+        stats.setdefault(tag, []).append(NodeUsageStat(**row_dict))
+
+    return InboundUsageStatsList(period=period, start=start, end=end, stats=stats)
 
 
 async def get_node_stats(
