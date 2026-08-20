@@ -7,6 +7,8 @@ import { toast } from 'sonner'
 import type { ColumnDef } from '@tanstack/react-table'
 
 import PageHeader from '@/components/layout/page-header'
+import { useInboundUsageTotals } from '@/features/core-editor/components/shared/use-inbound-usage-totals'
+import { formatBytes } from '@/utils/formatByte'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
@@ -212,6 +214,8 @@ export default function SingBoxCoreEditorPage({
 
   // ------------------------------------------------------------------ tables
 
+  const inboundUsageTotals = useInboundUsageTotals()
+
   const inboundColumns: ColumnDef<InboundForm, unknown>[] = [
     { id: 'index', header: '#', cell: ({ row }) => <span className="text-muted-foreground text-xs">{row.index + 1}</span> },
     {
@@ -245,6 +249,20 @@ export default function SingBoxCoreEditorPage({
         ) : (
           <span className="text-muted-foreground text-xs">—</span>
         ),
+    },
+    {
+      id: 'usage',
+      header: t('coreEditor.col.usage', { defaultValue: 'Usage' }),
+      cell: ({ row }) => {
+        const total = row.original.tag ? inboundUsageTotals[row.original.tag] : undefined
+        return total ? (
+          <span dir="ltr" className="font-mono text-xs">
+            {String(formatBytes(total, 2))}
+          </span>
+        ) : (
+          <span className="text-muted-foreground text-xs">—</span>
+        )
+      },
     },
   ]
 

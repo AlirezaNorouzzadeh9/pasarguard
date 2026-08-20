@@ -7,7 +7,6 @@ import { EmptyState } from '@/components/charts/empty-state'
 import UserSubUpdatePieChart from '@/components/charts/user-sub-update-pie-chart'
 import SystemStatisticsSection from './system-statistics-section'
 import { AllNodesStackedBarChart } from '@/components/charts/all-nodes-stacked-bar-chart'
-import { InboundUsageChart } from '@/components/charts/inbound-usage-chart'
 import { AreaCostumeChart } from '@/components/charts/area-costume-chart'
 import { BarChart3 } from 'lucide-react'
 import { UserCountsChart } from '@/components/charts/user-counts-chart'
@@ -139,11 +138,6 @@ export default function StatisticsCharts({ data, usersData, isLoading, error, se
         {canViewNodeStats && (
           <div className="animate-slide-up transform-gpu" style={{ animationDuration: '500ms', animationDelay: '260ms', animationFillMode: 'both' }}>
             {actualSelectedServer === 'master' ? <AllNodesStackedBarChart /> : <CostumeBarChart nodeId={selectedNodeId} />}
-          </div>
-        )}
-        {canViewNodeStats && (
-          <div className="animate-slide-up transform-gpu" style={{ animationDuration: '500ms', animationDelay: '280ms', animationFillMode: 'both' }}>
-            <InboundUsageChart nodeId={selectedNodeId} />
           </div>
         )}
         <div className="animate-slide-up transform-gpu" style={{ animationDuration: '500ms', animationDelay: '300ms', animationFillMode: 'both' }}>

@@ -1852,8 +1852,6 @@
   },
   "statistics.system": "系统",
   "statistics.totalTraffic": "总流量",
-  "statistics.inboundUsage": "入站流量",
-  "statistics.inboundUsageDescription": "按入站标签记录的流量",
   "statistics.ramUsage": "RAM 使用情况",
   "statistics.cpuUsage": "CPU 使用情况",
   "statistics.diskUsage": "磁盘使用情况",
@@ -3619,5 +3617,6 @@
     "updateCommandLabel": "通过 SSH 连接并运行:",
     "closeBanner": "关闭更新通知",
     "needsUpdate": "需要更新"
-  }
+  },
+  "coreEditor.col.usage": "流量"
 }

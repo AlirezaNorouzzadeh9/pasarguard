@@ -1463,8 +1463,6 @@
   },
   "statistics.system": "Система",
   "statistics.totalTraffic": "Общий трафик",
-  "statistics.inboundUsage": "Трафик по входящим",
-  "statistics.inboundUsageDescription": "Трафик, записанный по каждому входящему тегу",
   "statistics.ramUsage": "Использование RAM",
   "statistics.cpuUsage": "Использование CPU",
   "statistics.diskUsage": "Использование диска",
@@ -3564,5 +3562,6 @@
     "updateCommandLabel": "Выполните через SSH:",
     "closeBanner": "Закрыть уведомление об обновлении",
     "needsUpdate": "Требуется обновление"
-  }
+  },
+  "coreEditor.col.usage": "Трафик"
 }

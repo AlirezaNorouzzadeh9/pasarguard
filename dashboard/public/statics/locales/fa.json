@@ -1679,8 +1679,6 @@
   },
   "statistics.system": "سیستم",
   "statistics.totalTraffic": "کل ترافیک",
-  "statistics.inboundUsage": "مصرف اینباندها",
-  "statistics.inboundUsageDescription": "ترافیک ثبت‌شده به تفکیک هر اینباند",
   "statistics.ramUsage": "مصرف رم",
   "statistics.cpuUsage": "مصرف پردازنده",
   "statistics.diskUsage": "مصرف دیسک",
@@ -3584,5 +3582,6 @@
     "updateCommandLabel": "از طریق SSH متصل شوید و اجرا کنید:",
     "closeBanner": "بستن اعلان به‌روزرسانی",
     "needsUpdate": "نیاز به به‌روزرسانی"
-  }
+  },
+  "coreEditor.col.usage": "مصرف"
 }

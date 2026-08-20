@@ -1905,8 +1905,6 @@
   },
   "statistics.system": "System",
   "statistics.totalTraffic": "Total Traffic",
-  "statistics.inboundUsage": "Inbound Usage",
-  "statistics.inboundUsageDescription": "Traffic recorded per inbound tag",
   "statistics.ramUsage": "RAM Usage",
   "statistics.cpuUsage": "CPU Usage",
   "statistics.diskUsage": "Disk Usage",
@@ -3611,5 +3609,6 @@
     "updateCommandLabel": "Connect via SSH and run:",
     "closeBanner": "Close update notification",
     "needsUpdate": "Needs update"
-  }
+  },
+  "coreEditor.col.usage": "Usage"
 }
