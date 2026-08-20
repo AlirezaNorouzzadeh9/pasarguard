@@ -20,6 +20,7 @@ from app.models.settings import Application, ConfigFormat, HWIDSettings, SubRule
 from app.models.stats import UserUsageStatsList
 from app.models.subscription import SubscriptionUsageQuery
 from app.models.user import SubscriptionUserResponse, UsersResponseWithInbounds
+from app.node.sync import sync_users
 from app.settings import hwid_settings, subscription_settings
 from app.subscription.share import (
     apply_custom_format_variables,
@@ -33,7 +34,6 @@ from app.subscription.share import (
 )
 from app.templates import render_template
 from app.utils.hwid import resolve_effective_hwid_settings
-from app.node.sync import sync_users
 from app.utils.l2tp import prepare_l2tp_proxy_settings
 from app.utils.openvpn import prepare_openvpn_proxy_settings
 from config import template_settings
