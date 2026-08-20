@@ -732,6 +732,24 @@ class NodeUsage(Base, IdMixin):
     downlink: Mapped[int] = mapped_column(BigInteger, default=0)
 
 
+class InboundUsage(Base, IdMixin):
+    __tablename__ = "inbound_usages"
+    __table_args__ = (
+        UniqueConstraint("created_at", "node_id", "inbound_tag"),
+        # Index for time-based queries and cleanup
+        Index("ix_inbound_usages_created_at", "created_at"),
+        # The unique constraint already creates an index on (created_at, node_id, inbound_tag)
+    )
+    created_at: Mapped[dt] = mapped_column(DateTime(timezone=True), unique=False)  # 10 minute per record
+    node_id: Mapped[int | None] = fk_id_column("nodes.id", ondelete="CASCADE")
+    # A plain tag string rather than an inbounds FK: the counters come from the
+    # core's own stats keyed by tag, and history must survive an inbound being
+    # renamed or removed from the panel config.
+    inbound_tag: Mapped[str] = mapped_column(String(256))
+    uplink: Mapped[int] = mapped_column(BigInteger, default=0)
+    downlink: Mapped[int] = mapped_column(BigInteger, default=0)
+
+
 class NodeUsageResetLogs(Base, CreatedAtUTCMixin):
     __tablename__ = "node_usage_reset_logs"
     __table_args__ = (

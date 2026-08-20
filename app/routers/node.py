@@ -31,6 +31,7 @@ from app.models.node import (
     UserIPListAll,
 )
 from app.models.stats import (
+    InboundUsageStatsList,
     NodeOutboundsLatencyResponse,
     NodeRealtimeStats,
     NodeStatsList,
@@ -147,6 +148,16 @@ async def get_usage(
 ):
     """Retrieve usage statistics for nodes within a specified date range."""
     return await node_operator.get_usage(db=db, query=query)
+
+
+@router.get("/inbounds/usage", response_model=InboundUsageStatsList)
+async def get_inbound_usage(
+    query: Annotated[NodeUsageQuery, Depends(get_node_usage_query)],
+    db: AsyncSession = Depends(get_db),
+    _: AdminDetails = Depends(require_permission("nodes", "stats")),
+):
+    """Retrieve per-inbound usage statistics within a specified date range (optionally for one node)."""
+    return await node_operator.get_inbound_usage(db=db, query=query)
 
 
 @router.get("/user_counts/{metric}", response_model=UserCountMetricStatsList)
