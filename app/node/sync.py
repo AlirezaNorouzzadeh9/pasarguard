@@ -174,18 +174,33 @@ async def sync_users(users: list[User]) -> None:
     asyncio.create_task(_dispatch_users_update(proto_users))
 
 
-async def full_resync_wireguard_nodes(db, affected_tags: set[str] | None = None) -> None:
-    """Full-reconcile every registered node that runs a WireGuard core.
+def _stateful_core_tags(cores) -> set[str]:
+    """Inbound tags of stateful cores: wg interface names, l2tp inbound tags."""
+    from app.db.crud.wireguard import core_config_dict
+    from app.db.models import CoreType
+
+    tags: set[str] = set()
+    for core in cores:
+        key = "interface_name" if core.type == CoreType.wg else "inbound_tag"
+        tag = str(core_config_dict(core).get(key) or "").strip()
+        if tag:
+            tags.add(tag)
+    return tags
+
+
+async def full_resync_stateful_nodes(db, affected_tags: set[str] | None = None) -> None:
+    """Full-reconcile every registered node that runs a stateful core (WireGuard, L2TP).
 
     The incremental ``sync_users`` path only carries users who still have an
-    inbound on a node, so when a user loses WireGuard access (group edited /
-    removed / disabled) the node is never told to drop them and their WireGuard
-    peer stays live — the client keeps connecting. A full ``sync_users`` sends
-    the node its complete desired peer set, which reconciles away the orphan.
+    inbound on a node, so when a user loses access to a stateful backend (group
+    edited / removed / disabled) the node is never told to drop them: a
+    WireGuard peer stays live, an L2TP credential stays in chap-secrets. A full
+    ``sync_users`` sends the node its complete desired user set, which
+    reconciles away the orphan (the node's replaceAll drops the extras).
 
-    A full resync per wg node is expensive (it ships that node its whole user
+    A full resync per node is expensive (it ships that node its whole user
     set), so ``affected_tags`` lets a caller name the inbound tags the operation
-    actually touched: if none of them belong to a WireGuard core there is no
+    actually touched: if none of them belong to a stateful core there is no
     orphan to drop and the function returns before touching a node. Passing
     ``None`` keeps the unconditional behaviour, for callers that cannot say.
 
@@ -194,17 +209,18 @@ async def full_resync_wireguard_nodes(db, affected_tags: set[str] | None = None)
     (e.g. currently unreachable) is logged without aborting the request.
     """
     from app.core.manager import core_manager
-    from app.db.crud.wireguard import get_wg_cores, wg_core_tags
+    from app.db.models import CoreConfig, CoreType
     from app.node.user import core_users
 
-    wg_cores = await get_wg_cores(db)
-    wg_core_ids = {core.id for core in wg_cores}
-    if not wg_core_ids:
+    result = await db.execute(select(CoreConfig).where(CoreConfig.type.in_((CoreType.wg, CoreType.l2tp))))
+    stateful_cores = list(result.scalars().all())
+    stateful_core_ids = {core.id for core in stateful_cores}
+    if not stateful_core_ids:
         return
 
-    # Nothing the operation changed lives on a WireGuard inbound, so no peer can
-    # have been orphaned — skip the whole reconcile.
-    if affected_tags is not None and not (affected_tags & wg_core_tags(wg_cores)):
+    # Nothing the operation changed lives on a stateful inbound, so no orphan
+    # can exist — skip the whole reconcile.
+    if affected_tags is not None and not (affected_tags & _stateful_core_tags(stateful_cores)):
         return
 
     db_nodes = (await db.execute(select(Node))).scalars().all()
@@ -213,7 +229,7 @@ async def full_resync_wireguard_nodes(db, affected_tags: set[str] | None = None)
         for core_id in db_node.additional_core_config_ids or []:
             if core_id not in core_ids:
                 core_ids.append(core_id)
-        if not (set(core_ids) & wg_core_ids):
+        if not (set(core_ids) & stateful_core_ids):
             continue
 
         pg_node = await node_manager.get_node(db_node.id)
@@ -234,4 +250,4 @@ async def full_resync_wireguard_nodes(db, affected_tags: set[str] | None = None)
         try:
             await pg_node.sync_users(users)
         except Exception as exc:
-            logger.error("wireguard full resync failed for node %s: %s", db_node.id, exc)
+            logger.error("stateful full resync failed for node %s: %s", db_node.id, exc)
