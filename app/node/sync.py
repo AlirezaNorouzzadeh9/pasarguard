@@ -175,7 +175,7 @@ async def sync_users(users: list[User]) -> None:
 
 
 async def full_resync_wireguard_nodes(db) -> None:
-    """Full-reconcile every connected node that runs a WireGuard core.
+    """Full-reconcile every registered node that runs a WireGuard core.
 
     The incremental ``sync_users`` path only carries users who still have an
     inbound on a node, so when a user loses WireGuard access (group edited /
@@ -184,7 +184,8 @@ async def full_resync_wireguard_nodes(db) -> None:
     the node its complete desired peer set, which reconciles away the orphan.
 
     Access-revoking group operations call this after committing. It is best
-    effort: a failure on one node is logged and does not abort the request.
+    effort: a node that is unregistered is skipped, and one whose sync fails
+    (e.g. currently unreachable) is logged without aborting the request.
     """
     from app.core.manager import core_manager
     from app.node.user import core_users
@@ -221,5 +222,5 @@ async def full_resync_wireguard_nodes(db) -> None:
         users = await core_users(db=db, inbound_tags=inbound_tags, allowed_protocols=frozenset(protocols))
         try:
             await pg_node.sync_users(users)
-        except Exception as exc:  # noqa: BLE001 - one bad node must not fail the group op
+        except Exception as exc:
             logger.error("wireguard full resync failed for node %s: %s", db_node.id, exc)
