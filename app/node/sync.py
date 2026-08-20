@@ -3,7 +3,7 @@ import asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_object_session
 
-from app.db.models import Admin, AdminRole, AdminStatus, User
+from app.db.models import Admin, AdminRole, AdminStatus, Node, User
 from app.models.user import UserNotificationResponse
 from app.nats.node_rpc import encode_node_command, node_nats_client
 from app.nats.proto_utils import serialize_proto_message, serialize_proto_messages
@@ -172,3 +172,66 @@ async def sync_users(users: list[User]) -> None:
     filtered = [user for user in users if user.admin_id not in blocked_admin_ids]
     proto_users = await serialize_users_for_node(filtered)
     asyncio.create_task(_dispatch_users_update(proto_users))
+
+
+async def full_resync_wireguard_nodes(db, affected_tags: set[str] | None = None) -> None:
+    """Full-reconcile every registered node that runs a WireGuard core.
+
+    The incremental ``sync_users`` path only carries users who still have an
+    inbound on a node, so when a user loses WireGuard access (group edited /
+    removed / disabled) the node is never told to drop them and their WireGuard
+    peer stays live — the client keeps connecting. A full ``sync_users`` sends
+    the node its complete desired peer set, which reconciles away the orphan.
+
+    A full resync per wg node is expensive (it ships that node its whole user
+    set), so ``affected_tags`` lets a caller name the inbound tags the operation
+    actually touched: if none of them belong to a WireGuard core there is no
+    orphan to drop and the function returns before touching a node. Passing
+    ``None`` keeps the unconditional behaviour, for callers that cannot say.
+
+    Access-revoking group operations call this after committing. It is best
+    effort: a node that is unregistered is skipped, and one whose sync fails
+    (e.g. currently unreachable) is logged without aborting the request.
+    """
+    from app.core.manager import core_manager
+    from app.db.crud.wireguard import get_wg_cores, wg_core_tags
+    from app.node.user import core_users
+
+    wg_cores = await get_wg_cores(db)
+    wg_core_ids = {core.id for core in wg_cores}
+    if not wg_core_ids:
+        return
+
+    # Nothing the operation changed lives on a WireGuard inbound, so no peer can
+    # have been orphaned — skip the whole reconcile.
+    if affected_tags is not None and not (affected_tags & wg_core_tags(wg_cores)):
+        return
+
+    db_nodes = (await db.execute(select(Node))).scalars().all()
+    for db_node in db_nodes:
+        core_ids = [db_node.core_config_id or 1]
+        for core_id in db_node.additional_core_config_ids or []:
+            if core_id not in core_ids:
+                core_ids.append(core_id)
+        if not (set(core_ids) & wg_core_ids):
+            continue
+
+        pg_node = await node_manager.get_node(db_node.id)
+        if pg_node is None:
+            continue
+
+        cores = await core_manager.get_cores(set(core_ids) | {1})
+        default_core = cores.get(1)
+        inbound_tags, protocols = [], set()
+        for core_id in core_ids:
+            core = cores.get(core_id) or default_core
+            if core is None:
+                continue
+            inbound_tags.extend(core.inbounds)
+            protocols.update(core.protocols)
+
+        users = await core_users(db=db, inbound_tags=inbound_tags, allowed_protocols=frozenset(protocols))
+        try:
+            await pg_node.sync_users(users)
+        except Exception as exc:
+            logger.error("wireguard full resync failed for node %s: %s", db_node.id, exc)

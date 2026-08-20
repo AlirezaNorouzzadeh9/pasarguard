@@ -32,7 +32,7 @@ from app.models.group import (
     RemoveGroupsResponse,
 )
 from app.models.user import BulkOperationDryRunResponse, UserListQuery
-from app.node.sync import sync_users
+from app.node.sync import full_resync_wireguard_nodes, sync_users
 from app.operation import BaseOperation, OperatorType
 from app.operation.permissions import apply_group_access
 from app.utils.logger import get_logger
@@ -88,7 +88,11 @@ class GroupOperation(BaseOperation):
         db_group = await self._get_group_with_access(db, group_id, admin)
         if modified_group.inbound_tags is not None:
             await self.check_inbound_tags(modified_group.inbound_tags)
+        # Tags the edit removes are the ones that can orphan a WireGuard peer, so
+        # the resync only has to consider the union of the tags before and after.
+        tags_before = {inbound.tag for inbound in db_group.inbounds}
         db_group = await modify_group(db, db_group, modified_group)
+        tags_after = {inbound.tag for inbound in db_group.inbounds}
 
         users = await get_users(
             db,
@@ -98,6 +102,8 @@ class GroupOperation(BaseOperation):
         await self._sync_users_allocations(db, users)
         await db.commit()
         await sync_users(users)
+        # Editing a group can strip WireGuard access; a full resync drops the now-orphaned peers.
+        await full_resync_wireguard_nodes(db, affected_tags=tags_before | tags_after)
 
         group = GroupResponse.model_validate(db_group)
 
@@ -111,6 +117,7 @@ class GroupOperation(BaseOperation):
 
         users = await get_users(db, query=UserListQuery(group_ids=[db_group.id]))
         username_list = [user.username for user in users]
+        removed_tags = {inbound.tag for inbound in db_group.inbounds}
 
         await remove_group(db, db_group)
 
@@ -118,6 +125,8 @@ class GroupOperation(BaseOperation):
         await self._sync_users_allocations(db, users)
         await db.commit()
         await sync_users(users)
+        # Deleting a group revokes its inbounds; a full resync drops the now-orphaned WireGuard peers.
+        await full_resync_wireguard_nodes(db, affected_tags=removed_tags)
 
         logger.info(f'Group "{db_group.name}" deleted by admin "{admin.username}"')
 
@@ -148,6 +157,8 @@ class GroupOperation(BaseOperation):
         await self._sync_users_allocations(db, users)
         await db.commit()
         await sync_users(users)
+        # Bulk-removing groups revokes their inbounds; a full resync drops the now-orphaned WireGuard peers.
+        await full_resync_wireguard_nodes(db)
 
         if self.operator_type in (OperatorType.API, OperatorType.WEB):
             return {"detail": f"operation has been successfuly done on {users_count} users"}
@@ -184,6 +195,9 @@ class GroupOperation(BaseOperation):
             await self._sync_users_allocations(db, users)
             await db.commit()
             await sync_users(users)
+
+        # Deleting groups revokes their inbounds; a full resync drops the now-orphaned WireGuard peers.
+        await full_resync_wireguard_nodes(db)
 
         for name, group_id in zip(group_names, group_ids):
             logger.info(f'Group "{name}" deleted by admin "{admin.username}"')
@@ -232,6 +246,12 @@ class GroupOperation(BaseOperation):
             await self._sync_users_allocations(db, users)
             await db.commit()
             await sync_users(users)
+            # Only disabling revokes access; enabling adds it and orphans nothing.
+            if is_disabled:
+                disabled_tags = {
+                    inbound.tag for group in groups_to_update for inbound in group.inbounds
+                }
+                await full_resync_wireguard_nodes(db, affected_tags=disabled_tags)
 
         for db_group in groups_to_update:
             group = GroupResponse.model_validate(db_group)
