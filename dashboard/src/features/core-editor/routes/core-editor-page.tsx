@@ -5,6 +5,7 @@ import PageHeader from '@/components/layout/page-header'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { CORE_KINDS } from '@/features/core-editor/components/shell/core-editor-header'
 import { CoreCommandMenu } from '@/features/core-editor/components/shared/core-command-menu'
 import { CoreEditorLayout } from '@/features/core-editor/components/shell/core-editor-layout'
 import { CoreSectionTabsPlaceholder } from '@/features/core-editor/components/shell/core-section-sidebar'
@@ -472,11 +473,11 @@ export default function CoreEditorPage() {
                 <SelectValue placeholder={t('coreConfigModal.backendType', { defaultValue: 'Type' })} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="xray">Xray</SelectItem>
-                <SelectItem value="wg">WireGuard</SelectItem>
-                <SelectItem value="openvpn">OpenVPN</SelectItem>
-                <SelectItem value="singbox">sing-box</SelectItem>
-                <SelectItem value="l2tp">L2TP</SelectItem>
+                {CORE_KINDS.map(entry => (
+                  <SelectItem key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

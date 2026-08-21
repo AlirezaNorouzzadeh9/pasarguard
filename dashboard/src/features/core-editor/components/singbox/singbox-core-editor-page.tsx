@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowUpFromLine, ShieldCheck } from 'lucide-react'
+import { ArrowUpFromLine, ShieldCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -7,13 +7,13 @@ import { toast } from 'sonner'
 import type { ColumnDef } from '@tanstack/react-table'
 
 import PageHeader from '@/components/layout/page-header'
+import { CoreEditorHeader } from '@/features/core-editor/components/shell/core-editor-header'
 import { InboundUsageRangeSelector, useInboundUsageRange } from '@/features/core-editor/components/shared/inbound-usage-range'
 import { useInboundUsageTotals } from '@/features/core-editor/components/shared/use-inbound-usage-totals'
 import { formatBytes } from '@/utils/formatByte'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
 import { CoreEditorDataTable } from '@/features/core-editor/components/shared/core-editor-data-table'
 import { CoreEditorFormDialog } from '@/features/core-editor/components/shared/core-editor-form-dialog'
 import { JsonCodeEditorPanel } from '@/features/core-editor/components/shared/json-code-editor-panel'
@@ -28,8 +28,6 @@ import {
   type InboundForm,
   type SingBoxFormValues,
 } from '@/features/core-editor/kit/singbox-adapter'
-import useDirDetection from '@/hooks/use-dir-detection'
-import { cn } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
 
 import { getGetCoreConfigQueryKey, useCreateCoreConfig, useModifyCoreConfig, type CoreCreateConfig } from '@/service/api'
@@ -84,7 +82,6 @@ export default function SingBoxCoreEditorPage({
   fallbacksInboundTags,
 }: Props) {
   const { t } = useTranslation()
-  const dir = useDirDetection()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const modifyCore = useModifyCoreConfig()
@@ -332,31 +329,7 @@ export default function SingBoxCoreEditorPage({
   }
   const meta = sectionMeta[section]
 
-  const header = (
-    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className={cn('h-11 w-11 shrink-0', dir === 'rtl' && 'rotate-180')}
-        onClick={() => navigate(-1)}
-        aria-label={t('back', { defaultValue: 'Back' })}
-      >
-        <ArrowLeft className="h-5 w-5" />
-      </Button>
-      <div className="grid min-w-0 max-w-2xl flex-1 grid-cols-[1fr_auto] items-center gap-2 sm:gap-3">
-        <Input
-          value={name}
-          onChange={e => setName(e.target.value)}
-          placeholder={t('coreConfigModal.namePlaceholder', { defaultValue: 'Core name' })}
-          className="h-10 font-medium"
-        />
-        <Badge variant="outline" className="h-10 shrink-0 px-3">
-          sing-box
-        </Badge>
-      </div>
-    </div>
-  )
+  const header = <CoreEditorHeader kind="singbox" name={name} onNameChange={setName} isNew={isNew} />
 
   return (
     <Form {...form}>

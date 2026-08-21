@@ -8,16 +8,15 @@ import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StickySaveBar } from '@/features/core-editor/components/shell/sticky-save-bar'
 import { subnetCapacity } from '@/features/core-editor/kit/openvpn-subnet'
-import useDirDetection from '@/hooks/use-dir-detection'
 import { cn } from '@/lib/utils'
 import { getGetCoreConfigQueryKey, useCreateCoreConfig, useGetCoreConfig, useModifyCoreConfig } from '@/service/api'
 import { $fetch } from '@/service/http'
 import { queryClient } from '@/utils/query-client'
-import { ArrowLeft, Download, Plus, RefreshCcw, ShieldCheck, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { Download, Plus, RefreshCcw, ShieldCheck, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useFieldArray, useForm, type UseFormReturn } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 
 const CIPHERS = ['AES-256-GCM', 'AES-128-GCM', 'CHACHA20-POLY1305', 'AES-256-CBC', 'AES-128-CBC'] as const
@@ -236,9 +235,7 @@ function configToFormValues(config: Record<string, unknown>): OpenVPNFormValues 
 
 export default function OpenVPNCoreEditorPage() {
   const { t } = useTranslation()
-  const dir = useDirDetection()
   const navigate = useNavigate()
-  const [, setSearchParams] = useSearchParams()
   const { coreId: coreIdParam } = useParams<{ coreId: string }>()
   const isNew = coreIdParam === 'new'
   const numericId = coreIdParam && !isNew ? Number(coreIdParam) : NaN
@@ -395,52 +392,7 @@ export default function OpenVPNCoreEditorPage() {
 
   const materialReady = isNew || Object.keys(preservedMaterial).length > 0
 
-  const header = useMemo(
-    () => (
-      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={cn('h-11 w-11 shrink-0', dir === 'rtl' && 'rotate-180')}
-          onClick={() => navigate('/nodes/cores')}
-          aria-label={t('back', { defaultValue: 'Back' })}
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="grid max-w-2xl flex-1 grid-cols-[1fr_auto] items-center gap-2 sm:gap-3">
-          <Input value={coreName} onChange={e => setCoreName(e.target.value)} className="h-10 font-medium" placeholder={t('coreConfigModal.namePlaceholder', { defaultValue: 'Core name' })} />
-          <Select
-            value="openvpn"
-            onValueChange={value => {
-              if (!isNew) return // type change on an existing core is not supported here
-              if (value === 'openvpn') return
-              setSearchParams(
-                prev => {
-                  const p = new URLSearchParams(prev)
-                  if (value === 'wg') p.set('kind', 'wg')
-                  else p.delete('kind')
-                  return p
-                },
-                { replace: true },
-              )
-            }}
-            disabled={!isNew}
-          >
-            <SelectTrigger className="h-10 w-28 shrink-0 px-2 sm:w-[180px] sm:px-3" aria-label={t('coreConfigModal.backendType', { defaultValue: 'Backend type' })}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="xray">Xray</SelectItem>
-              <SelectItem value="wg">WireGuard</SelectItem>
-              <SelectItem value="openvpn">OpenVPN</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-    ),
-    [coreName, dir, isNew, navigate, setSearchParams, t],
-  )
+  const header = <CoreEditorHeader kind="openvpn" name={coreName} onNameChange={setCoreName} isNew={isNew} onBack={() => navigate('/nodes/cores')} />
 
   if (!isNew && validId && isLoading) {
     return (

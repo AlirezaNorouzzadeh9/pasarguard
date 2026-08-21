@@ -2,7 +2,6 @@ import PageHeader from '@/components/layout/page-header'
 import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StickySaveBar } from '@/features/core-editor/components/shell/sticky-save-bar'
@@ -10,11 +9,11 @@ import useDirDetection from '@/hooks/use-dir-detection'
 import { cn } from '@/lib/utils'
 import { getGetCoreConfigQueryKey, useCreateCoreConfig, useGetCoreConfig, useModifyCoreConfig } from '@/service/api'
 import { queryClient } from '@/utils/query-client'
-import { ArrowLeft, RefreshCcw } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { RefreshCcw } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 
 interface L2TPFormValues {
@@ -76,7 +75,6 @@ export default function L2TPCoreEditorPage() {
   const { t } = useTranslation()
   const dir = useDirDetection()
   const navigate = useNavigate()
-  const [, setSearchParams] = useSearchParams()
   const { coreId: coreIdParam } = useParams<{ coreId: string }>()
   const isNew = coreIdParam === 'new'
   const numericId = coreIdParam && !isNew ? Number(coreIdParam) : NaN
@@ -155,56 +153,7 @@ export default function L2TPCoreEditorPage() {
     }
   }
 
-  const header = useMemo(
-    () => (
-      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={cn('h-11 w-11 shrink-0', dir === 'rtl' && 'rotate-180')}
-          onClick={() => navigate('/nodes/cores')}
-          aria-label={t('back', { defaultValue: 'Back' })}
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="grid max-w-2xl flex-1 grid-cols-[1fr_auto] items-center gap-2 sm:gap-3">
-          <Input value={coreName} onChange={e => setCoreName(e.target.value)} className="h-10 font-medium" placeholder={t('coreConfigModal.namePlaceholder', { defaultValue: 'Core name' })} />
-          <Select
-            value="l2tp"
-            onValueChange={value => {
-              if (!isNew) return
-              if (value === 'l2tp') return
-              setSearchParams(
-                prev => {
-                  const p = new URLSearchParams(prev)
-                  if (value === 'wg') p.set('kind', 'wg')
-                  else if (value === 'openvpn') p.set('kind', 'openvpn')
-                  else if (value === 'singbox') p.set('kind', 'singbox')
-                  else p.delete('kind')
-                  return p
-                },
-                { replace: true },
-              )
-            }}
-            disabled={!isNew}
-          >
-            <SelectTrigger className="h-10 w-28 shrink-0 px-2 sm:w-[180px] sm:px-3" aria-label={t('coreConfigModal.backendType', { defaultValue: 'Backend type' })}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="xray">Xray</SelectItem>
-              <SelectItem value="wg">WireGuard</SelectItem>
-              <SelectItem value="openvpn">OpenVPN</SelectItem>
-              <SelectItem value="singbox">sing-box</SelectItem>
-              <SelectItem value="l2tp">L2TP</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-    ),
-    [coreName, dir, isNew, navigate, setSearchParams, t],
-  )
+  const header = <CoreEditorHeader kind="l2tp" name={coreName} onNameChange={setCoreName} isNew={isNew} onBack={() => navigate('/nodes/cores')} />
 
   if (!isNew && validId && isLoading) {
     return (
