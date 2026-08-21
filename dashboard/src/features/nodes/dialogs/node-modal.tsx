@@ -571,7 +571,7 @@ export default function NodeModal({ isDialogOpen, onOpenChange, form, editingNod
                                     />
                                     <span>{core.name}</span>
                                     <span className="text-muted-foreground bg-muted rounded px-1.5 py-0.5 font-mono text-[10px] uppercase">
-                                      {core.type === 'wg' ? 'WireGuard' : core.type === 'singbox' ? 'sing-box' : core.type}
+                                      {core.type === 'wg' ? 'WireGuard' : core.type === 'singbox' ? 'SingBox' : core.type}
                                     </span>
                                   </label>
                                 )

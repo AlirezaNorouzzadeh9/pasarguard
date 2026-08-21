@@ -23,7 +23,7 @@ export const CORE_KINDS: { value: CoreEditorKind; label: string }[] = [
   { value: 'xray', label: 'Xray' },
   { value: 'wg', label: 'WireGuard' },
   { value: 'openvpn', label: 'OpenVPN' },
-  { value: 'singbox', label: 'sing-box' },
+  { value: 'singbox', label: 'SingBox' },
   { value: 'l2tp', label: 'L2TP' },
 ]
 
