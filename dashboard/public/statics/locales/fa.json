@@ -3583,8 +3583,5 @@
     "closeBanner": "بستن اعلان به‌روزرسانی",
     "needsUpdate": "نیاز به به‌روزرسانی"
   },
-  "coreEditor.col.usage": "مصرف",
-  "coreEditor.usage.day": "امروز",
-  "coreEditor.usage.week": "۷ روز",
-  "coreEditor.usage.month": "۳۰ روز"
+  "coreEditor.col.usage": "مصرف"
 }

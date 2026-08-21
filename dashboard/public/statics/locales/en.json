@@ -3610,8 +3610,5 @@
     "closeBanner": "Close update notification",
     "needsUpdate": "Needs update"
   },
-  "coreEditor.col.usage": "Usage",
-  "coreEditor.usage.day": "today",
-  "coreEditor.usage.week": "7d",
-  "coreEditor.usage.month": "30d"
+  "coreEditor.col.usage": "Usage"
 }

@@ -3618,8 +3618,5 @@
     "closeBanner": "关闭更新通知",
     "needsUpdate": "需要更新"
   },
-  "coreEditor.col.usage": "流量",
-  "coreEditor.usage.day": "今日",
-  "coreEditor.usage.week": "7天",
-  "coreEditor.usage.month": "30天"
+  "coreEditor.col.usage": "流量"
 }

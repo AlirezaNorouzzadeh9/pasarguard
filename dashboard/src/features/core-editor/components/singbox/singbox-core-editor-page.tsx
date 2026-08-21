@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import type { ColumnDef } from '@tanstack/react-table'
 
 import PageHeader from '@/components/layout/page-header'
-import { InboundUsageCell } from '@/features/core-editor/components/shared/inbound-usage-cell'
+import { InboundUsageRangeSelector, useInboundUsageRange } from '@/features/core-editor/components/shared/inbound-usage-range'
 import { useInboundUsageTotals } from '@/features/core-editor/components/shared/use-inbound-usage-totals'
 import { formatBytes } from '@/utils/formatByte'
 import { Badge } from '@/components/ui/badge'
@@ -215,7 +215,8 @@ export default function SingBoxCoreEditorPage({
 
   // ------------------------------------------------------------------ tables
 
-  const inboundUsageTotals = useInboundUsageTotals()
+  const usageRange = useInboundUsageRange()
+  const inboundUsageTotals = useInboundUsageTotals(usageRange.range)
 
   const inboundColumns: ColumnDef<InboundForm, unknown>[] = [
     { id: 'index', header: '#', cell: ({ row }) => <span className="text-muted-foreground text-xs">{row.index + 1}</span> },
@@ -254,7 +255,16 @@ export default function SingBoxCoreEditorPage({
     {
       id: 'usage',
       header: t('coreEditor.col.usage', { defaultValue: 'Usage' }),
-      cell: ({ row }) => <InboundUsageCell usage={row.original.tag ? inboundUsageTotals[row.original.tag] : undefined} />,
+      cell: ({ row }) => {
+        const total = row.original.tag ? inboundUsageTotals[row.original.tag] : undefined
+        return total ? (
+          <span dir="ltr" className="font-mono text-xs">
+            {String(formatBytes(total, 2))}
+          </span>
+        ) : (
+          <span className="text-muted-foreground text-xs">—</span>
+        )
+      },
     },
   ]
 
@@ -368,6 +378,7 @@ export default function SingBoxCoreEditorPage({
               <CoreEditorDataTable<InboundForm>
                 columns={inboundColumns}
                 data={values.inbounds}
+                toolbarActions={<InboundUsageRangeSelector {...usageRange} />}
                 getRowId={(_row, index) => `inbound-${index}`}
                 onRowClick={(_row, index) => setEditingInbound(index)}
                 onRemoveRow={index => setInbounds(values.inbounds.filter((_, i) => i !== index))}

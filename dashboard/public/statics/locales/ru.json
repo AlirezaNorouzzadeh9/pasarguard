@@ -3563,8 +3563,5 @@
     "closeBanner": "Закрыть уведомление об обновлении",
     "needsUpdate": "Требуется обновление"
   },
-  "coreEditor.col.usage": "Трафик",
-  "coreEditor.usage.day": "сегодня",
-  "coreEditor.usage.week": "7 дн",
-  "coreEditor.usage.month": "30 дн"
+  "coreEditor.col.usage": "Трафик"
 }
