@@ -843,6 +843,7 @@ export type UserTemplateResponseUsernamePrefix = string | null
 export type UserTemplateResponseExpireDuration = number | null
 
 export type UserTemplateResponseHwidLimit = number | null
+export type UserTemplateResponseIpLimit = number | null
 
 /**
  * data_limit can be 0 or greater
@@ -856,6 +857,7 @@ export interface UserTemplateResponse {
   /** data_limit can be 0 or greater */
   data_limit?: UserTemplateResponseDataLimit
   hwid_limit?: UserTemplateResponseHwidLimit
+  ip_limit?: UserTemplateResponseIpLimit
   /** expire_duration can be 0 or greater in seconds */
   expire_duration?: UserTemplateResponseExpireDuration
   username_prefix?: UserTemplateResponseUsernamePrefix
@@ -892,6 +894,7 @@ export type UserTemplateModifyUsernamePrefix = string | null
 export type UserTemplateModifyExpireDuration = number | null
 
 export type UserTemplateModifyHwidLimit = number | null
+export type UserTemplateModifyIpLimit = number | null
 
 /**
  * data_limit can be 0 or greater
@@ -905,6 +908,7 @@ export interface UserTemplateModify {
   /** data_limit can be 0 or greater */
   data_limit?: UserTemplateModifyDataLimit
   hwid_limit?: UserTemplateModifyHwidLimit
+  ip_limit?: UserTemplateModifyIpLimit
   /** expire_duration can be 0 or greater in seconds */
   expire_duration?: UserTemplateModifyExpireDuration
   username_prefix?: UserTemplateModifyUsernamePrefix
@@ -938,6 +942,7 @@ export type UserTemplateCreateUsernamePrefix = string | null
 export type UserTemplateCreateExpireDuration = number | null
 
 export type UserTemplateCreateHwidLimit = number | null
+export type UserTemplateCreateIpLimit = number | null
 
 /**
  * data_limit can be 0 or greater
@@ -951,6 +956,7 @@ export interface UserTemplateCreate {
   /** data_limit can be 0 or greater */
   data_limit?: UserTemplateCreateDataLimit
   hwid_limit?: UserTemplateCreateHwidLimit
+  ip_limit?: UserTemplateCreateIpLimit
   /** expire_duration can be 0 or greater in seconds */
   expire_duration?: UserTemplateCreateExpireDuration
   username_prefix?: UserTemplateCreateUsernamePrefix
@@ -1050,6 +1056,7 @@ export type UserResponseEditAt = string | null
 export type UserResponseNextPlan = NextPlanModel | null
 
 export type UserResponseHwidLimit = number | null
+export type UserResponseIpLimit = number | null
 
 export type UserResponseAutoDeleteInDays = number | null
 
@@ -1086,6 +1093,7 @@ export interface UserResponse {
   group_ids?: UserResponseGroupIds
   auto_delete_in_days?: UserResponseAutoDeleteInDays
   hwid_limit?: UserResponseHwidLimit
+  ip_limit?: UserResponseIpLimit
   next_plan?: UserResponseNextPlan
   id: number
   username: string
@@ -1114,6 +1122,7 @@ export type UserModifyStatus = UserStatus | null
 export type UserModifyNextPlan = NextPlanModel | null
 
 export type UserModifyHwidLimit = number | null
+export type UserModifyIpLimit = number | null
 
 export type UserModifyAutoDeleteInDays = number | null
 
@@ -1152,6 +1161,7 @@ export interface UserModify {
   group_ids?: UserModifyGroupIds
   auto_delete_in_days?: UserModifyAutoDeleteInDays
   hwid_limit?: UserModifyHwidLimit
+  ip_limit?: UserModifyIpLimit
   next_plan?: UserModifyNextPlan
   status?: UserModifyStatus
 }
@@ -1200,6 +1210,7 @@ export type UserCreateStatus = UserStatus | null
 export type UserCreateNextPlan = NextPlanModel | null
 
 export type UserCreateHwidLimit = number | null
+export type UserCreateIpLimit = number | null
 
 export type UserCreateAutoDeleteInDays = number | null
 
@@ -1236,6 +1247,7 @@ export interface UserCreate {
   group_ids?: UserCreateGroupIds
   auto_delete_in_days?: UserCreateAutoDeleteInDays
   hwid_limit?: UserCreateHwidLimit
+  ip_limit?: UserCreateIpLimit
   next_plan?: UserCreateNextPlan
   username: string
   status?: UserCreateStatus
@@ -1424,6 +1436,7 @@ export type SubscriptionUserResponseEditAt = string | null
 export type SubscriptionUserResponseNextPlan = NextPlanModel | null
 
 export type SubscriptionUserResponseHwidLimit = number | null
+export type SubscriptionUserResponseIpLimit = number | null
 
 export type SubscriptionUserResponseGroupIds = number[] | null
 
@@ -1454,6 +1467,7 @@ export interface SubscriptionUserResponse {
   on_hold_timeout?: SubscriptionUserResponseOnHoldTimeout
   group_ids?: SubscriptionUserResponseGroupIds
   hwid_limit?: SubscriptionUserResponseHwidLimit
+  ip_limit?: SubscriptionUserResponseIpLimit
   next_plan?: SubscriptionUserResponseNextPlan
   id: number
   username: string

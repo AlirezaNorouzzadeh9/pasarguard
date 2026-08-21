@@ -43,6 +43,7 @@ async def create_user_template(db: AsyncSession, user_template: UserTemplateCrea
         name=user_template.name,
         data_limit=user_template.data_limit,
         hwid_limit=user_template.hwid_limit,
+        ip_limit=user_template.ip_limit,
         expire_duration=user_template.expire_duration,
         username_prefix=user_template.username_prefix,
         username_suffix=user_template.username_suffix,
@@ -82,6 +83,8 @@ async def modify_user_template(
         db_user_template.data_limit = modified_user_template.data_limit
     if "hwid_limit" in modified_user_template.model_fields_set:
         db_user_template.hwid_limit = modified_user_template.hwid_limit
+    if "ip_limit" in modified_user_template.model_fields_set:
+        db_user_template.ip_limit = modified_user_template.ip_limit
     if modified_user_template.expire_duration is not None:
         db_user_template.expire_duration = modified_user_template.expire_duration
     if modified_user_template.username_prefix is not None:

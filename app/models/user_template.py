@@ -22,6 +22,7 @@ class UserTemplate(BaseModel):
     name: str | None = None
     data_limit: int | None = Field(ge=0, default=None, description="data_limit can be 0 or greater")
     hwid_limit: int | None = Field(default=None)
+    ip_limit: int | None = Field(default=None, ge=0)
     expire_duration: int | None = Field(
         ge=0,
         le=MAX_ON_HOLD_EXPIRE_DURATION_SECONDS,

@@ -1042,6 +1042,7 @@ function UserModal({ isDialogOpen, onOpenChange, form, editingUser, editingUserI
           ...valuesWithoutNextPlan,
           data_limit: typeof values.data_limit === 'string' ? parseFloat(values.data_limit) : values.data_limit,
           hwid_limit: typeof values.hwid_limit === 'string' ? parseFloat(values.hwid_limit) : values.hwid_limit,
+          ip_limit: typeof values.ip_limit === 'string' ? parseFloat(values.ip_limit) : values.ip_limit,
           on_hold_expire_duration:
             status === 'on_hold' && values.on_hold_expire_duration
               ? typeof values.on_hold_expire_duration === 'string'
@@ -1068,6 +1069,7 @@ function UserModal({ isDialogOpen, onOpenChange, form, editingUser, editingUserI
           ...preparedValues,
           data_limit: gbToBytes(normalizedDataLimitGb as any),
           hwid_limit: preparedValues.hwid_limit == null ? null : Number.isFinite(Number(preparedValues.hwid_limit)) ? Math.round(Number(preparedValues.hwid_limit)) : null,
+          ip_limit: preparedValues.ip_limit == null ? null : Number.isFinite(Number(preparedValues.ip_limit)) ? Math.round(Number(preparedValues.ip_limit)) : null,
           data_limit_reset_strategy: canUseResetStrategy && hasDataLimit ? preparedValues.data_limit_reset_strategy : 'no_reset',
           expire: preparedValues.expire,
           ...(hasProxySettings ? { proxy_settings: cleanedProxySettings } : {}),
@@ -1168,7 +1170,7 @@ function UserModal({ isDialogOpen, onOpenChange, form, editingUser, editingUserI
         setActiveTab('groups')
         setSelectedTemplateId(null)
       } catch (error: any) {
-        const fields = ['username', 'data_limit', 'hwid_limit', 'expire', 'note', 'data_limit_reset_strategy', 'on_hold_expire_duration', 'on_hold_timeout', 'group_ids']
+        const fields = ['username', 'data_limit', 'hwid_limit', 'ip_limit', 'expire', 'note', 'data_limit_reset_strategy', 'on_hold_expire_duration', 'on_hold_timeout', 'group_ids']
         handleError({ error, fields, form, contextKey: 'users' })
       } finally {
         setLoading(false)
@@ -1753,6 +1755,41 @@ function UserModal({ isDialogOpen, onOpenChange, form, editingUser, editingUserI
                               <FormDescription className="text-xs">
                                 {t('userDialog.hwidLimitHint', {
                                   defaultValue: 'Empty = use default policy. 0 = unlimited and exempt from HWID, even when the HWID header is forced.',
+                                })}
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                      {!selectedTemplateId && (
+                        <FormField
+                          control={form.control}
+                          name="ip_limit"
+                          render={({ field }) => (
+                            <FormItem className="relative w-full min-w-0">
+                              <FormLabel>{t('userDialog.ipLimit', { defaultValue: 'Connection Limit' })}</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder={t('userDialog.ipLimitPlaceholder', { defaultValue: 'Empty or 0 = unlimited' })}
+                                  value={field.value ?? ''}
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  onBlur={field.onBlur}
+                                  onChange={event => {
+                                    const nextValue = event.target.value.trim()
+                                    if (!/^\d*$/.test(nextValue)) return
+
+                                    const value = nextValue === '' ? null : Number(nextValue)
+                                    field.onChange(value)
+                                    handleFieldChange('ip_limit', value)
+                                  }}
+                                />
+                              </FormControl>
+                              <FormDescription className="text-xs">
+                                {t('userDialog.ipLimitHint', {
+                                  defaultValue:
+                                    'How many places this user may be connected from at once, counted across every protocol and every node. The newest connection is the one refused.',
                                 })}
                               </FormDescription>
                               <FormMessage />

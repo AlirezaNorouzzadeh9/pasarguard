@@ -1633,6 +1633,7 @@ class UserOperation(BaseOperation):
             "data_limit_reset_strategy": template.data_limit_reset_strategy,
             "status": template.status,
             "hwid_limit": template.hwid_limit,
+            "ip_limit": template.ip_limit,
         }
 
         if template.status == UserStatus.active:

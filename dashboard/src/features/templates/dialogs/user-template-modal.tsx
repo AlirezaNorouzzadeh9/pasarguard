@@ -184,11 +184,13 @@ export default function UserTemplateModal({ isDialogOpen, onOpenChange, form, ed
       const normalizedDataLimitGb = Number(values.data_limit ?? 0)
       const hasDataLimit = Number.isFinite(normalizedDataLimitGb) && normalizedDataLimitGb > 0
       const normalizedHwidLimit = values.hwid_limit == null ? null : Number(values.hwid_limit)
+      const normalizedIpLimit = values.ip_limit == null ? null : Number(values.ip_limit)
       // Build payload according to UserTemplateCreate interface
       const submitData = {
         name: values.name,
         data_limit: hasDataLimit ? gbToBytes(normalizedDataLimitGb as any) : 0,
         hwid_limit: normalizedHwidLimit == null ? null : Number.isFinite(normalizedHwidLimit) ? Math.floor(normalizedHwidLimit) : null,
+        ip_limit: normalizedIpLimit == null ? null : Number.isFinite(normalizedIpLimit) ? Math.floor(normalizedIpLimit) : null,
         expire_duration: values.expire_duration,
         username_prefix: values.username_prefix || '',
         username_suffix: values.username_suffix || '',
@@ -236,6 +238,7 @@ export default function UserTemplateModal({ isDialogOpen, onOpenChange, form, ed
         'name',
         'data_limit',
         'hwid_limit',
+        'ip_limit',
         'expire_duration',
         'username_prefix',
         'username_suffix',
@@ -417,6 +420,28 @@ export default function UserTemplateModal({ isDialogOpen, onOpenChange, form, ed
                       <FormControl>
                         <DecimalInput
                           placeholder={t('templates.hwidLimitPlaceholder', { defaultValue: 'Empty = default, 0 = unlimited' })}
+                          value={field.value}
+                          emptyValue={undefined}
+                          zeroValue={0}
+                          keepZeroOnBlur
+                          normalizeDisplayValueOnBlur={Math.floor}
+                          onValueChange={value => field.onChange(value ?? null)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="ip_limit"
+                  render={({ field }) => (
+                    <FormItem className="relative flex-1">
+                      <FormLabel>{t('templates.ipLimit', { defaultValue: 'Connection Limit' })}</FormLabel>
+                      <FormControl>
+                        <DecimalInput
+                          placeholder={t('templates.ipLimitPlaceholder', { defaultValue: 'Empty or 0 = unlimited' })}
                           value={field.value}
                           emptyValue={undefined}
                           zeroValue={0}
