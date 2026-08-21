@@ -422,7 +422,7 @@ export function CoreEditorDataTable<TData>({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative min-w-0 flex-1 sm:max-w-md">
+        <div className="relative min-w-0 flex-1 sm:max-w-xs">
           <Search className={cn('text-muted-foreground pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2', dir === 'rtl' ? 'right-2.5' : 'left-2.5')} aria-hidden />
           <Input
             value={searchQuery}
