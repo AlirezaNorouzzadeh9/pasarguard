@@ -50,28 +50,59 @@ async def change_status(db: AsyncSession, db_user: User, status: UserStatus):
     logger.info(f'User "{user.username}" status changed to {status.value}')
 
 
+async def _transition_users(db: AsyncSession, users: list[User], status: UserStatus) -> None:
+    """Move each user to ``status`` and get the change out to the nodes.
+
+    One user is committed and dispatched at a time, deliberately. Flipping the
+    whole batch in a single commit and then dispatching in a loop meant that
+    anything raising partway — a next-plan reset, a shutdown — left every user
+    after that point already limited or expired in the database while their
+    sessions stayed live on every node. Nothing revisits them either: both
+    queries select only users who are still *active*, so once the flip is
+    committed the user is out of reach of this job forever, and the access they
+    were supposed to lose lasts until something unrelated resyncs the node.
+
+    Committing per user keeps the untouched rest of the batch selectable, so the
+    next tick simply resumes where this one stopped, and one user who cannot be
+    processed no longer takes the whole batch down with them.
+    """
+    for user in users:
+        try:
+            await update_users_status(db, [user], status)
+            await change_status(db, user, status)
+        except Exception:
+            # Leave the rest of the batch to the next tick rather than aborting.
+            await db.rollback()
+            logger.exception('Failed to move user "%s" to %s', user.username, status.value)
+
+
 async def expire_users_job():
     async with GetDB() as db:
         if expired_users := await get_active_to_expire_users(db):
-            updated_users = await update_users_status(db, expired_users, UserStatus.expired)
-            for user in updated_users:
-                await change_status(db, user, UserStatus.expired)
+            await _transition_users(db, expired_users, UserStatus.expired)
 
 
 async def limit_users_job():
     async with GetDB() as db:
         if limited_users := await get_active_to_limited_users(db):
-            updated_users = await update_users_status(db, limited_users, UserStatus.limited)
-            for user in updated_users:
-                await change_status(db, user, UserStatus.limited)
+            await _transition_users(db, limited_users, UserStatus.limited)
 
 
 async def on_hold_to_active_users_job():
     async with GetDB() as db:
         if on_hold_users := await get_on_hold_to_active_users(db):
-            updated_users = await start_users_expire(db, on_hold_users)
-            for user in updated_users:
-                await change_status(db, user, UserStatus.active)
+            # Activation grants access rather than removing it, so a user left
+            # behind here is not a hole; the isolation is for the same reason
+            # the transitions above have it — one failure must not strand the
+            # rest of the batch.
+            for user in on_hold_users:
+                try:
+                    started = await start_users_expire(db, [user])
+                    for started_user in started:
+                        await change_status(db, started_user, UserStatus.active)
+                except Exception:
+                    await db.rollback()
+                    logger.exception('Failed to activate on-hold user "%s"', user.username)
 
 
 async def usage_percent_notification_job():
