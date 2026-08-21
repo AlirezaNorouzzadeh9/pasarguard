@@ -37,6 +37,34 @@ NODE_USER_USAGE_BATCH_SIZE_BY_DIALECT = {
 }
 USER_ADMIN_LOOKUP_BATCH_SIZE = 1_000
 
+# Usage already taken off the nodes but not yet written down.
+#
+# get_stats(reset=True) zeroes the node's counters, so from that call until the
+# row reaches the database the only copy of that window's traffic is in this
+# process. A deadlock that outlives safe_execute's retries, the job's 120s
+# timeout firing mid-write, or a restart used to destroy it outright — every
+# user on every node, silently, with the panel reporting nothing unusual.
+#
+# Whatever is about to be written is parked here first and cleared only once the
+# write returns, so the next cycle folds it in and tries again. Loss becomes
+# delay. Each is keyed by id, so an outage cannot grow them past one entry per
+# user, admin or node.
+_carried_user_usage: dict[int, int] = {}
+_carried_admin_usage: dict[int, int] = {}
+_carried_node_params: dict[int, list[dict]] = {}
+_carried_node_coefficients: dict[int, float] = {}
+
+
+def _merge_usage(fresh: list[dict], carried: dict[int, int], key: str = "uid") -> list[dict]:
+    """Fold carried-over amounts into this cycle's list, summing per id."""
+    if not carried:
+        return fresh
+    merged: dict[int, int] = dict(carried)
+    for item in fresh:
+        merged[int(item[key])] = merged.get(int(item[key]), 0) + int(item["value"])
+    return [{key: item_id, "value": value} for item_id, value in merged.items()]
+
+
 # Thread pool executor for I/O-bound node API calls
 # Distributes workload across threads/cores for data collection
 _thread_pool = None
@@ -826,6 +854,8 @@ async def _record_user_usages_impl():
     Internal implementation of record_user_usages.
     Separated to allow timeout wrapper.
     """
+    global _carried_user_usage, _carried_admin_usage, _carried_node_params, _carried_node_coefficients
+
     job_start_time = time.time()
     nodes: tuple[int, PasarGuardNode] = await node_manager.get_healthy_nodes()
 
@@ -858,12 +888,12 @@ async def _record_user_usages_impl():
                 api_params[node_id] = result
 
         users_usage = await calculate_users_usage(api_params, usage_coefficient)
-        if not users_usage:
+        if not users_usage and not (_carried_user_usage or _carried_admin_usage or _carried_node_params):
             logger.debug("No user usage to record")
             return
 
         admin_usage, valid_user_ids = await calculate_admin_usage(users_usage)
-        if not valid_user_ids:
+        if not valid_user_ids and not (_carried_user_usage or _carried_admin_usage or _carried_node_params):
             logger.warning("Skipping user usage recording; no matching users found for received stats")
             return
 
@@ -872,8 +902,20 @@ async def _record_user_usages_impl():
             usage for usage in users_usage if int(usage["uid"]) in valid_user_ids and usage["value"] > 0
         ]
 
+        # Fold in what an earlier cycle could not write. Both lists are already
+        # validated and coefficient-applied, so they simply add up; admin totals
+        # are carried separately rather than recomputed from the merged users,
+        # which would bill an admin twice when only the user write had failed.
+        valid_users_usage = _merge_usage(valid_users_usage, _carried_user_usage)
+        admin_usage = dict(admin_usage)
+        for admin_id, value in _carried_admin_usage.items():
+            admin_usage[admin_id] = admin_usage.get(admin_id, 0) + value
+
         # Update User table with concurrency control
         if valid_users_usage:
+            # Parked before the attempt, not after a failure: a cancellation
+            # here (the job's own timeout) unwinds without running any handler.
+            _carried_user_usage = {int(u["uid"]): int(u["value"]) for u in valid_users_usage}
             user_stmt = (
                 update(User)
                 .where(User.id == bindparam("uid"))
@@ -882,6 +924,7 @@ async def _record_user_usages_impl():
             )
             async with JOB_SEM:
                 await safe_execute(user_stmt, valid_users_usage)
+            _carried_user_usage = {}
             logger.debug(f"Updated {len(valid_users_usage)} users")
 
         # Update Admin table with concurrency control
@@ -893,8 +936,10 @@ async def _record_user_usages_impl():
                 .values(used_traffic=Admin.used_traffic + bindparam("value"))
                 .execution_options(synchronize_session=False)
             )
+            _carried_admin_usage = dict(admin_usage)
             async with JOB_SEM:
                 await safe_execute(admin_stmt, admin_data)
+            _carried_admin_usage = {}
             logger.debug(f"Updated {len(admin_data)} admins")
             try:
                 await enforce_admin_limits_now(logger=logger)
@@ -911,8 +956,26 @@ async def _record_user_usages_impl():
             if filtered_params:
                 filtered_node_params[node_id] = filtered_params
 
+        # A batch an earlier cycle could not write is retried on its own, with
+        # the coefficients that were in force when it was collected — folding it
+        # into this cycle's batch would re-scale it by whatever the coefficient
+        # happens to be now. It lands in the current 10-minute bucket rather
+        # than its original one, which shifts where the traffic appears on the
+        # chart but never how much of it there is.
+        if _carried_node_params:
+            retry_params, retry_coefficients = _carried_node_params, _carried_node_coefficients
+            await record_user_stats_batched(retry_params, retry_coefficients)
+            _carried_node_params, _carried_node_coefficients = {}, {}
+            logger.info(
+                "Recorded %s node user usage records held over from an earlier cycle",
+                sum(len(params) for params in retry_params.values()),
+            )
+
         if filtered_node_params:
+            _carried_node_params = filtered_node_params
+            _carried_node_coefficients = dict(usage_coefficient)
             await record_user_stats_batched(filtered_node_params, usage_coefficient)
+            _carried_node_params, _carried_node_coefficients = {}, {}
             total_records = sum(len(params) for params in filtered_node_params.values())
             logger.debug(f"Recorded {total_records} node user usage records across {len(filtered_node_params)} nodes")
 
