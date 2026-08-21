@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import type { ColumnDef } from '@tanstack/react-table'
 
 import PageHeader from '@/components/layout/page-header'
+import { InboundUsageCell } from '@/features/core-editor/components/shared/inbound-usage-cell'
 import { useInboundUsageTotals } from '@/features/core-editor/components/shared/use-inbound-usage-totals'
 import { formatBytes } from '@/utils/formatByte'
 import { Badge } from '@/components/ui/badge'
@@ -253,16 +254,7 @@ export default function SingBoxCoreEditorPage({
     {
       id: 'usage',
       header: t('coreEditor.col.usage', { defaultValue: 'Usage' }),
-      cell: ({ row }) => {
-        const total = row.original.tag ? inboundUsageTotals[row.original.tag] : undefined
-        return total ? (
-          <span dir="ltr" className="font-mono text-xs">
-            {String(formatBytes(total, 2))}
-          </span>
-        ) : (
-          <span className="text-muted-foreground text-xs">—</span>
-        )
-      },
+      cell: ({ row }) => <InboundUsageCell usage={row.original.tag ? inboundUsageTotals[row.original.tag] : undefined} />,
     },
   ]
 

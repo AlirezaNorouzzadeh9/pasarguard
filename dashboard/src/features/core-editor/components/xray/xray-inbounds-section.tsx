@@ -14,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { CoreEditorDataTable } from '@/features/core-editor/components/shared/core-editor-data-table'
 import { CoreEditorFormDialog } from '@/features/core-editor/components/shared/core-editor-form-dialog'
+import { InboundUsageCell } from '@/features/core-editor/components/shared/inbound-usage-cell'
 import { useInboundUsageTotals } from '@/features/core-editor/components/shared/use-inbound-usage-totals'
 import { TcpHeaderObfuscationForm } from '@/features/core-editor/components/shared/tcp-header-obfuscation-form'
 import { VlessAdvancedGenerationModal } from '@/features/core-editor/components/shared/vless-advanced-generation-modal'
@@ -1287,16 +1288,7 @@ export function XrayInboundsSection({ headerAddPulse, headerAddEpoch }: XrayInbo
       {
         id: 'usage',
         header: () => t('coreEditor.col.usage', { defaultValue: 'Usage' }),
-        cell: ({ row }) => {
-          const total = inboundUsageTotals[row.original.tag]
-          return total ? (
-            <span dir="ltr" className="font-mono text-xs">
-              {String(formatBytes(total, 2))}
-            </span>
-          ) : (
-            <span className="text-muted-foreground text-xs">—</span>
-          )
-        },
+        cell: ({ row }) => <InboundUsageCell usage={inboundUsageTotals[row.original.tag]} />,
       },
     ],
     [t, inboundUsageTotals],
