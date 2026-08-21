@@ -884,6 +884,9 @@ async def create_user(
     if new_user.hwid_limit is not None:
         db_user.hwid_limit = new_user.hwid_limit
 
+    if new_user.ip_limit is not None:
+        db_user.ip_limit = new_user.ip_limit
+
     db_user.proxy_settings = new_user.proxy_settings.dict()
 
     db.add(db_user)
@@ -918,6 +921,7 @@ async def create_users_bulk(
         db_user.expire = new_user.expire or None
         db_user.on_hold_timeout = new_user.on_hold_timeout or None
         db_user.hwid_limit = new_user.hwid_limit if new_user.hwid_limit is not None else None
+        db_user.ip_limit = new_user.ip_limit if new_user.ip_limit is not None else None
         db_user.proxy_settings = new_user.proxy_settings.dict()
         db_users.append(db_user)
 
@@ -1069,6 +1073,9 @@ async def modify_user(
 
     if modify.hwid_limit is not None:
         db_user.hwid_limit = modify.hwid_limit
+
+    if modify.ip_limit is not None:
+        db_user.ip_limit = modify.ip_limit
 
     if modify.next_plan is not None:
         db_user.next_plan = NextPlan(
@@ -1364,7 +1371,9 @@ async def get_users_subscription_agent_counts(
     from_clause, conditions = _subscription_update_from_clause(user_id=user_id, admin_id=admin_id)
 
     if start is not None:
-        start_utc = get_complete_period_start_for_filter(start, period) if period is not None else to_utc_for_filter(start)
+        start_utc = (
+            get_complete_period_start_for_filter(start, period) if period is not None else to_utc_for_filter(start)
+        )
         conditions.append(UserSubscriptionUpdate.created_at >= start_utc)
     if end is not None:
         conditions.append(UserSubscriptionUpdate.created_at < to_utc_for_filter(end))

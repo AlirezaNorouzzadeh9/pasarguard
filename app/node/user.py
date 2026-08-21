@@ -51,7 +51,7 @@ async def serialize_user(user: User, allowed_protocols: frozenset[ProxyProtocol]
         if inbounds is None:
             inbounds = await user.inbounds()
 
-    return _serialize_user_for_node(user.id, user_settings, inbounds, allowed_protocols)
+    return _serialize_user_for_node(user.id, user_settings, inbounds, allowed_protocols, user.ip_limit)
 
 
 def _serialize_user_for_node(
@@ -59,6 +59,7 @@ def _serialize_user_for_node(
     user_settings: dict,
     inbounds: list[str] | None = None,
     allowed_protocols: frozenset[ProxyProtocol] | None = None,
+    ip_limit: int | None = None,
 ) -> ProtoUser:
     allowed_protocols = allowed_protocols or _ALL_PROXY_PROTOCOLS
 
@@ -95,6 +96,8 @@ def _serialize_user_for_node(
         str(id),
         create_proxy(**proxy_kwargs),
         inbounds,
+        # The proto has no null, so "no limit" travels as zero.
+        ip_limit=ip_limit or 0,
     )
 
 
@@ -117,6 +120,7 @@ async def core_users(
         select(
             User.id,
             User.proxy_settings,
+            User.ip_limit,
             inbound_agg,
         )
         .outerjoin(users_groups_association, User.id == users_groups_association.c.user_id)
@@ -162,6 +166,7 @@ async def core_users(
                     row.proxy_settings,
                     inbound_tags,
                     allowed_protocols,
+                    row.ip_limit,
                 )
             )
     return bridge_users
@@ -183,6 +188,8 @@ async def serialize_users_for_node(
             else:
                 inbounds_list = loaded_inbounds
 
-        bridge_users.append(_serialize_user_for_node(user.id, user.proxy_settings, inbounds_list, allowed_protocols))
+        bridge_users.append(
+            _serialize_user_for_node(user.id, user.proxy_settings, inbounds_list, allowed_protocols, user.ip_limit)
+        )
 
     return bridge_users

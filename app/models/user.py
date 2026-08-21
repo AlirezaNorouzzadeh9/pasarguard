@@ -50,6 +50,7 @@ class User(BaseModel):
     group_ids: list[int] | None = Field(default_factory=list)
     auto_delete_in_days: int | None = Field(default=None)
     hwid_limit: int | None = Field(default=None)
+    ip_limit: int | None = Field(default=None, ge=0)
     next_plan: NextPlanModel | None = Field(default=None)
 
 

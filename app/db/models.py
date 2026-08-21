@@ -235,6 +235,9 @@ class User(Base, CreatedAtUTCMixin):
     on_hold_timeout: Mapped[dt | None] = mapped_column(DateTime(timezone=True), default=None)
     auto_delete_in_days: Mapped[int | None] = mapped_column(default=None)
     hwid_limit: Mapped[int | None] = mapped_column(BigInteger, default=None)
+    # Connections this user may hold at once, across every backend and node.
+    # None or 0 means no limit.
+    ip_limit: Mapped[int | None] = mapped_column(BigInteger, default=None)
     edit_at: Mapped[dt | None] = mapped_column(DateTime(timezone=True), default=None)
     last_status_change: Mapped[dt | None] = mapped_column(DateTime(timezone=True), default=None)
 
@@ -445,6 +448,9 @@ class UserTemplate(Base, IdMixin):
     groups: Mapped[list[Group]] = relationship(secondary=template_group_association, back_populates="templates")
     data_limit: Mapped[int] = mapped_column(BigInteger, default=0)
     hwid_limit: Mapped[int | None] = mapped_column(BigInteger, default=None)
+    # Connections this user may hold at once, across every backend and node.
+    # None or 0 means no limit.
+    ip_limit: Mapped[int | None] = mapped_column(BigInteger, default=None)
     expire_duration: Mapped[int] = mapped_column(BigInteger, default=0)  # in seconds
     on_hold_timeout: Mapped[int | None] = mapped_column(default=None)
     status: Mapped[UserStatusCreate] = mapped_column(SQLEnum(UserStatusCreate), default=UserStatusCreate.active)
