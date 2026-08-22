@@ -3618,5 +3618,10 @@
     "closeBanner": "关闭更新通知",
     "needsUpdate": "需要更新"
   },
-  "coreEditor.col.usage": "流量"
+  "coreEditor.col.usage": "流量",
+  "userDialog.ipLimit": "Connection Limit",
+  "userDialog.ipLimitPlaceholder": "Empty or 0 = unlimited",
+  "userDialog.ipLimitHint": "How many places this user may be connected from at once, counted across every protocol and every node. The newest connection is the one refused.",
+  "templates.ipLimit": "Connection Limit",
+  "templates.ipLimitPlaceholder": "Empty or 0 = unlimited"
 }

@@ -3610,5 +3610,10 @@
     "closeBanner": "Close update notification",
     "needsUpdate": "Needs update"
   },
-  "coreEditor.col.usage": "Usage"
+  "coreEditor.col.usage": "Usage",
+  "userDialog.ipLimit": "Connection Limit",
+  "userDialog.ipLimitPlaceholder": "Empty or 0 = unlimited",
+  "userDialog.ipLimitHint": "How many places this user may be connected from at once, counted across every protocol and every node. The newest connection is the one refused.",
+  "templates.ipLimit": "Connection Limit",
+  "templates.ipLimitPlaceholder": "Empty or 0 = unlimited"
 }

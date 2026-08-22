@@ -3583,5 +3583,10 @@
     "closeBanner": "بستن اعلان به‌روزرسانی",
     "needsUpdate": "نیاز به به‌روزرسانی"
   },
-  "coreEditor.col.usage": "مصرف"
+  "coreEditor.col.usage": "مصرف",
+  "userDialog.ipLimit": "محدودیت اتصال هم‌زمان",
+  "userDialog.ipLimitPlaceholder": "خالی یا ۰ = نامحدود",
+  "userDialog.ipLimitHint": "این کاربر هم‌زمان از چند جا می‌تواند وصل باشد — روی همهٔ پروتکل‌ها و همهٔ نودها روی هم. اتصال تازه‌تر همان است که رد می‌شود.",
+  "templates.ipLimit": "محدودیت اتصال هم‌زمان",
+  "templates.ipLimitPlaceholder": "خالی یا ۰ = نامحدود"
 }

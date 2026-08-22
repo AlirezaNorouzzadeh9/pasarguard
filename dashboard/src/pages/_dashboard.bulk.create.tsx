@@ -401,6 +401,12 @@ export default function BulkCreateUsersPage() {
                       </span>
                     </div>
                   )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">{t('templates.ipLimit', { defaultValue: 'Connection Limit' })}:</span>
+                    <span className="font-medium" dir="ltr">
+                      {!selectedTemplate.ip_limit ? <Infinity className="inline h-4 w-4" aria-label={unlimitedLabel} /> : selectedTemplate.ip_limit}
+                    </span>
+                  </div>
                   {selectedTemplate.expire_duration !== null && selectedTemplate.expire_duration !== undefined && (
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">{t('expire')}:</span>

@@ -62,6 +62,12 @@ const UserTemplate = ({
                 </span>
               </p>
               <p className="flex items-center gap-x-1">
+                {t('templates.ipLimit', { defaultValue: 'Connection Limit' })}:{' '}
+                <span dir="ltr">
+                  {!template.ip_limit ? <Infinity className="h-4 w-4" /> : template.ip_limit}
+                </span>
+              </p>
+              <p className="flex items-center gap-x-1">
                 {t('expire')}:<span>{!template.expire_duration || template.expire_duration === 0 ? <Infinity className="h-4 w-4" /> : `${template.expire_duration / 60 / 60 / 24} ${daysUnit}`}</span>
               </p>
             </div>
