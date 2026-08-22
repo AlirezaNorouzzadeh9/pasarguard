@@ -35,6 +35,16 @@ logger = get_logger("ip-limit")
 NODE_QUERY_SEM = asyncio.Semaphore(8)
 NODE_QUERY_TIMEOUT = 8
 
+# How recently a node must have seen an address for it to count as connected.
+#
+# The nodes answer with the last time they saw each address and never expire the
+# entry, because for their own purposes -- showing an operator where a user has
+# been -- there is no reason to. Counting those against a live limit means an
+# address someone used yesterday still occupies a slot: a WireGuard endpoint is
+# remembered for the life of the interface, and xray keeps one for minutes after
+# the client has gone. Every one of those would hold a place that nobody is in.
+ONLINE_WINDOW_SECONDS = 180
+
 # When an address was first seen, per user: {user_id: {(node_id, ip): monotonic}}.
 # The nodes report a last-seen timestamp, which cannot order arrivals, so the
 # panel remembers first sight itself.
@@ -62,7 +72,18 @@ async def _node_ips(node_id: int, email: str) -> dict[str, int] | None:
         return None
     if stats is None:
         return None
-    return dict(stats.ips or {})
+    return _fresh(stats.ips or {}, time.time())
+
+
+def _fresh(ips: dict[str, int], now: float) -> dict[str, int]:
+    """Only the addresses seen recently enough to still be someone.
+
+    The comparison is against this panel's clock, which is the clock every
+    node's freshness is judged by, so a node running fast cannot win itself
+    extra slots at another node's expense.
+    """
+    cutoff = now - ONLINE_WINDOW_SECONDS
+    return {ip: seen for ip, seen in ips.items() if seen >= cutoff}
 
 
 async def _suppress(node_id: int, user: User) -> bool:
