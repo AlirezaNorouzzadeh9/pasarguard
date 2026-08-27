@@ -1176,12 +1176,20 @@ async def record_node_usages():
 
 
 if runtime_settings.role.runs_node:
+    # max_instances=1 matters here more than on any other job: the scheduler's
+    # default allows 30, and two of these running at once double-bill. Each run
+    # resets the nodes' counters and folds the carry buffers into its write, so
+    # an overlapping run sees the same parked window and writes it again --
+    # every user in that cycle is charged twice. A cycle slower than the
+    # interval (a loaded database does this daily) is exactly when it happened.
     scheduler.add_job(
         record_user_usages,
         "interval",
         seconds=job_settings.record_user_usages_interval,
         start_date=dt.now(UTC) + td(seconds=30),
         id="record_user_usages",
+        coalesce=True,
+        max_instances=1,
     )
 
     scheduler.add_job(
@@ -1190,4 +1198,6 @@ if runtime_settings.role.runs_node:
         seconds=job_settings.record_node_usages_interval,
         start_date=dt.now(UTC) + td(seconds=15),
         id="record_node_usages",
+        coalesce=True,
+        max_instances=1,
     )
