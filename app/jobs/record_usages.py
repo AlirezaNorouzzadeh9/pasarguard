@@ -65,6 +65,32 @@ def _merge_usage(fresh: list[dict], carried: dict[int, int], key: str = "uid") -
     return [{key: item_id, "value": value} for item_id, value in merged.items()]
 
 
+def _write_rolled_back(exc: BaseException) -> bool:
+    """True only when a failed write is certain to have left nothing committed.
+
+    The carry buffers exist to retry a write that did not land, turning loss
+    into delay. That trade is only safe when the write is *certain* to have
+    rolled back: re-applying one that actually committed adds the same traffic
+    twice, and the user is billed for bytes they never used.
+
+    A deadlock or a lock wait timeout rolls the whole transaction back -- the
+    statement never took effect -- so the window is safe to carry. A connection
+    lost around COMMIT, the job's own cancellation, or any unknown failure might
+    have committed before it raised, so it is treated as possibly-written and
+    dropped rather than doubled. Losing a rare window is the lesser harm.
+    """
+    if isinstance(exc, (OperationalError, DatabaseError)):
+        orig = getattr(exc, "orig", None)
+        errno = orig.args[0] if orig is not None and getattr(orig, "args", None) else None
+        if errno in (1213, 1205):  # MySQL/MariaDB: deadlock / lock wait timeout
+            return True
+        if getattr(orig, "code", None) == "40P01":  # PostgreSQL: deadlock_detected
+            return True
+        if "database is locked" in str(exc):  # SQLite
+            return True
+    return False
+
+
 # Thread pool executor for I/O-bound node API calls
 # Distributes workload across threads/cores for data collection
 _thread_pool = None
@@ -913,18 +939,28 @@ async def _record_user_usages_impl():
 
         # Update User table with concurrency control
         if valid_users_usage:
-            # Parked before the attempt, not after a failure: a cancellation
-            # here (the job's own timeout) unwinds without running any handler.
-            _carried_user_usage = {int(u["uid"]): int(u["value"]) for u in valid_users_usage}
+            # The merged window is consumed here: it is re-parked only when the
+            # failed write is certain to have rolled back. Anything ambiguous --
+            # a connection lost around COMMIT, a cancellation -- may already be
+            # on disk, and re-applying it would bill the same bytes twice.
+            _carried_user_usage = {}
             user_stmt = (
                 update(User)
                 .where(User.id == bindparam("uid"))
                 .values(used_traffic=User.used_traffic + bindparam("value"), online_at=dt.now(UTC))
                 .execution_options(synchronize_session=False)
             )
-            async with JOB_SEM:
-                await safe_execute(user_stmt, valid_users_usage)
-            _carried_user_usage = {}
+            try:
+                async with JOB_SEM:
+                    await safe_execute(user_stmt, valid_users_usage)
+            except BaseException as exc:
+                if _write_rolled_back(exc):
+                    _carried_user_usage = {int(u["uid"]): int(u["value"]) for u in valid_users_usage}
+                else:
+                    logger.warning(
+                        "user usage write failed ambiguously; dropping the window rather than risking double billing"
+                    )
+                raise
             logger.debug(f"Updated {len(valid_users_usage)} users")
 
         # Update Admin table with concurrency control
@@ -936,10 +972,18 @@ async def _record_user_usages_impl():
                 .values(used_traffic=Admin.used_traffic + bindparam("value"))
                 .execution_options(synchronize_session=False)
             )
-            _carried_admin_usage = dict(admin_usage)
-            async with JOB_SEM:
-                await safe_execute(admin_stmt, admin_data)
             _carried_admin_usage = {}
+            try:
+                async with JOB_SEM:
+                    await safe_execute(admin_stmt, admin_data)
+            except BaseException as exc:
+                if _write_rolled_back(exc):
+                    _carried_admin_usage = dict(admin_usage)
+                else:
+                    logger.warning(
+                        "admin usage write failed ambiguously; dropping the window rather than risking double billing"
+                    )
+                raise
             logger.debug(f"Updated {len(admin_data)} admins")
             try:
                 await enforce_admin_limits_now(logger=logger)
@@ -964,18 +1008,26 @@ async def _record_user_usages_impl():
         # chart but never how much of it there is.
         if _carried_node_params:
             retry_params, retry_coefficients = _carried_node_params, _carried_node_coefficients
-            await record_user_stats_batched(retry_params, retry_coefficients)
             _carried_node_params, _carried_node_coefficients = {}, {}
+            try:
+                await record_user_stats_batched(retry_params, retry_coefficients)
+            except BaseException as exc:
+                if _write_rolled_back(exc):
+                    _carried_node_params, _carried_node_coefficients = retry_params, retry_coefficients
+                raise
             logger.info(
                 "Recorded %s node user usage records held over from an earlier cycle",
                 sum(len(params) for params in retry_params.values()),
             )
 
         if filtered_node_params:
-            _carried_node_params = filtered_node_params
-            _carried_node_coefficients = dict(usage_coefficient)
-            await record_user_stats_batched(filtered_node_params, usage_coefficient)
-            _carried_node_params, _carried_node_coefficients = {}, {}
+            try:
+                await record_user_stats_batched(filtered_node_params, usage_coefficient)
+            except BaseException as exc:
+                if _write_rolled_back(exc):
+                    _carried_node_params = filtered_node_params
+                    _carried_node_coefficients = dict(usage_coefficient)
+                raise
             total_records = sum(len(params) for params in filtered_node_params.values())
             logger.debug(f"Recorded {total_records} node user usage records across {len(filtered_node_params)} nodes")
 
