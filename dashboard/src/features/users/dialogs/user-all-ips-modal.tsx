@@ -20,6 +20,8 @@ interface UserAllIPsModalProps {
   onOpenChange: (open: boolean) => void
   userId: number
   username: string
+  /** The user's connection limit. Undefined or 0 means no limit. */
+  ipLimit?: number | null
 }
 
 interface NodeIPCardProps {
@@ -166,7 +168,7 @@ const EmptyState = React.memo(({ message }: { message: string }) => {
 
 EmptyState.displayName = 'EmptyState'
 
-export default function UserAllIPsModal({ isOpen, onOpenChange, userId, username }: UserAllIPsModalProps) {
+export default function UserAllIPsModal({ isOpen, onOpenChange, userId, username, ipLimit }: UserAllIPsModalProps) {
   const { t } = useTranslation()
   const dir = useDirDetection()
   const [refreshing, setRefreshing] = useState(false)
@@ -308,6 +310,16 @@ export default function UserAllIPsModal({ isOpen, onOpenChange, userId, username
     )
   }, [isLoading, error, transformedData, t])
 
+  // Counted the way the limit is counted: every address on every node, summed.
+  // A user connected from the same address to two nodes is holding two places,
+  // and is shown as two here rather than one.
+  const usedAddresses = useMemo(() => {
+    if (!transformedData) return 0
+    return transformedData.reduce((sum, node) => sum + Object.keys(node.ips).length, 0)
+  }, [transformedData])
+
+  const limit = typeof ipLimit === 'number' && ipLimit > 0 ? ipLimit : null
+
   const dialogTitle = useMemo(() => {
     return t('userAllIPs.title', {
       defaultValue: 'IP Addresses - {{username}}',
@@ -355,7 +367,14 @@ export default function UserAllIPsModal({ isOpen, onOpenChange, userId, username
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-muted-foreground flex items-center gap-2 text-sm">
+            <span>{t('userAllIPs.inUse', { defaultValue: 'In use' })}:</span>
+            <Badge variant={limit !== null && usedAddresses > limit ? 'destructive' : 'secondary'} dir="ltr">
+              {limit !== null ? `${usedAddresses} / ${limit}` : `${usedAddresses} / ∞`}
+            </Badge>
+            {limit === null && <span className="text-xs">{t('userAllIPs.noLimit', { defaultValue: 'no connection limit set' })}</span>}
+          </div>
           <Button variant="outline" onClick={handleRefresh} disabled={refreshing || isLoading} className="flex-1 sm:flex-none">
             <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
             <span className={cn(dir === 'rtl' ? 'mr-2' : 'ml-2')}>{t('userAllIPs.refresh', { defaultValue: 'Refresh' })}</span>
