@@ -4,12 +4,20 @@ import { cn } from '@/lib/utils'
 import { SystemResourceStats, SystemUsersStats } from '@/service/api'
 import { formatBytes } from '@/utils/formatByte'
 import { formatDuration } from '@/utils/formatDuration'
-import { Clock3, Cpu, Database, Download, HardDrive, MemoryStick, Upload, UserCheck, Users, Wifi } from 'lucide-react'
+import { Activity, Clock3, Cpu, Database, Download, HardDrive, MemoryStick, Upload, UserCheck, Users, Wifi } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { CircularProgress } from '@/components/ui/circular-progress'
 import { Card, CardContent } from '@/components/ui/card'
 
-const DashboardStatistics = ({ resourceData, usersData }: { resourceData: SystemResourceStats | undefined; usersData: SystemUsersStats | undefined }) => {
+const DashboardStatistics = ({
+  resourceData,
+  usersData,
+  liveBandwidth,
+}: {
+  resourceData: SystemResourceStats | undefined
+  usersData: SystemUsersStats | undefined
+  liveBandwidth?: { incoming: number; outgoing: number }
+}) => {
   const { t } = useTranslation()
   const dir = useDirDetection()
 
@@ -287,6 +295,50 @@ const DashboardStatistics = ({ resourceData, usersData }: { resourceData: System
             </Card>
           </div>
         </>
+      )}
+
+      {/* Live Bandwidth (sum of all nodes' current speed) */}
+      {liveBandwidth && (
+        <div className="animate-fade-in h-full w-full" style={{ animationDuration: '600ms', animationDelay: '400ms' }}>
+          <Card dir={dir} className="group relative h-full w-full overflow-hidden rounded-lg border transition-all duration-300 hover:shadow-lg">
+            <div className={cn('from-primary/10 absolute inset-0 bg-gradient-to-r to-transparent opacity-0 transition-opacity duration-500', 'dark:from-primary/5 dark:to-transparent', 'group-hover:opacity-100')} />
+            <CardContent className="relative z-10 flex h-full flex-col justify-between p-4 sm:p-5 lg:p-6">
+              <div className="mb-2 flex items-start justify-between sm:mb-3">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="bg-primary/10 rounded-lg p-1.5 sm:p-2">
+                    <Activity className="text-primary h-4 w-4 sm:h-5 sm:w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-muted-foreground truncate text-xs font-medium sm:text-sm">{t('statistics.liveBandwidth', { defaultValue: 'Live Bandwidth' })}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-end justify-between gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
+                  <span dir="ltr" className="truncate text-lg font-bold transition-all duration-300 sm:text-xl lg:text-2xl">
+                    {formatBytes((liveBandwidth.incoming + liveBandwidth.outgoing) || 0, 1)}/s
+                  </span>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2 text-xs">
+                  <div className="bg-muted/50 flex items-center gap-1 rounded-md px-1.5 py-1 text-green-600 dark:text-green-400">
+                    <Download className="h-3 w-3" />
+                    <span dir="ltr" className="font-medium">
+                      {formatBytes(liveBandwidth.incoming || 0, 1)}/s
+                    </span>
+                  </div>
+                  <div className="bg-muted/50 flex items-center gap-1 rounded-md px-1.5 py-1 text-blue-600 dark:text-blue-400">
+                    <Upload className="h-3 w-3" />
+                    <span dir="ltr" className="font-medium">
+                      {formatBytes(liveBandwidth.outgoing || 0, 1)}/s
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Panel Uptime */}

@@ -1905,6 +1905,7 @@
   },
   "statistics.system": "System",
   "statistics.totalTraffic": "Total Traffic",
+  "statistics.liveBandwidth": "Live Bandwidth",
   "statistics.ramUsage": "RAM Usage",
   "statistics.cpuUsage": "CPU Usage",
   "statistics.diskUsage": "Disk Usage",

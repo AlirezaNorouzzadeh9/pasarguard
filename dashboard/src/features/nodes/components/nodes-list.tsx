@@ -12,6 +12,7 @@ import {
   useGetNodes,
   useModifyNode,
   useGetCoresSimple,
+  useRealtimeNodesStats,
   NodeResponse,
   NodeStatus,
   NodeModify,
@@ -128,6 +129,17 @@ export default function NodesList() {
   })
 
   const { data: coresData } = useGetCoresSimple({ all: true }, { query: { enabled: canReadCoresSimple } })
+
+  // Live per-node bandwidth (incoming/outgoing speed). Polled a bit faster than
+  // the node list so the numbers feel live; keyed by node id.
+  const { data: realtimeStats } = useRealtimeNodesStats({
+    query: {
+      enabled: canReadNodeStats,
+      refetchInterval: 5000,
+      staleTime: 0,
+      gcTime: 0,
+    },
+  })
 
   const totalNodesFromResponse = nodesResponse?.total || 0
   const shouldUseLocalSearch = totalNodesFromResponse > 0 && totalNodesFromResponse <= NODES_PER_PAGE && !filters.search
@@ -715,6 +727,7 @@ export default function NodesList() {
                     canReconnect={canReconnectNodes}
                     canUpdateCore={canUpdateNodeCore}
                     canReadStats={canReadNodeStats}
+                    realtime={realtimeStats?.[String(node.id)]}
                   />
                 )}
                 renderSkeleton={i => (

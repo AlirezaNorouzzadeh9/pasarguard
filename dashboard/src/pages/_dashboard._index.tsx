@@ -19,7 +19,7 @@ import { Separator } from '@/components/ui/separator'
 import { useAdmin } from '@/hooks/use-admin'
 import { useClipboard } from '@/hooks/use-clipboard'
 import type { AdminDetails, UserResponse } from '@/service/api'
-import { useGetSystemResourceStats, useGetSystemUsersStats } from '@/service/api'
+import { useGetSystemResourceStats, useGetSystemUsersStats, useRealtimeNodesStats } from '@/service/api'
 import { getInboundDetails } from '@/service/api'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -226,6 +226,22 @@ const Dashboard = () => {
     },
   })
 
+  // Live total bandwidth across all nodes (sum of each node's current speed).
+  const { data: nodesRealtimeStats } = useRealtimeNodesStats({
+    query: { enabled: canReadNodeStats, refetchInterval: 5000, staleTime: 0, gcTime: 0 },
+  })
+  const liveBandwidth = useMemo(() => {
+    if (!nodesRealtimeStats) return undefined
+    let incoming = 0
+    let outgoing = 0
+    for (const stat of Object.values(nodesRealtimeStats)) {
+      if (!stat) continue
+      incoming += Number(stat.incoming_bandwidth_speed) || 0
+      outgoing += Number(stat.outgoing_bandwidth_speed) || 0
+    }
+    return { incoming, outgoing }
+  }, [nodesRealtimeStats])
+
   return (
     <div className="flex w-full flex-col items-start gap-2">
       <div className="animate-fade-in w-full transform-gpu" style={{ animationDuration: '400ms' }}>
@@ -236,7 +252,7 @@ const Dashboard = () => {
       <div className="w-full px-3 pt-2 sm:px-4">
         <div className="flex flex-col gap-4 sm:gap-6">
           <div className="animate-slide-up transform-gpu" style={{ animationDuration: '500ms', animationDelay: '100ms', animationFillMode: 'both' }}>
-            <DashboardStatistics resourceData={systemResourceStatsData} usersData={systemUsersStatsData} />
+            <DashboardStatistics resourceData={systemResourceStatsData} usersData={systemUsersStatsData} liveBandwidth={liveBandwidth} />
           </div>
           {canReadNodeStats && (
             <div className="animate-slide-up transform-gpu" style={{ animationDuration: '500ms', animationDelay: '180ms', animationFillMode: 'both' }}>
