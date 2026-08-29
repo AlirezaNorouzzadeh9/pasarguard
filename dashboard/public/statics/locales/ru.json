@@ -1463,6 +1463,7 @@
   },
   "statistics.system": "Система",
   "statistics.totalTraffic": "Общий трафик",
+  "statistics.liveBandwidth": "Скорость сейчас",
   "statistics.ramUsage": "Использование RAM",
   "statistics.cpuUsage": "Использование CPU",
   "statistics.diskUsage": "Использование диска",

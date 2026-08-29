@@ -1679,6 +1679,7 @@
   },
   "statistics.system": "سیستم",
   "statistics.totalTraffic": "کل ترافیک",
+  "statistics.liveBandwidth": "پهنای باند زنده",
   "statistics.ramUsage": "مصرف رم",
   "statistics.cpuUsage": "مصرف پردازنده",
   "statistics.diskUsage": "مصرف دیسک",

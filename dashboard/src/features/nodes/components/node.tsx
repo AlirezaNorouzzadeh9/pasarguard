@@ -1,11 +1,12 @@
 import { Card } from '@/components/ui/card'
-import { AlertCircle, Link2, Package, Server } from 'lucide-react'
+import { AlertCircle, ArrowDown, ArrowUp, Link2, Package, Server } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import useDirDetection from '@/hooks/use-dir-detection'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
-import { CoresSimpleResponse, NodeResponse } from '@/service/api'
+import { formatBytes } from '@/utils/formatByte'
+import { CoresSimpleResponse, NodeRealtimeStats, NodeResponse } from '@/service/api'
 import { useXrayReleases } from '@/hooks/use-xray-releases'
 import { useNodeReleases } from '@/hooks/use-node-releases'
 import NodeUsageDisplay from './node-usage-display'
@@ -24,6 +25,7 @@ interface NodeProps {
   canReconnect?: boolean
   canUpdateCore?: boolean
   canReadStats?: boolean
+  realtime?: NodeRealtimeStats | null
   selectionControl?: ReactNode
   selected?: boolean
 }
@@ -38,6 +40,7 @@ export default function Node({
   canReconnect = true,
   canUpdateCore = true,
   canReadStats = true,
+  realtime,
   selectionControl,
   selected = false,
 }: NodeProps) {
@@ -168,6 +171,20 @@ export default function Node({
                   {node.address}:{node.port}
                 </span>
               </div>
+
+              {/* Live bandwidth */}
+              {canReadStats && node.status === 'connected' && realtime && (
+                <div className="flex items-center gap-3 text-[10px] sm:text-xs" dir="ltr">
+                  <span className="flex items-center gap-1 font-medium text-green-600 dark:text-green-400">
+                    <ArrowDown className="h-3 w-3 shrink-0" />
+                    {formatBytes(realtime.incoming_bandwidth_speed || 0, 1)}/s
+                  </span>
+                  <span className="flex items-center gap-1 font-medium text-blue-600 dark:text-blue-400">
+                    <ArrowUp className="h-3 w-3 shrink-0" />
+                    {formatBytes(realtime.outgoing_bandwidth_speed || 0, 1)}/s
+                  </span>
+                </div>
+              )}
 
               {/* Version Info */}
               {(coreVersion || node.node_version) && (
