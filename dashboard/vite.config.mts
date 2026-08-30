@@ -3,7 +3,6 @@ import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 import svgr from 'vite-plugin-svgr'
 import path from 'path'
-import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   base: process.env.BASE_URL,
@@ -131,29 +130,16 @@ export default defineConfig({
       },
     ],
   },
+  // No service worker: the dashboard is served from base "/" but mounted under
+  // "/dashboard/", so a Workbox SW registered at "/sw.js" (root) 404s and gets
+  // stuck, serving a stale app shell ("Cannot read properties of undefined
+  // (reading 'default')") that no refresh can fix. An admin panel gains nothing
+  // from offline/installability, so we drop the PWA entirely and always serve
+  // fresh from the network. A self-destroying "/sw.js" (see dashboard/__init__.py)
+  // cleans up any service worker left over from earlier builds.
   plugins: [
     tailwindcss(),
     react(),
     svgr(),
-    VitePWA({
-      // autoUpdate + skipWaiting + clientsClaim so a new deploy takes over
-      // immediately instead of the old service worker serving stale chunks
-      // until every tab is closed. Without this, each frontend deploy left
-      // clients on a mismatched app-shell/chunk set ("Cannot read properties
-      // of undefined (reading 'default')") until they manually cleared storage.
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
-      workbox: {
-        navigateFallback: '/index.html',
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        // Monaco is loaded lazily in editor dialogs, so its largest chunks
-        // should stay network-fetched instead of bloating the app shell precache.
-        globIgnores: ['statics/editor.api*.js', 'statics/ts.worker*.js'],
-        // Drop precaches from a previous build so a stale shell can't linger.
-        cleanupOutdatedCaches: true,
-        skipWaiting: true,
-        clientsClaim: true,
-      },
-    }),
   ],
 })

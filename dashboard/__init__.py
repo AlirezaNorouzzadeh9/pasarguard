@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 from fastapi.staticfiles import StaticFiles
+from starlette.responses import Response
 
 from app import on_startup
 from config import dashboard_settings, runtime_settings, server_settings
@@ -14,6 +15,49 @@ build_dir = base_dir / "build"
 statics_dir = build_dir / "statics"
 NO_CACHE_FILENAMES = {"index.html", "404.html", "sw.js", "manifest.webmanifest"}
 HASHED_ASSET_RE = re.compile(r".+-[A-Za-z0-9_-]{6,}\.[A-Za-z0-9]+$")
+
+# Self-destroying service worker served at the site root ("/sw.js").
+#
+# Earlier dashboard builds shipped a Workbox service worker registered at
+# "/sw.js" with scope "/". The build is served from base "/" but the app is
+# mounted under "/dashboard/", so once the layout changed "/sw.js" began
+# returning 404. That permanently bricks any browser still holding the old
+# worker: its update fetch 404s (so the browser keeps the dead worker) and it
+# keeps serving a stale, mismatched app shell from cache ("Cannot read
+# properties of undefined (reading 'default')") that no amount of refreshing
+# fixes. Serving this script at the same URL lets the browser's own update
+# check swap the dead worker for one that unregisters itself and wipes every
+# cache, healing the client on its next navigation with no manual steps. The
+# dashboard no longer registers any service worker, so this only ever runs for
+# legacy clients.
+SELF_DESTROYING_SW = """\
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    try { await self.registration.unregister(); } catch (e) {}
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    } catch (e) {}
+    const clients = await self.clients.matchAll({ type: 'window' });
+    for (const client of clients) {
+      try { client.navigate(client.url); } catch (e) {}
+    }
+  })());
+});
+"""
+
+
+async def _self_destroying_sw(request):
+    return Response(
+        SELF_DESTROYING_SW,
+        media_type="text/javascript",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 class DashboardStaticFiles(StaticFiles):
@@ -70,6 +114,7 @@ def run_build(app):
     if runtime_settings.role.runs_panel and not build_dir.is_dir():
         build()
 
+    app.add_route("/sw.js", _self_destroying_sw, methods=["GET"])
     app.mount(dashboard_settings.path, DashboardStaticFiles(directory=build_dir, html=True), name="dashboard")
     app.mount("/statics/", DashboardStaticFiles(directory=statics_dir, html=True), name="statics")
 
