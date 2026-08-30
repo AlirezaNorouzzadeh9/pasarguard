@@ -136,17 +136,23 @@ export default defineConfig({
     react(),
     svgr(),
     VitePWA({
-      registerType: 'prompt',
-      injectRegister: false,
+      // autoUpdate + skipWaiting + clientsClaim so a new deploy takes over
+      // immediately instead of the old service worker serving stale chunks
+      // until every tab is closed. Without this, each frontend deploy left
+      // clients on a mismatched app-shell/chunk set ("Cannot read properties
+      // of undefined (reading 'default')") until they manually cleared storage.
+      registerType: 'autoUpdate',
+      injectRegister: 'auto',
       workbox: {
         navigateFallback: '/index.html',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         // Monaco is loaded lazily in editor dialogs, so its largest chunks
         // should stay network-fetched instead of bloating the app shell precache.
         globIgnores: ['statics/editor.api*.js', 'statics/ts.worker*.js'],
-        cleanupOutdatedCaches: false,
-        skipWaiting: false,
-        clientsClaim: false,
+        // Drop precaches from a previous build so a stale shell can't linger.
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
       },
     }),
   ],
