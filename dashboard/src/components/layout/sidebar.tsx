@@ -392,14 +392,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         ],
       },
     ],
-    navSecondary: [
-      {
-        title: t('supportUs'),
-        url: DONATION_URL,
-        icon: LifeBuoy,
-        target: '_blank',
-      },
-    ],
+    navSecondary: [],
     community: [
       {
         title: 'documentation',
@@ -411,12 +404,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         title: 'discussionGroup',
         url: DISCUSSION_GROUP,
         icon: RssIcon,
-        target: '_blank',
-      },
-      {
-        title: 'github',
-        url: REPO_URL,
-        icon: GithubIcon,
         target: '_blank',
       },
     ],
@@ -437,7 +424,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               {t('pasarguard')}
             </span>
           </Link>
-          <SidebarTriggerWithBadge showUpdateBadge={canReadSystem && hasUpdate} />
+          <SidebarTriggerWithBadge showUpdateBadge={false} />
         </div>
       </div>
       <Sidebar variant="sidebar" collapsible="icon" {...props} className="border-sidebar-border p-0" side={isRTL ? 'right' : 'left'}>
@@ -462,7 +449,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     asChild
                     className={cn('relative w-full justify-center !gap-0 transition-opacity duration-200 ease-in-out', showCollapseButton ? 'pointer-events-none opacity-0' : 'opacity-100')}
                   >
-                    <a href={REPO_URL} target="_blank">
+                    <a>
                       <img
                         src={resolvedTheme === 'dark' ? window.location.pathname + 'statics/favicon/logo.png' : window.location.pathname + 'statics/favicon/logo-dark.png'}
                         alt="PasarGuard Logo"
@@ -501,7 +488,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               ) : state !== 'collapsed' && !isMobile ? (
                 <div className={cn('relative', isRTL ? 'pl-10' : 'pr-10')}>
                   <SidebarMenuButton size="lg" className={cn('w-full !gap-2')}>
-                    <a href={REPO_URL} target="_blank" className="flex min-w-0 flex-1 items-center gap-2">
+                    <a className="flex min-w-0 flex-1 items-center gap-2">
                       <img
                         src={resolvedTheme === 'dark' ? window.location.pathname + 'statics/favicon/logo.png' : window.location.pathname + 'statics/favicon/logo-dark.png'}
                         alt="PasarGuard Logo"
@@ -550,7 +537,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </div>
               ) : (
                 <SidebarMenuButton size="lg" asChild className="!gap-2">
-                  <a href={REPO_URL} target="_blank">
+                  <a>
                     <img
                       src={resolvedTheme === 'dark' ? window.location.pathname + 'statics/favicon/logo.png' : window.location.pathname + 'statics/favicon/logo-dark.png'}
                       alt="PasarGuard Logo"
