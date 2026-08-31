@@ -564,7 +564,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarHeader>
         <SidebarContent>
           <NavMain items={data.navMain} />
-          {isOwner(admin) && <NavSecondary items={data.community} label={t('community')} />}
           <NavSecondary items={data.navSecondary} className="mt-auto" />
           <GoalProgress />
           <div className="flex items-center justify-between px-2 [&>:first-child]:[direction:ltr]">
