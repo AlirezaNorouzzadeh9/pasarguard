@@ -3,12 +3,9 @@ import { AppSidebar } from '@/components/layout/sidebar'
 import PageTransition from '@/components/layout/page-transition'
 import RouteGuard from '@/components/layout/route-guard'
 import { TopLoadingBar } from '@/components/layout/top-loading-bar'
-import { VersionUpdateBanner } from '@/components/layout/version-update-banner'
-import DonationPopup from '@/components/common/donation-popup'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { getCurrentAdmin } from '@/service/api'
 import { Outlet } from 'react-router'
-import TopbarAd from '@/components/common/topbar-ad'
 
 export const clientLoader = async (): Promise<any> => {
   try {
@@ -24,12 +21,9 @@ export default function DashboardLayout() {
     <SidebarProvider className="">
       <RouteGuard>
         <TopLoadingBar />
-        <DonationPopup />
         <div className="flex w-full flex-col lg:flex-row">
           <AppSidebar />
           <SidebarInset className="scroll-smooth">
-            <TopbarAd />
-            <VersionUpdateBanner />
             <div className="flex min-h-0 w-full flex-1 flex-col justify-between gap-y-4">
               <PageTransition duration={250} className="flex min-h-0 flex-1 flex-col">
                 <Outlet />
