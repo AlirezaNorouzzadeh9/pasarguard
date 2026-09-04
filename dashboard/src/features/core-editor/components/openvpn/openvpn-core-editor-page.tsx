@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
+import { CoreEditorHeader } from '@/features/core-editor/components/shell/core-editor-header'
 import { StickySaveBar } from '@/features/core-editor/components/shell/sticky-save-bar'
 import { subnetCapacity } from '@/features/core-editor/kit/openvpn-subnet'
 import { cn } from '@/lib/utils'
