@@ -510,8 +510,12 @@ class SubscriptionOperation(BaseOperation):
             # shows one card per host, so they are generated individually rather
             # than as the single zip the /wireguard endpoint returns. Users with
             # no WireGuard inbound simply get an empty list and no section.
+            # Serve as octet-stream, not text/plain: mobile browsers derive the
+            # saved file's extension from the MIME type and rename a text/plain
+            # download to .txt, ignoring the ".conf" in the download attribute —
+            # which the WireGuard app then refuses to import.
             wireguard_configs = [
-                _download_entry(remark, content, ".conf", "text/plain")
+                _download_entry(remark, content, ".conf", "application/octet-stream")
                 for remark, content in await generate_wireguard_configs(user, sub_settings.randomize_order)
             ]
             # OpenVPN is the same story as WireGuard: a .ovpn is a file, not a
