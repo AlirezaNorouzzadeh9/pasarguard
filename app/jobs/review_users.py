@@ -11,6 +11,7 @@ from app.db.crud.user import (
     get_active_to_limited_users,
     get_days_left_reached_users,
     get_on_hold_to_active_users,
+    get_renewed_to_active_users,
     get_usage_percentage_reached_users,
     reset_user_by_next,
     start_users_expire,
@@ -105,6 +106,19 @@ async def on_hold_to_active_users_job():
                     logger.exception('Failed to activate on-hold user "%s"', user.username)
 
 
+async def reactivate_renewed_users_job():
+    """Return renewed users that were left flagged expired/limited to active.
+
+    Counterpart to expire_users_job / limit_users_job: those only move users one
+    way (active -> expired/limited), so a renewal that doesn't re-activate through
+    the modify path would otherwise strand the user as expired/limited forever.
+    A manually disabled user uses the `disabled` status and is untouched here.
+    """
+    async with GetDB() as db:
+        if renewed_users := await get_renewed_to_active_users(db):
+            await _transition_users(db, renewed_users, UserStatus.active)
+
+
 async def usage_percent_notification_job():
     settings: Webhook = await webhook_settings()
     if not settings.enable:
@@ -186,7 +200,7 @@ async def days_left_notification_job():
 
 if runtime_settings.role.runs_scheduler:
     now = dt.now(UTC)
-    interval = int(job_settings.review_users_interval / 5)
+    interval = int(job_settings.review_users_interval / 6)
 
     # Register each job separately
     scheduler.add_job(
@@ -220,12 +234,22 @@ if runtime_settings.role.runs_scheduler:
         replace_existing=True,
     )
     scheduler.add_job(
-        usage_percent_notification_job,
+        reactivate_renewed_users_job,
         "interval",
         seconds=job_settings.review_users_interval,
         coalesce=True,
         max_instances=1,
         start_date=now + td(seconds=interval * 3),
+        id="reactivate_renewed_users",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        usage_percent_notification_job,
+        "interval",
+        seconds=job_settings.review_users_interval,
+        coalesce=True,
+        max_instances=1,
+        start_date=now + td(seconds=interval * 4),
         id="usage_percent_notification",
         replace_existing=True,
     )
@@ -235,7 +259,7 @@ if runtime_settings.role.runs_scheduler:
         seconds=job_settings.review_users_interval,
         coalesce=True,
         max_instances=1,
-        start_date=now + td(seconds=interval * 4),
+        start_date=now + td(seconds=interval * 5),
         id="days_left_notification",
         replace_existing=True,
     )

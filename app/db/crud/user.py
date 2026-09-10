@@ -578,6 +578,26 @@ async def get_on_hold_to_active_users(db: AsyncSession) -> list[User]:
     return list((await db.execute(stmt)).unique().scalars().all())
 
 
+async def get_renewed_to_active_users(db: AsyncSession) -> list[User]:
+    """Users a renewal left stranded: still flagged expired/limited while their
+    expiry is now in the future and their usage is back under the limit.
+
+    The review jobs only ever move users active -> expired/limited; nothing walks
+    that back. Extending expire through the modify path re-activates, but a data
+    top-up on an already-expired user, or any renewal that bypasses that path (an
+    external/reseller tool writing the row directly), leaves the stored status
+    stale. This reselects them so the reactivation job can return them to active.
+    """
+    stmt = (
+        _build_user_select_stmt()
+        .where(User.status.in_([UserStatus.expired, UserStatus.limited]))
+        .where(~User.is_expired)
+        .where(~User.is_limited)
+    )
+
+    return list((await db.execute(stmt)).unique().scalars().all())
+
+
 async def get_users_to_reset_data_usage(db: AsyncSession) -> list[User]:
     """
     Retrieves users whose data usage needs to be reset based on their reset strategy.
