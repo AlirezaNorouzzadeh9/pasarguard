@@ -833,7 +833,15 @@ function showQR(text,ev){
   document.getElementById('qrModal').style.display='flex';
 }
 function qrSub(ev){showQR(subUrlValue(),ev);}
-function showFileQR(cfg,ev){showQR(cfg,ev);}
+function showFileQR(cfg,ev){
+  /* cfg is the download's data: URL. Config apps (WireGuard especially) scan the
+     raw file text, not a data: URI — so decode the base64 payload back to the
+     plain .conf/.ovpn text and put THAT in the QR, or the scan won't import. */
+  var text=cfg;
+  var m=/^data:[^,]*;base64,(.*)$/.exec(cfg||'');
+  if(m){ try{ text=decodeURIComponent(escape(atob(m[1]))); }catch(e){ try{ text=atob(m[1]); }catch(_){} } }
+  showQR(text,ev);
+}
 function closeQR(){document.getElementById('qrModal').style.display='none';}
 
 /* ------------------------------------------------------------------ flags */
