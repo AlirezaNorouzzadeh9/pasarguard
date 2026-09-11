@@ -13,7 +13,7 @@ interface NodeReleaseResult {
   hasUpdate: (currentVersion: string | null) => boolean
 }
 
-const GITHUB_API_URL = 'https://api.github.com/repos/PasarGuard/node/releases/latest'
+const GITHUB_API_URL = 'https://api.github.com/repos/AlirezaNorouzzadeh9/pasarguardNode/releases/latest'
 const CACHE_KEY = 'pg_node_release'
 const CACHE_DURATION = 10 * 60 * 1000
 
