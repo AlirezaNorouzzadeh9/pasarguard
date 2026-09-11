@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "short_name": "",
+  "name": "Klaris Panel",
+  "short_name": "Klaris",
   "icons": [
     {
       "src": "/statics/favicon/logo-pwa.png",

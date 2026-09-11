@@ -200,7 +200,7 @@ export default function OpenVPNOverview() {
                 const url = URL.createObjectURL(blob)
                 const a = document.createElement('a')
                 a.href = url
-                a.download = 'pasarguard-openvpn-ca.crt'
+                a.download = 'klaris-openvpn-ca.crt'
                 a.click()
                 URL.revokeObjectURL(url)
               }}

@@ -6,7 +6,7 @@ const FooterContent = () => {
     <p className="inline-block flex-grow text-center text-xs text-gray-500">
       Made with ❤️ by &nbsp;
       <a className="text-blue-400" href={REPO_URL}>
-        PasarGuard
+        Klaris
       </a>{' '}
       Team
     </p>

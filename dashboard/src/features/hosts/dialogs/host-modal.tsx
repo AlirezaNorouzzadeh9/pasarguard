@@ -1371,7 +1371,7 @@ const HostModal: React.FC<HostModalProps> = ({ isDialogOpen, onOpenChange, onSub
                       <CustomVariablesPopover />
                     </div>
                     <FormControl>
-                      <Input placeholder="Remark (e.g. PasarGuard-Host)" isError={!!form.formState.errors.remark} {...field} />
+                      <Input placeholder="Remark (e.g. Klaris-Host)" isError={!!form.formState.errors.remark} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
