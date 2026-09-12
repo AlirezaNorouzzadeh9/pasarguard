@@ -445,7 +445,7 @@ html[lang="en"] .lang-fa,html[lang="fa"] .lang-en,.lang-ru,.lang-zh{display:none
       </div>
     {% else %}
       {% set protos = [] %}
-      {% if xray_links %}{% set _ = protos.append(('xray','Xray', xray_links|length)) %}{% endif %}
+      {% if xray_links %}{% set _ = protos.append(('xray','V2Ray', xray_links|length)) %}{% endif %}
       {% if wireguard_configs %}{% set _ = protos.append(('wg','WireGuard', wireguard_configs|length)) %}{% endif %}
       {% if openvpn_configs %}{% set _ = protos.append(('ov','OpenVPN', openvpn_configs|length)) %}{% endif %}
       {% if l2tp_details is defined and l2tp_details %}{% set _ = protos.append(('l2tp','L2TP', l2tp_details|length)) %}{% endif %}
@@ -602,10 +602,10 @@ html[lang="en"] .lang-fa,html[lang="fa"] .lang-en,.lang-ru,.lang-zh{display:none
        panel where nobody has, which is how this page shipped. #}
     {% set os_names = [('android','Android'),('ios','iOS'),('windows','Windows'),('macos','macOS'),('linux','Linux'),('androidtv','Android TV'),('appletv','Apple TV')] %}
     {% set builtin = {
-      'android':[('v2rayNG','Xray','https://github.com/2dust/v2rayNG/releases/latest'),('Happ','Xray','https://play.google.com/store/apps/details?id=com.happproxy'),('WireGuard','WireGuard','https://play.google.com/store/apps/details?id=com.wireguard.android'),('OpenVPN Connect','OpenVPN','https://play.google.com/store/apps/details?id=net.openvpn.openvpn')],
-      'ios':[('Streisand','Xray','https://apps.apple.com/app/streisand/id6450534064'),('Shadowrocket','Xray','https://apps.apple.com/app/shadowrocket/id932747118'),('WireGuard','WireGuard','https://apps.apple.com/app/wireguard/id1441195209'),('OpenVPN Connect','OpenVPN','https://apps.apple.com/app/openvpn-connect/id590379981')],
-      'windows':[('v2rayN','Xray','https://github.com/2dust/v2rayN/releases/latest'),('Happ','Xray','https://github.com/Happ-proxy/happ-desktop/releases/latest'),('WireGuard','WireGuard','https://www.wireguard.com/install/'),('OpenVPN Connect','OpenVPN','https://openvpn.net/client/')],
-      'macos':[('V2Box','Xray','https://apps.apple.com/app/v2box-v2ray-client/id6446814690'),('Hiddify','Xray','https://github.com/hiddify/hiddify-next/releases/latest'),('WireGuard','WireGuard','https://apps.apple.com/app/wireguard/id1451685025'),('OpenVPN Connect','OpenVPN','https://openvpn.net/client/')]
+      'android':[('v2rayNG','V2Ray','https://github.com/2dust/v2rayNG/releases/latest'),('Happ','V2Ray','https://play.google.com/store/apps/details?id=com.happproxy'),('WireGuard','WireGuard','https://play.google.com/store/apps/details?id=com.wireguard.android'),('OpenVPN Connect','OpenVPN','https://play.google.com/store/apps/details?id=net.openvpn.openvpn')],
+      'ios':[('Streisand','V2Ray','https://apps.apple.com/app/streisand/id6450534064'),('Shadowrocket','V2Ray','https://apps.apple.com/app/shadowrocket/id932747118'),('WireGuard','WireGuard','https://apps.apple.com/app/wireguard/id1441195209'),('OpenVPN Connect','OpenVPN','https://apps.apple.com/app/openvpn-connect/id590379981')],
+      'windows':[('v2rayN','V2Ray','https://github.com/2dust/v2rayN/releases/latest'),('Happ','V2Ray','https://github.com/Happ-proxy/happ-desktop/releases/latest'),('WireGuard','WireGuard','https://www.wireguard.com/install/'),('OpenVPN Connect','OpenVPN','https://openvpn.net/client/')],
+      'macos':[('V2Box','V2Ray','https://apps.apple.com/app/v2box-v2ray-client/id6446814690'),('Hiddify','V2Ray','https://github.com/hiddify/hiddify-next/releases/latest'),('WireGuard','WireGuard','https://apps.apple.com/app/wireguard/id1451685025'),('OpenVPN Connect','OpenVPN','https://openvpn.net/client/')]
     } %}
     {# The icons ride in the page rather than being fetched: this page is read on networks where the App Store and GitHub do not answer, and an <img> to either is an empty box there. 64px WebP, ~12KB for all eight. #}
     {% set app_icons = {
