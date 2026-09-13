@@ -63,10 +63,16 @@ async def prepare_wireguard_keys(
 
     Peer IPs are managed by the subnet pool (app/db/crud/wireguard.py), never here.
     """
+    # Uniqueness is enforced before the access check on purpose. A user with no
+    # WireGuard access still *stores* whatever key the client sent, and a reseller
+    # bot that reuses one hardcoded keypair would leave a pile of users sharing it.
+    # They look harmless while they have no access — but the day their group gains
+    # a WireGuard inbound they all collide at once and the node cannot build its
+    # peer list, taking the whole wg core down.
+    await ensure_unique_wireguard_public_key(db, proxy_settings, exclude_user_id=exclude_user_id)
+
     if not await user_has_wireguard_access(db, groups):
         return proxy_settings
-
-    await ensure_unique_wireguard_public_key(db, proxy_settings, exclude_user_id=exclude_user_id)
 
     if proxy_settings.wireguard.public_key and not proxy_settings.wireguard.private_key:
         raise ValueError("wireguard private_key is required when user is assigned to a WireGuard interface")

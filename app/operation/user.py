@@ -114,6 +114,7 @@ from app.utils.l2tp import prepare_l2tp_proxy_settings
 from app.utils.logger import get_logger
 from app.utils.openvpn import prepare_openvpn_proxy_settings
 from app.utils.system import readable_duration, readable_size
+from app.utils.hysteria import ensure_unique_hysteria_auth
 from app.utils.wireguard import ensure_unique_wireguard_public_key, prepare_wireguard_keys
 from config import subscription_env_settings, usage_settings
 
@@ -170,6 +171,18 @@ def _duplicate_wireguard_public_key_usernames(users: list[UserCreate]) -> tuple[
     for public_key, usernames in owners.items():
         if len(usernames) > 1:
             return public_key, usernames
+    return None
+
+
+def _duplicate_hysteria_auth_usernames(users: list[UserCreate]) -> tuple[str, list[str]] | None:
+    owners: dict[str, list[str]] = {}
+    for user in users:
+        auth = user.proxy_settings.hysteria.auth
+        if auth:
+            owners.setdefault(auth, []).append(user.username)
+    for auth, usernames in owners.items():
+        if len(usernames) > 1:
+            return auth, usernames
     return None
 
 
@@ -381,6 +394,15 @@ class UserOperation(BaseOperation):
                 user_to_create.proxy_settings,
             )
 
+        duplicate_auth = _duplicate_hysteria_auth_usernames(users_to_create)
+        if duplicate_auth is not None:
+            auth, usernames = duplicate_auth
+            await self.raise_error(
+                message=(f"hysteria auth {auth} is assigned to multiple new users: {', '.join(usernames[:2])}"),
+                code=400,
+                db=db,
+            )
+
         duplicate_key = _duplicate_wireguard_public_key_usernames(users_to_create)
         if duplicate_key is not None:
             public_key, usernames = duplicate_key
@@ -393,6 +415,7 @@ class UserOperation(BaseOperation):
             )
         for user_to_create in users_to_create:
             try:
+                await ensure_unique_hysteria_auth(db, user_to_create.proxy_settings)
                 await ensure_unique_wireguard_public_key(db, user_to_create.proxy_settings)
             except ValueError as exc:
                 await self.raise_error(message=str(exc), code=400, db=db)
@@ -437,6 +460,7 @@ class UserOperation(BaseOperation):
         exclude_user_id: int | None = None,
     ) -> ProxyTable:
         try:
+            await ensure_unique_hysteria_auth(db, proxy_settings, exclude_user_id=exclude_user_id)
             return await prepare_wireguard_keys(
                 db,
                 proxy_settings,
