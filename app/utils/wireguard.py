@@ -30,6 +30,13 @@ async def ensure_unique_wireguard_public_key(
     exclude_user_id: int | None = None,
 ) -> None:
     public_key = proxy_settings.wireguard.public_key
+    # A client may send only the private key; the public key is derived from it, so
+    # a duplicate private key yields a duplicate public key. Derive it now so the
+    # check below actually sees it and regenerates, instead of letting a shared
+    # private key slip through and produce the duplicate public key later.
+    if not public_key and proxy_settings.wireguard.private_key:
+        public_key = get_wireguard_public_key(proxy_settings.wireguard.private_key)
+        proxy_settings.wireguard.public_key = public_key
     if not public_key:
         return
     if not await wireguard_public_key_in_use(db, public_key, exclude_user_id=exclude_user_id):
